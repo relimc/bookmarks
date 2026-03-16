@@ -853,8 +853,7 @@
                 alert('❌ 操作失败: ' + (result.message || ''));
             }
         } catch (err) {
-            console.error('❌ 网络错误', err);
-            alert('❌ 网络错误');
+            alert('操作失败：请确保已登录或网络正常');
         } finally {
             submitBtn.disabled = false;
             submitBtn.textContent = editingId.value ? '保存修改' : '提交书签';
@@ -1108,82 +1107,30 @@
         importBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 导入中...';
         importBtn.disabled = true;
 
-        // 分类去重（按名称和父级，但简化起见直接按名称去重）
-        const categoryMap = new Map();
-        categories.forEach(cat => {
-            if (!categoryMap.has(cat.name)) {
-                categoryMap.set(cat.name, cat);
+        try {
+            const payload = {
+                categories: categories,   // 需要去重？后端会处理
+                bookmarks: bookmarks
+            };
+            const res = await fetch('/import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await res.json();
+            if (res.ok && result.success) {
+                alert(`✅ 导入成功！共导入 ${result.imported} 个书签。`);
+                refreshDataAndUI();
+            } else {
+                alert('❌ 导入失败: ' + (result.message || '未知错误'));
             }
-        });
-        const uniqueCategories = Array.from(categoryMap.values());
-
-        // 按深度排序（父级在前）
-        uniqueCategories.sort((a, b) => {
-            const depthA = a.parent ? 1 : 0;
-            const depthB = b.parent ? 1 : 0;
-            return depthA - depthB;
-        });
-
-        let categorySuccess = 0;
-        for (let cat of uniqueCategories) {
-            try {
-                const payload = {
-                    name: cat.name,
-                    icon: cat.icon,
-                    parent: cat.parent || ''
-                };
-                const res = await fetch('/add_category', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const result = await res.json();
-                if (res.ok && result.success) {
-                    categorySuccess++;
-                } else {
-                    console.warn('分类创建失败:', result.message, cat);
-                }
-            } catch (err) {
-                console.error('分类创建异常:', err, cat);
-            }
+        } catch (err) {
+            console.error('导入异常:', err);
+            alert('❌ 网络错误，请重试');
+        } finally {
+            importBtn.innerHTML = originalText;
+            importBtn.disabled = false;
         }
-
-        let bookmarkSuccess = 0;
-        let bookmarkFail = 0;
-        for (let b of bookmarks) {
-            try {
-                const payload = {
-                    url: b.url,
-                    category: b.category,
-                    category_icon: 'fas fa-folder',
-                    parent_category: '',
-                    title: b.title,
-                    description: '',
-                    icon: b.icon || ''
-                };
-                const res = await fetch('/add', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const result = await res.json();
-                if (res.ok && result.success) {
-                    bookmarkSuccess++;
-                } else {
-                    bookmarkFail++;
-                    console.warn('书签导入失败:', result.message, b);
-                }
-            } catch (err) {
-                bookmarkFail++;
-                console.error('书签导入异常:', err, b);
-            }
-        }
-
-        importBtn.innerHTML = originalText;
-        importBtn.disabled = false;
-
-        alert(`导入完成：分类 ${categorySuccess}/${uniqueCategories.length} 个，书签 ${bookmarkSuccess}/${bookmarks.length} 个。`);
-        refreshDataAndUI();
     }
 
     // 初始化
