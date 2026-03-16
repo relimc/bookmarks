@@ -7,7 +7,7 @@ import extract_favicon
 from flask import Flask, request, jsonify, render_template
 
 app = Flask(__name__)
-DATA_FILE = 'data.json'
+DATA_FILE = 'data/data.json'
 
 
 def load_data():
