@@ -521,16 +521,17 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2rem;
+    line-height: 1;
 }
 
 .card-icon i {
-    font-size: 2rem;
+    font-size: 16px;       /* 与 favicon 常见尺寸一致 */
+    line-height: 1;
 }
 
 .card-icon img {
-    max-width: 32px;
-    max-height: 32px;
+    max-width: 16px;
+    max-height: 16px;
     object-fit: contain;
 }
 

@@ -486,7 +486,7 @@
         if (b.icon && (b.icon.startsWith('http') || b.icon.startsWith('data:image'))) {
             iconHtml = `<img src="${escapeHtml(b.icon)}" alt="icon" onerror="this.onerror=null; this.style.display='none'; let domainIcon = getDomainFaviconFromUrl('${escapeHtml(b.url)}'); if(domainIcon) { let img = new Image(); img.onload = function() { this.parentNode.innerHTML = ''; this.parentNode.appendChild(img); }; img.onerror = function() { this.parentNode.innerHTML = '<i class=\\'fas fa-folder\\'></i>'; }; img.src = domainIcon; } else { this.parentNode.innerHTML = '<i class=\\'fas fa-folder\\'></i>'; }">`;
         } else {
-            const faClass = lineconsToFA[b.icon] || b.icon || 'fas fa-folder';
+            const faClass = lineconsToFA[b.icon] || b.icon || 'fas fa-tag';
             iconHtml = `<i class="${faClass}"></i>`;
         }
         const title = escapeHtml(b.title || b.category || '链接');
