@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的书签 · 个人收藏导航</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome 图标库 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- 自定义样式 -->
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container-fluid h-100 p-0">
+        <div class="row h-100 g-0">
+            <!-- 左侧侧边栏 -->
+            <div class="sidebar col-auto" id="sidebar">
+                <div class="sidebar-header">
+                    <span class="logo">🔖</span>
+                    <span class="title">我的书签</span>
+                </div>
+                <div class="category-tree" id="categoryTree">
+                    <div class="text-center p-4" style="color:#8fa3bc;">加载分类中...</div>
+                </div>
+                <div class="sidebar-footer">
+                    <div class="shortcut-hint">
+                        <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd> <span>新增书签</span>
+                    </div>
+                </div>
+                <!-- 二级分类浮层容器 -->
+                <div class="subcategory-popup" id="subcategoryPopup"></div>
+            </div>
+
+            <!-- 右侧主面板 -->
+            <div class="col main-panel">
+                <div class="panel-header">
+                    <div class="header-left">
+                        <button class="collapse-btn" id="collapseSidebarBtn">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        <!-- 当前分类显示（可选） -->
+                        <span class="current-category" id="currentCategoryDisplay" style="display: none;">
+                            <span class="current-icon" id="currentCategoryIcon"><i class="fas fa-home"></i></span>
+                            <span id="currentCategoryName">全部</span>
+                        </span>
+                    </div>
+
+                    <!-- 搜索框 -->
+                    <div class="search-container">
+                        <div class="search-engine-selector" id="engineSelector">
+                            <span class="engine-icon" id="selectedEngineIcon"><i class="fas fa-search"></i></span>
+                            <div class="engine-dropdown" id="engineDropdown"></div>
+                        </div>
+                        <input type="text" class="search-input" id="searchInput" placeholder="可本地搜索，快速找到收藏网址">
+                        <button class="search-btn" id="searchBtn"><i class="fas fa-search"></i></button>
+                    </div>
+
+                    <div class="header-right">
+                        <button class="import-btn" id="importBookmarksBtn" title="导入浏览器书签">
+                            <i class="fas fa-upload"></i>
+                        </button>
+                        <a href="https://github.com/你的用户名" target="_blank" class="github-link">
+                            <i class="fab fa-github"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 卡片网格容器 -->
+                <div class="bookmark-grid" id="bookmarkGrid">
+                    <div class="loading-spinner text-center p-5" style="color:#8fa3bc;">⏳ 正在加载收藏...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新增/编辑模态框 (Bootstrap) -->
+    <div class="modal fade" id="bookmarkModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">📋 新增书签</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="editingId" value="">
+
+                    <div class="mb-3">
+                        <label class="form-label">网址</label>
+                        <input type="url" class="form-control" id="urlInput" placeholder="https:// 或 http://">
+                        <div class="form-text text-muted small" id="clipboardHint"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">标题</label>
+                        <input type="text" class="form-control" id="titleInput" placeholder="自动抓取或手动输入">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">描述</label>
+                        <textarea class="form-control" id="descriptionInput" rows="2"></textarea>
+                    </div>
+
+                    <div class="mb-3" id="parentCategoryGroup" style="display: none;">
+                        <label class="form-label">上级分类</label>
+                        <select class="form-select" id="parentCategorySelect">
+                            <option value="">-- 无 (一级分类) --</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">分类</label>
+                        <div class="d-flex gap-2 align-items-center">
+                            <select class="form-select" id="categorySelect" style="display: block;">
+                                <option value="">-- 选择已有分类 --</option>
+                            </select>
+                            <input type="text" class="form-control" id="newCategoryInput" placeholder="输入新分类名称" style="display: none;">
+                            <div class="category-icon-preview" id="categoryIconPreview">📁</div>
+                        </div>
+                        <div class="mt-2">
+                            <span id="toggleCategoryMode" style="cursor:pointer; color:#2563eb;">➕ 新增分类</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3" id="newCategoryIconGroup" style="display: none;">
+                        <label class="form-label">分类图标</label>
+                        <div class="d-flex gap-2">
+                            <select class="form-select" id="newCategoryIconSelect">
+                                <option value="fas fa-folder">📁 文件夹 (默认)</option>
+                                <option value="fas fa-music">🎵 音乐</option>
+                                <option value="fas fa-video">🎬 视频</option>
+                                <option value="fas fa-image">🖼️ 图片</option>
+                                <option value="fas fa-code">💻 编程</option>
+                                <option value="fas fa-gamepad">🎮 游戏</option>
+                                <option value="fas fa-book">📚 读书</option>
+                                <option value="fas fa-shopping-cart">🛒 购物</option>
+                                <option value="fas fa-newspaper">📰 新闻</option>
+                                <option value="fas fa-heart">❤️ 收藏</option>
+                                <option value="fas fa-star">⭐ 推荐</option>
+                                <option value="fas fa-cog">⚙️ 工具</option>
+                                <option value="custom">✏️ 自定义输入</option>
+                            </select>
+                            <input type="text" class="form-control" id="newCategoryCustomIcon" placeholder="输入Emoji或图标URL" style="display: none;">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-danger" id="deleteBtn" style="display: none;">删除</button>
+                    <button type="button" class="btn btn-primary" id="submitBtn">提交</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS + Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- 自定义脚本 -->
+    <script src="/static/script.js"></script>
+</body>
+</html>
