@@ -3,10 +3,9 @@ import os
 import time
 import requests
 from bs4 import BeautifulSoup
-import extract_favicon
 from flask import Flask, request, jsonify, render_template
 from flask_httpauth import HTTPBasicAuth
-from werkzeug.security import generate_password_hash, check_password_hash
+from urllib.parse import urljoin
 
 app = Flask(__name__)
 auth = HTTPBasicAuth()
@@ -219,8 +218,51 @@ def import_bookmarks():
     save_data(data)
     return jsonify({'success': True, 'data': data, 'imported': import_count})
 
+def extract_icon_url(soup, base_url):
+    """
+    从BeautifulSoup对象中提取最合适的图标URL
+    优先级：link[rel="icon"] > link[rel="shortcut icon"] > link[rel="apple-touch-icon"] > meta[property="og:image"] > 域名/favicon.ico
+    """
+    # 候选链接列表
+    candidates = []
+
+    # 1. 查找所有 <link rel="icon"> 或 <link rel="shortcut icon">
+    for link in soup.find_all('link', rel=lambda x: x and ('icon' in x.lower() or 'shortcut icon' in x.lower())):
+        href = link.get('href')
+        if href:
+            # 处理相对路径
+            full_url = urljoin(base_url, href)
+            candidates.append(full_url)
+
+    # 2. 查找 apple-touch-icon（常用于移动端）
+    for link in soup.find_all('link', rel=lambda x: x and 'apple-touch-icon' in x.lower()):
+        href = link.get('href')
+        if href:
+            full_url = urljoin(base_url, href)
+            candidates.append(full_url)
+
+    # 3. 查找 Open Graph 图片（有些网站用 og:image 作为分享图标，可能不是标准图标，但可作后备）
+    og_image = soup.find('meta', property='og:image')
+    if og_image and og_image.get('content'):
+        full_url = urljoin(base_url, og_image['content'])
+        candidates.append(full_url)
+
+    # 4. 如果以上都没找到，尝试构造域名下的 /favicon.ico
+    if not candidates:
+        # 解析域名
+        from urllib.parse import urlparse
+        parsed = urlparse(base_url)
+        base = f"{parsed.scheme}://{parsed.netloc}"
+        candidates.append(f"{base}/favicon.ico")
+
+    # 返回第一个候选（可根据需要调整优先级，如选择 .ico 优先于 .svg 等，但简单起见返回第一个）
+    # 注意：有些网站可能有多个图标，我们可以选择第一个，或者按文件类型偏好排序
+    # 这里简单返回第一个
+    return candidates[0] if candidates else ''
+
 @app.route('/fetch-metadata', methods=['POST'])
 def fetch_metadata():
+    """接收URL，返回网页的标题、描述和图标（支持多种格式）"""
     req = request.get_json()
     url = req.get('url', '').strip()
     if not url:
@@ -235,6 +277,7 @@ def fetch_metadata():
         resp.encoding = 'utf-8'
         soup = BeautifulSoup(resp.text, 'html.parser')
 
+        # 获取标题
         title = ''
         if soup.title and soup.title.string:
             title = soup.title.string.strip()
@@ -242,27 +285,14 @@ def fetch_metadata():
             h1 = soup.find('h1')
             title = h1.get_text().strip() if h1 else ''
 
+        # 获取描述
         description = ''
         meta_desc = soup.find('meta', attrs={'name': 'description'}) or soup.find('meta', attrs={'property': 'og:description'})
         if meta_desc and meta_desc.get('content'):
             description = meta_desc['content'].strip()
 
-        icon_url = ''
-        try:
-            favicons = extract_favicon.from_url(url, timeout=5)
-            if favicons:
-                icon_url = favicons[0].url
-        except Exception as e:
-            print(f"Favicon error: {e}")
-
-        # 如果没抓到图标，尝试构造域名 /favicon.ico
-        if not icon_url:
-            try:
-                parsed = requests.utils.urlparse(url)
-                base_url = f"{parsed.scheme}://{parsed.netloc}"
-                icon_url = f"{base_url}/favicon.ico"
-            except:
-                pass
+        # 获取图标（增强版）
+        icon_url = extract_icon_url(soup, url)
 
         return jsonify({
             'success': True,

@@ -1,6 +1,5 @@
 flask
 requests
 beautifulsoup4
-extract-favicon
 gunicorn
 Flask-HTTPAuth

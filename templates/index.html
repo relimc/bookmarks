@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的书签 · 个人收藏导航</title>
+    <link rel="icon" type="image/png" href="/static/bookmark.png">
+    <title>我的书签 · 个人书签导航</title>
     <!-- 本地 Bootstrap CSS -->
     <link rel="stylesheet" href="/static/bootstrap/bootstrap.min.css">
     <!-- 本地 Font Awesome 图标库 -->
@@ -24,8 +25,9 @@
                     <div class="text-center p-4" style="color:#8fa3bc;">加载分类中...</div>
                 </div>
                 <div class="sidebar-footer">
-                    <div class="shortcut-hint">
-                        <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd> <span>新增书签</span>
+                    <div class="shortcut-hint" id="shortcutHint">
+                        <span class="hint-text"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd> 新增书签</span>
+                        <span class="hint-icon"><i class="fas fa-lightbulb"></i></span>
                     </div>
                 </div>
                 <!-- 二级分类浮层容器 -->
@@ -39,7 +41,7 @@
                         <button class="collapse-btn" id="collapseSidebarBtn">
                             <i class="fas fa-bars"></i>
                         </button>
-                        <!-- 当前分类显示（可选） -->
+                        <!-- 当前分类显示（已隐藏） -->
                         <span class="current-category" id="currentCategoryDisplay" style="display: none;">
                             <span class="current-icon" id="currentCategoryIcon"><i class="fas fa-home"></i></span>
                             <span id="currentCategoryName">全部</span>
@@ -58,10 +60,10 @@
 
                     <div class="header-right">
                         <button class="import-btn" id="importBookmarksBtn" title="导入浏览器书签">
-                            <i class="fas fa-upload"></i>
+                            <i class="fas fa-upload"></i> 导入
                         </button>
                         <a href="https://github.com/你的用户名" target="_blank" class="github-link">
-                            <i class="fab fa-github"></i>
+                            <i class="fab fa-github"></i> GitHub
                         </a>
                     </div>
                 </div>
@@ -76,7 +78,7 @@
 
     <!-- 新增/编辑模态框 (Bootstrap) -->
     <div class="modal fade" id="bookmarkModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog" style="margin-top: 30px;">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="modalTitle">📋 新增书签</h5>
@@ -101,47 +103,70 @@
                         <textarea class="form-control" id="descriptionInput" rows="2"></textarea>
                     </div>
 
+                    <!-- 上级分类（仅新增分类时显示） -->
                     <div class="mb-3" id="parentCategoryGroup" style="display: none;">
                         <label class="form-label">上级分类</label>
                         <select class="form-select" id="parentCategorySelect">
-                            <option value="">-- 无 (一级分类) --</option>
+                            <option value="">可选，不选则下方分类为一级分类</option>
                         </select>
                     </div>
 
-                    <div class="mb-3">
+                    <!-- 编辑模式：已有分类下拉框 -->
+                    <div class="mb-3" id="existingCategoryGroup">
                         <label class="form-label">分类</label>
-                        <div class="d-flex gap-2 align-items-center">
-                            <select class="form-select" id="categorySelect" style="display: block;">
-                                <option value="">-- 选择已有分类 --</option>
-                            </select>
-                            <input type="text" class="form-control" id="newCategoryInput" placeholder="输入新分类名称" style="display: none;">
-                            <div class="category-icon-preview" id="categoryIconPreview">📁</div>
-                        </div>
-                        <div class="mt-2">
-                            <span id="toggleCategoryMode" style="cursor:pointer; color:#2563eb;">➕ 新增分类</span>
-                        </div>
+                        <select class="form-select" id="categorySelect">
+                            <option value="">-- 选择已有分类 --</option>
+                        </select>
                     </div>
 
+                    <!-- 新增模式：分类图标选择器（初始隐藏） -->
                     <div class="mb-3" id="newCategoryIconGroup" style="display: none;">
-                        <label class="form-label">分类图标</label>
-                        <div class="d-flex gap-2">
-                            <select class="form-select" id="newCategoryIconSelect">
-                                <option value="fas fa-folder">📁 文件夹 (默认)</option>
-                                <option value="fas fa-music">🎵 音乐</option>
-                                <option value="fas fa-video">🎬 视频</option>
-                                <option value="fas fa-image">🖼️ 图片</option>
-                                <option value="fas fa-code">💻 编程</option>
-                                <option value="fas fa-gamepad">🎮 游戏</option>
-                                <option value="fas fa-book">📚 读书</option>
-                                <option value="fas fa-shopping-cart">🛒 购物</option>
-                                <option value="fas fa-newspaper">📰 新闻</option>
-                                <option value="fas fa-heart">❤️ 收藏</option>
-                                <option value="fas fa-star">⭐ 推荐</option>
-                                <option value="fas fa-cog">⚙️ 工具</option>
-                                <option value="custom">✏️ 自定义输入</option>
-                            </select>
-                            <input type="text" class="form-control" id="newCategoryCustomIcon" placeholder="输入Emoji或图标URL" style="display: none;">
+                        <label class="form-label">分类</label>
+                        <div class="custom-icon-selector">
+                            <div class="selected-icon" id="selectedIconDisplay">
+                                <span class="selected-icon-preview" id="selectedIconPreview"><i class="fas fa-folder"></i></span>
+                                <span class="selected-icon-text" id="selectedIconText">请选择分类</span>
+                                <span class="caret">▼</span>
+                            </div>
+                            <div class="icon-dropdown-panel" id="iconDropdownPanel">
+                                <div class="icon-grid">
+                                    <!-- 名词列 -->
+                                    <div class="icon-column">
+                                        <div class="column-header">📁 名词分类</div>
+                                        <div class="icon-option" data-value="fas fa-image" data-name="图片"><i class="fas fa-image"></i> 图片</div>
+                                        <div class="icon-option" data-value="fas fa-music" data-name="音乐"><i class="fas fa-music"></i> 音乐</div>
+                                        <div class="icon-option" data-value="fas fa-video" data-name="视频"><i class="fas fa-video"></i> 视频</div>
+                                        <div class="icon-option" data-value="fas fa-file-alt" data-name="文档"><i class="fas fa-file-alt"></i> 文档</div>
+                                        <div class="icon-option" data-value="fas fa-gamepad" data-name="游戏"><i class="fas fa-gamepad"></i> 游戏</div>
+                                        <div class="icon-option" data-value="fas fa-heart" data-name="收藏"><i class="fas fa-heart"></i> 收藏</div>
+                                    </div>
+                                    <!-- 动词列 -->
+                                    <div class="icon-column">
+                                        <div class="column-header">🎯 动词分类</div>
+                                        <div class="icon-option" data-value="fas fa-book-open" data-name="阅读"><i class="fas fa-book-open"></i> 阅读</div>
+                                        <div class="icon-option" data-value="fas fa-headphones" data-name="聆听"><i class="fas fa-headphones"></i> 聆听</div>
+                                        <div class="icon-option" data-value="fas fa-eye" data-name="观看"><i class="fas fa-eye"></i> 观看</div>
+                                        <div class="icon-option" data-value="fas fa-graduation-cap" data-name="学习"><i class="fas fa-graduation-cap"></i> 学习</div>
+                                        <div class="icon-option" data-value="fas fa-download" data-name="下载"><i class="fas fa-download"></i> 下载</div>
+                                        <div class="icon-option" data-value="fas fa-search" data-name="搜索"><i class="fas fa-search"></i> 搜索</div>
+                                    </div>
+                                </div>
+                                <!-- 自定义输入区域 -->
+                                <div class="custom-icon-input">
+                                    <input type="text" id="customIconInputPanel" placeholder="类名/图标，如：电影/fas fa-film或电影/图标链接">
+                                    <button type="button" id="applyCustomIcon">自定义</button>
+                                </div>
+                            </div>
                         </div>
+                        <!-- 隐藏字段 -->
+                        <input type="hidden" id="selectedIconValue" value="fas fa-folder">
+                        <input type="hidden" id="selectedCategoryName" value="">
+                        <input type="hidden" id="newCategoryCustomIcon" value="">
+                    </div>
+
+                    <!-- 新增分类的切换链接（放在新增图标区域附近，但在现有分类下拉框下方） -->
+                    <div class="mt-2" id="toggleCategoryMode" style="cursor:pointer; color:#2563eb; display: none;">
+                        ➕ 新增分类
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -153,8 +178,7 @@
         </div>
     </div>
 
-    <!-- Bootstrap JS + Popper -->
-    <!-- 添加本地引用 -->
+    <!-- 本地 Bootstrap JS -->
     <script src="/static/bootstrap/bootstrap.bundle.min.js"></script>
     <!-- 自定义脚本 -->
     <script src="/static/script.js"></script>

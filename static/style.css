@@ -96,15 +96,6 @@ body {
     color: #e6edf5;
 }
 
-.tree-node-content[data-category="__all__"] {
-    color: #979898;
-}
-
-.tree-node-content[data-category="__all__"]:hover,
-.tree-node-content[data-category="__all__"].active {
-    color: #e6edf5;
-}
-
 .node-icon {
     width: 24px;
     height: 24px;
@@ -184,18 +175,13 @@ body {
 }
 
 .sidebar.collapsed .node-icon i {
-    font-size: 13px;
-}
-
-.sidebar.collapsed .sidebar-header {
-    justify-content: center;
-    gap: 0;
-    padding: 0;
+    font-size: 1.5rem;
 }
 
 .sidebar-footer {
     padding: 15px 20px;
     border-top: 1px solid #3f5570;
+    position: relative;
 }
 
 .shortcut-hint {
@@ -207,6 +193,7 @@ body {
     white-space: nowrap;
     text-align: center;
     border: 1px solid #3f5570;
+    transition: all 0.3s;
     cursor: pointer;
 }
 
@@ -215,6 +202,26 @@ body {
     color: #e6edf5;
     padding: 4px 6px;
     border-radius: 6px;
+}
+
+/* 折叠状态下隐藏文本，显示图标 */
+.sidebar.collapsed .shortcut-hint .hint-text {
+    display: none;
+}
+
+.sidebar.collapsed .shortcut-hint .hint-icon {
+    display: inline-block;
+}
+
+.sidebar.collapsed .shortcut-hint {
+    padding: 8px 0;
+}
+
+.hint-icon {
+    display: none;
+    font-size: 1.2rem;
+    color: #b4c2d0;
+    cursor: pointer;
 }
 
 /* 二级分类浮层 */
@@ -285,6 +292,14 @@ body {
     gap: 15px;
 }
 
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+}
+
 .collapse-btn {
     background: none;
     border: 1px solid #e0e8f0;
@@ -308,11 +323,6 @@ body {
 .collapse-btn:hover {
     background: #eef2f6;
     color: #1e3a6b;
-}
-
-/* 当前分类显示（默认隐藏） */
-.current-category {
-    display: none;
 }
 
 /* 搜索框 */
@@ -425,34 +435,44 @@ body {
     color: #1e3a6b;
 }
 
-.header-right {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: nowrap;
-    white-space: nowrap;
-}
-
 .import-btn,
 .github-link {
     flex-shrink: 0;
-    background: none;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px;
+    box-sizing: border-box;
+    line-height: 1;
     border: 1px solid #e0e8f0;
     border-radius: 8px;
-    padding: 8px 12px;
+    transition: all 0.2s;
+}
+
+.github-link i {
+    font-size: 1.2rem;
+}
+
+.github-link:hover {
+    background: #eef2f6;
+    color: #1e3a6b;
+}
+
+.github-link {
+    color: #5f7d9c;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.import-btn {
+    background: none;
     cursor: pointer;
     color: #5f7d9c;
     font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transition: all 0.2s;
-    height: 36px;
-    text-decoration: none;
 }
 
-.import-btn i,
-.github-link i {
+.import-btn i {
     font-size: 1rem;
 }
 
@@ -462,12 +482,18 @@ body {
     color: #1e3a6b;
 }
 
+.import-btn i,
+.github-link i {
+    margin-right: 6px;
+}
+
+
 /* 卡片网格容器 */
 .bookmark-grid {
     flex: 1;
     overflow-y: auto;
-    padding: 4px 4px 20px;
     overflow-x: hidden;
+    padding: 4px 4px 20px;
 }
 
 /* 分类区块 */
@@ -525,8 +551,7 @@ body {
 }
 
 .card-icon i {
-    font-size: 16px;       /* 与 favicon 常见尺寸一致 */
-    line-height: 1;
+    font-size: 16px;
 }
 
 .card-icon img {
@@ -631,24 +656,141 @@ body {
     visibility: visible;
 }
 
-/* 搜索结果容器 */
-.search-results {
+/* 自定义图标选择器样式 */
+.custom-icon-selector {
+    position: relative;
     width: 100%;
+    margin-bottom: 8px;
 }
 
-/* 图标预览 */
-.category-icon-preview {
-    width: 40px;
-    height: 40px;
+.selected-icon {
+    border: 2px solid #dde5ef;
+    border-radius: 20px;
+    padding: 10px 16px;
+    background: #f9fcff;
+    cursor: pointer;
     display: flex;
     align-items: center;
-    justify-content: center;
-    font-size: 1.8rem;
-    border: 2px solid #dde5ef;
-    border-radius: 12px;
-    background: white;
+    justify-content: space-between;
+    font-size: 0.95rem;
 }
-.category-icon-preview img {
-    max-width: 30px;
-    max-height: 30px;
+
+.selected-icon-preview {
+    display: flex;
+    align-items: center;
+    margin-right: 8px;
+    width: 24px;
+    justify-content: center;
+}
+
+.selected-icon-preview i {
+    font-size: 1.2rem;
+}
+
+.selected-icon-text {
+    flex: 1;
+    color: #1e293b;
+}
+
+.caret {
+    font-size: 0.8rem;
+    color: #5f7d9c;
+    transition: transform 0.2s;
+}
+
+.caret.open {
+    transform: rotate(180deg);
+}
+
+.icon-dropdown-panel {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #dde5ef;
+    border-radius: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+    margin-top: 4px;
+    padding: 16px;
+    display: none;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.icon-dropdown-panel.show {
+    display: block;
+}
+
+.icon-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.icon-column {
+    display: flex;
+    flex-direction: column;
+}
+
+.column-header {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #3e5670;
+    padding-bottom: 6px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #eef2f6;
+}
+
+.icon-option {
+    padding: 6px 8px;
+    cursor: pointer;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    color: #1e293b;
+}
+
+.icon-option:hover {
+    background: #eef2f6;
+}
+
+.icon-option i {
+    width: 20px;
+    text-align: center;
+    font-size: 1rem;
+}
+
+.custom-icon-input {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    border-top: 1px solid #eef2f6;
+    padding-top: 16px;
+}
+
+.custom-icon-input input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 2px solid #dde5ef;
+    border-radius: 20px;
+    outline: none;
+    font-size: 0.9rem;
+}
+
+.custom-icon-input button {
+    padding: 8px 16px;
+    background: #1e3c72;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.custom-icon-input button:hover {
+    background: #143157;
 }
