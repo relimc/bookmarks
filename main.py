@@ -160,19 +160,39 @@ def delete_bookmark(item_id):
 def add_category():
     try:
         req = request.get_json()
-        name = req.get('name', '').strip()
+        if not req:
+            return jsonify({'success': False, 'message': '无效的请求数据'}), 400
+
+        # 获取并验证 name
+        name = req.get('name')
+        if not name or not isinstance(name, str):
+            return jsonify({'success': False, 'message': '分类名称必须为字符串'}), 400
+        name = name.strip()
         if not name:
             return jsonify({'success': False, 'message': '分类名称不能为空'}), 400
 
-        icon = req.get('icon', '').strip() or 'fas fa-folder'
-        parent = req.get('parent', '').strip() or None
+        # 处理图标
+        icon = req.get('icon')
+        if icon is None or not isinstance(icon, str):
+            icon = 'fas fa-folder'
+        else:
+            icon = icon.strip() or 'fas fa-folder'
+
+        # 处理上级分类
+        parent = req.get('parent')
+        if parent is None or not isinstance(parent, str):
+            parent = None
+        else:
+            parent = parent.strip() or None
+
+        # 处理优先级
         priority = req.get('priority')
         if priority is None:
             priority = 100
         else:
             try:
                 priority = int(priority)
-            except:
+            except (ValueError, TypeError):
                 priority = 100
 
         data = load_data()
@@ -191,6 +211,8 @@ def add_category():
         return jsonify({'success': True, 'data': data})
     except Exception as e:
         print(f"Error in add_category: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'message': '服务器内部错误'}), 500
 
 

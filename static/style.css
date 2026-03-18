@@ -830,7 +830,7 @@ body {
 
 #addCategoryForm .btn {
     width: auto;        /* 按钮宽度自适应 */
-    margin-top: 30px;
+    margin-top: 32px;
 }
 
 /* 使卡片头部显示手形，且有轻微的悬停反馈 */
@@ -886,4 +886,80 @@ body {
 
 .priority-input {
     width: 80px !important;
+}
+
+.sidebar.collapsed .sidebar-header {
+    justify-content: center;
+    padding: 0;               /* 移除左右内边距 */
+    gap: 0;                    /* 移除弹性项目间隙 */
+}
+
+.sidebar.collapsed .sidebar-header .logo {
+    margin-right: 0;           /* 移除可能的外边距 */
+}
+
+/* 确保折叠时标题已隐藏（通常已有） */
+.sidebar.collapsed .sidebar-header .title {
+    display: none;
+}
+
+.icon-suggestions {
+    position: absolute;
+    top: 100%;          /* 紧贴输入框底部 */
+    left: 0;
+    right: 0;
+    z-index: 10;
+    background: white;
+    border: 1px solid #dde5ef;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    max-height: 200px;
+    overflow-y: auto;
+    margin-top: 2px;    /* 可选，微调间距 */
+    padding: 4px 0;
+}
+
+.icon-suggestions .suggestion-item {
+    padding: 6px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+}
+
+.icon-suggestions .suggestion-item:hover {
+    background: #eef2f6;
+}
+
+.suggestion-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.suggestion-item i {
+    width: 20px;            /* 固定图标宽度，确保对齐 */
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.suggestion-class {
+    color: #6c757d;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    /* 移除 flex: 1 和 text-align，让类名自然左对齐 */
+}
+
+.suggestion-item.more-link {
+    border-top: 1px solid #dee2e6;
+    margin-top: 4px;
+    color: #0d6efd;
+    font-weight: 500;
+}
+.suggestion-item.more-link i {
+    color: #0d6efd;
 }

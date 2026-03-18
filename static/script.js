@@ -52,6 +52,7 @@
     const saveNewCategoryBtn = document.getElementById('saveNewCategoryBtn');
     const newCategoryCustomIconManage = document.getElementById('newCategoryCustomIconManage');
     const newCategoryPriority = document.getElementById('newCategoryPriority');
+    const iconSuggestions = document.getElementById('iconSuggestions');
 
     // 全局数据
     let allData = { bookmarks: [], categories: {} };
@@ -87,6 +88,29 @@
         'lni lni-cog': 'fas fa-cog',
         'default': 'fas fa-folder'
     };
+
+    const commonIcons = [
+        { class: 'fas fa-star' },
+        { class: 'fas fa-heart' },
+        { class: 'fas fa-thumbs-up' },
+        { class: 'fas fa-check' },
+        { class: 'fas fa-times' },
+        { class: 'fas fa-plus' },
+        { class: 'fas fa-minus' },
+        { class: 'fas fa-cog' },
+        { class: 'fas fa-trash' },
+        { class: 'fas fa-pencil-alt' },
+        { class: 'fas fa-envelope' },
+        { class: 'fas fa-phone' },
+        { class: 'fas fa-map-marker-alt' },
+        { class: 'fas fa-calendar' },
+        { class: 'fas fa-clock' },
+        { class: 'fas fa-globe' },
+        { class: 'fas fa-lock' },
+        { class: 'fas fa-unlock' },
+        { class: 'fas fa-share-alt' },
+        { class: 'fas fa-print' }
+    ];
 
     function getFaIcon(lineconsClass) {
         return lineconsToFA[lineconsClass] || lineconsToFA['default'];
@@ -1399,12 +1423,14 @@
     // 保存新增分类
     if (saveNewCategoryBtn) {
         saveNewCategoryBtn.addEventListener('click', async () => {
+            // 获取分类名称
             const name = newCategoryNameInput.value.trim();
             if (!name) {
                 alert('请输入分类名称');
                 return;
             }
 
+            // 获取图标
             let icon;
             if (newCategoryIconSelect.value === 'custom') {
                 icon = newCategoryCustomIconManage.value.trim();
@@ -1416,25 +1442,108 @@
                 icon = newCategoryIconSelect.value || 'fas fa-folder';
             }
 
+            // 获取上级分类
             const parent = newCategoryParentSelect.value || null;
-            const priority = parseInt(newCategoryPriority.value) || 100;
 
+            // 获取优先级（确保为整数）
+            let priority = parseInt(newCategoryPriority.value);
+            if (isNaN(priority) || priority < 0) {
+                priority = 100; // 默认值
+            }
+
+            // 发送请求
             try {
                 const res = await fetch('/add_category', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name, icon, parent, priority })
                 });
-                // ... 后续代码
+                const result = await res.json();
+                if (res.ok && result.success) {
+                    alert('✅ 分类添加成功');
+                    // 更新全局数据
+                    allData = result.data;
+                    // 刷新分类列表（表格内）
+                    loadCategoryList();
+                    // 刷新侧边栏及卡片区域
+                    refreshDataAndUI();
+
+                    // 重置表单并折叠
+                    newCategoryNameInput.value = '';
+                    newCategoryIconSelect.value = 'fas fa-folder';
+                    newCategoryCustomIconManage.style.display = 'none';
+                    newCategoryCustomIconManage.value = '';
+                    newCategoryParentSelect.value = '';
+                    newCategoryPriority.value = '100';
+                    addCategoryForm.style.display = 'none';
+                    toggleAddCategoryBtn.innerHTML = '<i class="fas fa-plus"></i> 新增分类';
+                } else {
+                    alert('❌ 添加失败：' + (result.message || ''));
+                }
             } catch (err) {
-                console.error(err);
-                alert('网络错误');
+                console.error('添加分类异常:', err);
+                alert('❌ 网络错误，请稍后重试');
             }
         });
     }
 
     if (addBookmarkHeaderBtn) {
         addBookmarkHeaderBtn.addEventListener('click', openAddModal);
+    }
+
+    if (newCategoryCustomIconManage) {
+        // 构建下拉列表内容
+    function renderIconSuggestions() {
+        let html = '';
+        commonIcons.forEach(icon => {
+            html += `<div class="suggestion-item" data-icon="${icon.class}">
+                <i class="${icon.class}"></i>
+                <span class="suggestion-class">${icon.class}</span>
+            </div>`;
+        });
+        // 添加更多图标链接
+        html += `<div class="suggestion-item more-link" data-action="more">
+            <i class="fas fa-external-link-alt"></i>
+            <span>更多图标...</span>
+        </div>`;
+        iconSuggestions.innerHTML = html;
+    }
+        renderIconSuggestions();
+
+        // 显示/隐藏下拉列表
+        newCategoryCustomIconManage.addEventListener('focus', () => {
+            iconSuggestions.style.display = 'block';
+        });
+
+        newCategoryCustomIconManage.addEventListener('blur', () => {
+            // 延迟隐藏，以便点击选项时不会立即消失
+            setTimeout(() => {
+                iconSuggestions.style.display = 'none';
+            }, 200);
+        });
+
+        // 点击选项填充
+        iconSuggestions.addEventListener('click', (e) => {
+            const item = e.target.closest('.suggestion-item');
+            if (!item) return;
+
+            if (item.dataset.action === 'more') {
+                // 打开 FontAwesome 官网
+                window.open('https://fontawesome.com/icons', '_blank');
+                // 隐藏下拉列表
+                iconSuggestions.style.display = 'none';
+                // 可选：移除输入框焦点
+                newCategoryCustomIconManage.blur();
+                return;
+            }
+
+            const iconClass = item.dataset.icon;
+            if (iconClass) {
+                newCategoryCustomIconManage.value = iconClass;
+                newCategoryCustomIconManage.dispatchEvent(new Event('input'));
+                iconSuggestions.style.display = 'none';
+            }
+        });
     }
 
     // 初始化
