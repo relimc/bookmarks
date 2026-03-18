@@ -160,25 +160,20 @@ def delete_bookmark(item_id):
 def add_category():
     try:
         req = request.get_json()
-        if not req:
-            return jsonify({'success': False, 'message': '无效的请求数据'}), 400
-
-        name = req.get('name')
-        if not name or not isinstance(name, str) or not name.strip():
+        name = req.get('name', '').strip()
+        if not name:
             return jsonify({'success': False, 'message': '分类名称不能为空'}), 400
-        name = name.strip()
 
-        icon = req.get('icon')
-        if icon is None or not isinstance(icon, str):
-            icon = 'fas fa-folder'
+        icon = req.get('icon', '').strip() or 'fas fa-folder'
+        parent = req.get('parent', '').strip() or None
+        priority = req.get('priority')
+        if priority is None:
+            priority = 100
         else:
-            icon = icon.strip() or 'fas fa-folder'
-
-        parent = req.get('parent')
-        if parent is None or not isinstance(parent, str):
-            parent = None
-        else:
-            parent = parent.strip() or None
+            try:
+                priority = int(priority)
+            except:
+                priority = 100
 
         data = load_data()
         categories = data['categories']
@@ -189,7 +184,8 @@ def add_category():
         categories[name] = {
             'name': name,
             'icon': icon,
-            'parent': parent
+            'parent': parent,
+            'priority': priority
         }
         save_data(data)
         return jsonify({'success': True, 'data': data})
@@ -201,7 +197,6 @@ def add_category():
 @app.route('/category/<string:name>', methods=['PUT'])
 @auth.login_required
 def update_category(name):
-    """修改分类名称、图标或上级分类"""
     req = request.get_json()
     data = load_data()
     categories = data['categories']
@@ -213,29 +208,34 @@ def update_category(name):
     new_name = req.get('new_name', '').strip()
     icon = req.get('icon', '').strip()
     parent = req.get('parent', '').strip() or None
+    priority = req.get('priority')
+    if priority is not None:
+        try:
+            priority = int(priority)
+        except:
+            priority = None
 
     # 如果修改了分类名称
     if new_name and new_name != name:
         if new_name in categories:
             return jsonify({'success': False, 'message': '新分类名称已存在'}), 400
-        # 更新 categories 中的键
         categories[new_name] = categories.pop(name)
         categories[new_name]['name'] = new_name
-        # 更新所有书签中引用的分类名称
         for b in bookmarks:
             if b['category'] == name:
                 b['category'] = new_name
-        # 更新其他分类的 parent 引用
         for cat in categories.values():
-            if cat['parent'] == name:
+            if cat.get('parent') == name:
                 cat['parent'] = new_name
         name = new_name
 
-    # 更新图标和上级分类
+    # 更新字段
     if icon:
         categories[name]['icon'] = icon
-    if 'parent' in req:  # 允许设为空字符串
+    if 'parent' in req:
         categories[name]['parent'] = parent
+    if priority is not None:
+        categories[name]['priority'] = priority
 
     save_data(data)
     return jsonify({'success': True, 'data': data})

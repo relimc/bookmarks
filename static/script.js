@@ -51,6 +51,7 @@
     const newCategoryParentSelect = document.getElementById('newCategoryParentSelect');
     const saveNewCategoryBtn = document.getElementById('saveNewCategoryBtn');
     const newCategoryCustomIconManage = document.getElementById('newCategoryCustomIconManage');
+    const newCategoryPriority = document.getElementById('newCategoryPriority');
 
     // 全局数据
     let allData = { bookmarks: [], categories: {} };
@@ -93,7 +94,8 @@
 
     // ---------- 工具函数 ----------
     function escapeHtml(unsafe) {
-        if (!unsafe) return '';
+        if (unsafe === null || unsafe === undefined) return '';
+        unsafe = String(unsafe); // 强制转换为字符串
         return unsafe.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
     }
 
@@ -315,6 +317,7 @@
                 name: name,
                 icon: categories[name].icon || 'fas fa-folder',
                 parent: categories[name].parent || null,
+                priority: categories[name].priority || 100,  // 默认100
                 children: []
             };
         }
@@ -355,6 +358,9 @@
 
     function renderCategoryTree() {
         const tree = buildCategoryTree();
+
+        // 在这里对一级分类按优先级排序（数字越小越靠前）
+        tree.sort((a, b) => (a.priority || 100) - (b.priority || 100));
 
         if (allData._expanded) {
             function applyExpanded(node) {
@@ -1244,19 +1250,7 @@
         }
         tree.forEach(flatten);
 
-        let html = `
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>图标</th>
-                        <th>分类名称</th>
-                        <th>上级分类</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
-
+        let html = ''; // 只生成表格行，不包含表头
         flatList.forEach(node => {
             const iconHtml = renderIconPreview(node.icon);
             html += `
@@ -1264,6 +1258,7 @@
                     <td class="category-icon-cell">${iconHtml}</td>
                     <td>${escapeHtml(node.name)}</td>
                     <td>${node.parent ? escapeHtml(node.parent) : '-'}</td>
+                    <td>${escapeHtml(node.priority ?? 100)}</td>
                     <td>
                         <button class="btn btn-sm btn-outline-primary edit-category-btn" title="编辑"><i class="fas fa-edit"></i></button>
                         <button class="btn btn-sm btn-outline-danger delete-category-btn" title="删除"><i class="fas fa-trash"></i></button>
@@ -1272,9 +1267,9 @@
             `;
         });
 
-        html += '</tbody></table>';
         categoryListContainer.innerHTML = html;
 
+        // 重新绑定编辑/删除事件
         document.querySelectorAll('.edit-category-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const row = e.target.closest('tr');
@@ -1309,15 +1304,18 @@
     }
 
     function editCategory(categoryName) {
+        const category = allData.categories[categoryName];
         const newName = prompt('请输入新分类名称（留空表示不修改）', categoryName);
         if (newName === null) return;
-        const newIcon = prompt('请输入新图标（留空表示不修改）', allData.categories[categoryName]?.icon || '');
-        const newParent = prompt('请输入上级分类名称（留空表示无上级）', allData.categories[categoryName]?.parent || '');
+        const newIcon = prompt('请输入新图标（留空表示不修改）', category?.icon || '');
+        const newParent = prompt('请输入上级分类名称（留空表示无上级）', category?.parent || '');
+        const newPriority = prompt('请输入优先级（数字越小越靠前，留空表示不修改）', category?.priority || '100');
 
         const payload = {};
         if (newName && newName !== categoryName) payload.new_name = newName;
         if (newIcon) payload.icon = newIcon;
         if (newParent !== undefined) payload.parent = newParent;
+        if (newPriority && !isNaN(newPriority)) payload.priority = parseInt(newPriority);
 
         fetch(`/category/${encodeURIComponent(categoryName)}`, {
             method: 'PUT',
@@ -1409,7 +1407,7 @@
 
             let icon;
             if (newCategoryIconSelect.value === 'custom') {
-                icon = newCategoryCustomIconManage.value.trim(); // 使用新变量
+                icon = newCategoryCustomIconManage.value.trim();
                 if (!icon) {
                     alert('请输入自定义图标');
                     return;
@@ -1419,31 +1417,15 @@
             }
 
             const parent = newCategoryParentSelect.value || null;
+            const priority = parseInt(newCategoryPriority.value) || 100;
 
             try {
                 const res = await fetch('/add_category', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, icon, parent })
+                    body: JSON.stringify({ name, icon, parent, priority })
                 });
-                const result = await res.json();
-                if (res.ok && result.success) {
-                   alert('分类添加成功');
-                    // 重置表单
-                    newCategoryNameInput.value = '';
-                    newCategoryIconSelect.value = 'fas fa-folder';
-                    newCategoryCustomIconManage.style.display = 'none';  // 隐藏自定义输入框
-                    newCategoryCustomIconManage.value = '';              // 清空输入值
-                    newCategoryParentSelect.value = '';
-                    addCategoryForm.style.display = 'none';
-                    toggleAddCategoryBtn.innerHTML = '<i class="fas fa-plus"></i> 新增分类';
-                    // 刷新数据
-                    allData = result.data;
-                    loadCategoryList();
-                    refreshDataAndUI();
-                } else {
-                    alert('添加失败：' + (result.message || ''));
-                }
+                // ... 后续代码
             } catch (err) {
                 console.error(err);
                 alert('网络错误');
