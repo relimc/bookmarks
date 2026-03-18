@@ -6,6 +6,9 @@ from bs4 import BeautifulSoup
 from flask import Flask, request, jsonify, render_template
 from flask_httpauth import HTTPBasicAuth
 from urllib.parse import urljoin
+import hashlib
+import os
+from urllib.parse import urlparse
 
 app = Flask(__name__)
 auth = HTTPBasicAuth()
@@ -35,6 +38,52 @@ def load_data():
     except:
         return {'bookmarks': [], 'categories': {}}
 
+def download_icon(icon_url):
+    """下载图标到本地 static/favicons/，使用URL哈希作为文件名，返回本地路径，失败返回 None"""
+    if not icon_url:
+        return None
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        resp = requests.get(icon_url, headers=headers, timeout=5, stream=True)
+        if resp.status_code != 200:
+            return None
+
+        # 确定文件扩展名
+        content_type = resp.headers.get('content-type', '').lower()
+        if 'image/png' in content_type:
+            ext = '.png'
+        elif 'image/x-icon' in content_type or 'image/vnd.microsoft.icon' in content_type:
+            ext = '.ico'
+        elif 'image/svg+xml' in content_type:
+            ext = '.svg'
+        elif 'image/jpeg' in content_type or 'image/jpg' in content_type:
+            ext = '.jpg'
+        else:
+            parsed = urlparse(icon_url)
+            path = parsed.path
+            ext = os.path.splitext(path)[1]
+            if not ext:
+                ext = '.ico'
+
+        save_dir = os.path.join('static', 'favicons')
+        os.makedirs(save_dir, exist_ok=True)
+
+        file_hash = hashlib.md5(icon_url.encode('utf-8')).hexdigest()
+        filename = f"{file_hash}{ext}"
+        filepath = os.path.join(save_dir, filename)
+
+        if os.path.exists(filepath):
+            return f"/static/favicons/{filename}"
+
+        with open(filepath, 'wb') as f:
+            for chunk in resp.iter_content(chunk_size=8192):
+                f.write(chunk)
+
+        return f"/static/favicons/{filename}"
+    except Exception as e:
+        print(f"下载图标失败: {e}")
+        return None
+
 def save_data(data):
     os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
     with open(DATA_FILE, 'w', encoding='utf-8') as f:
@@ -62,12 +111,13 @@ def add_bookmark():
     parent_category = req.get('parent_category', '').strip()
     title = req.get('title', '').strip()
     description = req.get('description', '').strip()
-    icon = req.get('icon', '').strip()
+    icon = req.get('icon', '').strip()  # 可能是抓取的 URL
 
     data = load_data()
     bookmarks = data['bookmarks']
     categories = data['categories']
 
+    # 创建新分类（如果需要）
     if category and category not in categories and category_icon:
         categories[category] = {
             'name': category,
@@ -75,14 +125,23 @@ def add_bookmark():
             'parent': parent_category
         }
 
+    # 生成新书签 ID
+    new_id = int(time.time() * 1000)
     new_item = {
-        'id': int(time.time() * 1000),
+        'id': new_id,
         'url': url,
         'category': category or '未分类',
-        'icon': icon or '',
+        'icon': icon,  # 先存原值，待会可能覆盖
         'title': title or category or '链接',
         'description': description
     }
+
+    # 尝试下载图标
+    if icon:
+        local_icon = download_icon(icon)
+        if local_icon:
+            new_item['icon'] = local_icon  # 替换为本地路径
+
     bookmarks.append(new_item)
     save_data(data)
 
@@ -128,6 +187,7 @@ def edit_bookmark(item_id):
 @app.route('/delete/<int:item_id>', methods=['POST'])
 @auth.login_required
 def delete_bookmark(item_id):
+    """删除一条收藏，并清理空分类（不删除图标文件）"""
     data = load_data()
     bookmarks = data['bookmarks']
     categories = data['categories']
@@ -142,12 +202,16 @@ def delete_bookmark(item_id):
         return jsonify({'success': False, 'message': '条目不存在'}), 404
 
     category = item_to_delete.get('category')
+
+    # 删除条目
     new_bookmarks = [item for item in bookmarks if item['id'] != item_id]
     data['bookmarks'] = new_bookmarks
 
+    # 检查该分类是否还有其它书签
     if category:
         other_in_category = any(b['category'] == category for b in new_bookmarks)
         if not other_in_category:
+            # 检查该分类是否有子分类
             has_children = any(cat.get('parent') == category for cat in categories.values())
             if not has_children and category in categories:
                 del categories[category]
@@ -301,7 +365,6 @@ def delete_category(name):
 @app.route('/import', methods=['POST'])
 @auth.login_required
 def import_bookmarks():
-    """批量导入书签"""
     req = request.get_json()
     bookmarks_data = req.get('bookmarks', [])
     categories_data = req.get('categories', [])
@@ -310,7 +373,7 @@ def import_bookmarks():
     bookmarks = data['bookmarks']
     categories = data['categories']
 
-    # 先创建分类（确保父分类在前）
+    # 先创建分类
     for cat in categories_data:
         if cat['name'] not in categories:
             categories[cat['name']] = {
@@ -322,14 +385,20 @@ def import_bookmarks():
     # 批量添加书签
     import_count = 0
     for b in bookmarks_data:
+        new_id = int(time.time() * 1000) + import_count
         new_item = {
-            'id': int(time.time() * 1000) + import_count,
+            'id': new_id,
             'url': b['url'],
             'category': b.get('category', '未分类'),
-            'icon': b.get('icon', ''),
+            'icon': b.get('icon', ''),  # 可能是 Base64 或 URL
             'title': b.get('title', b['url']),
             'description': b.get('description', '')
         }
+        # 尝试下载图标（仅当图标是 URL 且不是 Base64 时）
+        if new_item['icon'] and not new_item['icon'].startswith('data:image'):
+            local_icon = download_icon(new_item['icon'])
+            if local_icon:
+                new_item['icon'] = local_icon
         bookmarks.append(new_item)
         import_count += 1
 

@@ -501,7 +501,7 @@
     // 卡片渲染
     function renderSingleBookmarkCard(b) {
         let iconHtml = '';
-        if (b.icon && (b.icon.startsWith('http') || b.icon.startsWith('data:image'))) {
+        if (b.icon && (b.icon.startsWith('http') || b.icon.startsWith('data:image') || b.icon.startsWith('/static/'))) {
             iconHtml = `<img src="${escapeHtml(b.icon)}" alt="icon" onerror="this.onerror=null; this.style.display='none'; let domainIcon = getDomainFaviconFromUrl('${escapeHtml(b.url)}'); if(domainIcon) { let img = new Image(); img.onload = function() { this.parentNode.innerHTML = ''; this.parentNode.appendChild(img); }; img.onerror = function() { this.parentNode.innerHTML = '<i class=\\'fas fa-tag\\'></i>'; }; img.src = domainIcon; } else { this.parentNode.innerHTML = '<i class=\\'fas fa-tag\\'></i>'; }">`;
         } else {
             const faClass = lineconsToFA[b.icon] || b.icon || 'fas fa-tag';
