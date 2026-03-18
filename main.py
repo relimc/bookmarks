@@ -158,27 +158,114 @@ def delete_bookmark(item_id):
 @app.route('/add_category', methods=['POST'])
 @auth.login_required
 def add_category():
+    try:
+        req = request.get_json()
+        if not req:
+            return jsonify({'success': False, 'message': '无效的请求数据'}), 400
+
+        name = req.get('name')
+        if not name or not isinstance(name, str) or not name.strip():
+            return jsonify({'success': False, 'message': '分类名称不能为空'}), 400
+        name = name.strip()
+
+        icon = req.get('icon')
+        if icon is None or not isinstance(icon, str):
+            icon = 'fas fa-folder'
+        else:
+            icon = icon.strip() or 'fas fa-folder'
+
+        parent = req.get('parent')
+        if parent is None or not isinstance(parent, str):
+            parent = None
+        else:
+            parent = parent.strip() or None
+
+        data = load_data()
+        categories = data['categories']
+
+        if name in categories:
+            return jsonify({'success': False, 'message': '分类已存在'}), 400
+
+        categories[name] = {
+            'name': name,
+            'icon': icon,
+            'parent': parent
+        }
+        save_data(data)
+        return jsonify({'success': True, 'data': data})
+    except Exception as e:
+        print(f"Error in add_category: {e}")
+        return jsonify({'success': False, 'message': '服务器内部错误'}), 500
+
+
+@app.route('/category/<string:name>', methods=['PUT'])
+@auth.login_required
+def update_category(name):
+    """修改分类名称、图标或上级分类"""
     req = request.get_json()
-    name = req.get('name', '').strip()
-    if not name:
-        return jsonify({'success': False, 'message': '分类名称不能为空'}), 400
-
-    icon = req.get('icon', '').strip() or 'fas fa-folder'
-    parent = req.get('parent', '').strip() or None
-
     data = load_data()
     categories = data['categories']
+    bookmarks = data['bookmarks']
 
-    if name in categories:
-        return jsonify({'success': False, 'message': '分类已存在'}), 400
+    if name not in categories:
+        return jsonify({'success': False, 'message': '分类不存在'}), 404
 
-    categories[name] = {
-        'name': name,
-        'icon': icon,
-        'parent': parent
-    }
+    new_name = req.get('new_name', '').strip()
+    icon = req.get('icon', '').strip()
+    parent = req.get('parent', '').strip() or None
+
+    # 如果修改了分类名称
+    if new_name and new_name != name:
+        if new_name in categories:
+            return jsonify({'success': False, 'message': '新分类名称已存在'}), 400
+        # 更新 categories 中的键
+        categories[new_name] = categories.pop(name)
+        categories[new_name]['name'] = new_name
+        # 更新所有书签中引用的分类名称
+        for b in bookmarks:
+            if b['category'] == name:
+                b['category'] = new_name
+        # 更新其他分类的 parent 引用
+        for cat in categories.values():
+            if cat['parent'] == name:
+                cat['parent'] = new_name
+        name = new_name
+
+    # 更新图标和上级分类
+    if icon:
+        categories[name]['icon'] = icon
+    if 'parent' in req:  # 允许设为空字符串
+        categories[name]['parent'] = parent
+
     save_data(data)
     return jsonify({'success': True, 'data': data})
+
+
+@app.route('/category/<string:name>', methods=['DELETE'])
+@auth.login_required
+def delete_category(name):
+    """删除分类，前提是没有书签和子分类"""
+    data = load_data()
+    categories = data['categories']
+    bookmarks = data['bookmarks']
+
+    if name not in categories:
+        return jsonify({'success': False, 'message': '分类不存在'}), 404
+
+    # 检查是否有书签属于该分类
+    has_bookmarks = any(b['category'] == name for b in bookmarks)
+    if has_bookmarks:
+        return jsonify({'success': False, 'message': '该分类下还有书签，请先移动或删除书签'}), 400
+
+    # 检查是否有子分类
+    has_children = any(cat.get('parent') == name for cat in categories.values())
+    if has_children:
+        return jsonify({'success': False, 'message': '该分类下有子分类，请先处理'}), 400
+
+    del categories[name]
+    save_data(data)
+    return jsonify({'success': True, 'data': data})
+
 
 @app.route('/import', methods=['POST'])
 @auth.login_required

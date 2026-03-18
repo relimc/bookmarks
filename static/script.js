@@ -10,7 +10,7 @@
     const descriptionInput = document.getElementById('descriptionInput');
     const parentCategoryGroup = document.getElementById('parentCategoryGroup');
     const parentCategorySelect = document.getElementById('parentCategorySelect');
-    let categorySelect = document.getElementById('categorySelect'); // 可能被动态重新获取
+    let categorySelect = document.getElementById('categorySelect');
     const newCategoryInput = document.getElementById('newCategoryInput');
     const toggleCategoryMode = document.getElementById('toggleCategoryMode');
     const newCategoryIconGroup = document.getElementById('newCategoryIconGroup');
@@ -37,6 +37,18 @@
     const selectedIconValue = document.getElementById('selectedIconValue');
     const customIconInputPanel = document.getElementById('customIconInputPanel');
     const applyCustomBtn = document.getElementById('applyCustomIcon');
+
+    // 分类管理相关元素
+    const manageCategoriesBtn = document.getElementById('manageCategoriesBtn');
+    const categoryManageModal = new bootstrap.Modal(document.getElementById('categoryManageModal'));
+    const categoryListContainer = document.getElementById('categoryListContainer');
+    const toggleAddCategoryBtn = document.getElementById('toggleAddCategoryBtn');
+    const addCategoryForm = document.getElementById('addCategoryForm');
+    const newCategoryNameInput = document.getElementById('newCategoryNameInput');
+    const newCategoryIconSelect = document.getElementById('newCategoryIconSelect');
+    const newCategoryCustomIcon = document.getElementById('newCategoryCustomIcon');
+    const newCategoryParentSelect = document.getElementById('newCategoryParentSelect');
+    const saveNewCategoryBtn = document.getElementById('saveNewCategoryBtn');
 
     // 全局数据
     let allData = { bookmarks: [], categories: {} };
@@ -221,7 +233,6 @@
 
     // ---------- 分类相关 ----------
     function updateCategorySelect(selectedCategory = '') {
-        // 确保 categorySelect 元素存在
         if (!categorySelect || !categorySelect.tagName) {
             categorySelect = document.getElementById('categorySelect');
             if (!categorySelect) {
@@ -250,17 +261,15 @@
     function setCategoryMode(isNew) {
         isAddingNewCategory = isNew;
         if (isNew) {
-            // 新增模式：显示图标选择器，隐藏已有分类下拉框，显示上级分类
             if (existingCategoryGroup) existingCategoryGroup.style.display = 'none';
             if (newCategoryIconGroup) newCategoryIconGroup.style.display = 'block';
             if (parentCategoryGroup) parentCategoryGroup.style.display = 'block';
             if (toggleCategoryMode) {
                 toggleCategoryMode.style.display = 'inline';
-                toggleCategoryMode.innerText = '🔽 选择已有分类'; // 改为“选择已有分类”
+                toggleCategoryMode.innerText = '🔽 选择已有分类';
             }
             updateParentCategorySelect();
 
-            // 重置新增分类字段
             if (selectedCategoryName) selectedCategoryName.value = '';
             if (selectedIconValue) selectedIconValue.value = 'fas fa-folder';
             if (selectedIconPreview) selectedIconPreview.innerHTML = '<i class="fas fa-folder"></i>';
@@ -270,13 +279,12 @@
                 newCategoryCustomIcon.value = '';
             }
         } else {
-            // 编辑模式：显示已有分类下拉框，隐藏图标选择器，隐藏上级分类
             if (existingCategoryGroup) existingCategoryGroup.style.display = 'block';
             if (newCategoryIconGroup) newCategoryIconGroup.style.display = 'none';
             if (parentCategoryGroup) parentCategoryGroup.style.display = 'none';
             if (toggleCategoryMode) {
                 toggleCategoryMode.style.display = 'inline';
-                toggleCategoryMode.innerText = '➕ 新增分类'; // 改为“新增分类”
+                toggleCategoryMode.innerText = '➕ 新增分类';
             }
         }
     }
@@ -285,11 +293,10 @@
         setCategoryMode(!isAddingNewCategory);
     });
 
-    // 上级分类变化监听
     parentCategorySelect.addEventListener('change', function() {
         if (isAddingNewCategory) {
             if (this.value) {
-                newCategoryIconGroup.style.display = 'none'; // 有上级分类时隐藏图标选择器？根据需求调整，这里保持显示
+                newCategoryIconGroup.style.display = 'none';
             } else {
                 newCategoryIconGroup.style.display = 'block';
             }
@@ -664,7 +671,7 @@
         editingId.value = id;
         urlInput.value = item.url;
         urlInput.readOnly = true;
-        setCategoryMode(false); // 编辑模式
+        setCategoryMode(false);
         updateCategorySelect(item.category);
         categorySelect.value = item.category;
         titleInput.value = item.title || '';
@@ -683,13 +690,12 @@
         urlInput.readOnly = false;
         titleInput.value = '';
         descriptionInput.value = '';
-        setCategoryMode(true); // 新增模式
+        setCategoryMode(true);
         parentCategorySelect.value = '';
         deleteBtn.style.display = 'none';
         clipboardHint.innerText = '';
         lastFetchedIcon = '';
 
-        // 重置图标选择器
         if (selectedIconValue) selectedIconValue.value = 'fas fa-folder';
         if (selectedIconPreview) selectedIconPreview.innerHTML = '<i class="fas fa-folder"></i>';
         if (selectedIconText) selectedIconText.textContent = '请选择分类';
@@ -753,7 +759,6 @@
         let parentCategory = '';
 
         if (isAddingNewCategory) {
-            // 新增模式：从图标选择器获取分类名称和图标
             category = selectedCategoryName.value.trim();
             if (!category) {
                 alert('请选择一个分类图标');
@@ -771,11 +776,8 @@
             console.log('isAddingNewCategory = true');
             console.log('category:', category, categoryIcon, parentCategory);
         } else {
-            // 编辑模式：从下拉框获取分类名称
             category = categorySelect.value;
             if (!category) { alert('请选择分类'); return; }
-            // 编辑模式不修改分类图标，保留原值
-            categoryIcon = ''; // 后端会用原分类图标
             console.log('isAddingNewCategory = false');
             console.log('selected category:', category);
         }
@@ -1216,6 +1218,230 @@
 
             iconDropdownPanel.classList.remove('show');
             caret.classList.remove('open');
+        });
+    }
+
+    // ---------- 分类管理功能 ----------
+    if (manageCategoriesBtn) {
+        manageCategoriesBtn.addEventListener('click', () => {
+            loadCategoryList();
+            categoryManageModal.show();
+        });
+    }
+
+    function loadCategoryList() {
+        const categories = allData.categories || {};
+        const tree = buildCategoryTree();
+
+        const flatList = [];
+        function flatten(node) {
+            flatList.push(node);
+            if (node.children) {
+                node.children.forEach(flatten);
+            }
+        }
+        tree.forEach(flatten);
+
+        let html = `
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>图标</th>
+                        <th>分类名称</th>
+                        <th>上级分类</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        flatList.forEach(node => {
+            const iconHtml = renderIconPreview(node.icon);
+            html += `
+                <tr data-category="${escapeHtml(node.name)}">
+                    <td class="category-icon-cell">${iconHtml}</td>
+                    <td>${escapeHtml(node.name)}</td>
+                    <td>${node.parent ? escapeHtml(node.parent) : '-'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary edit-category-btn" title="编辑"><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-sm btn-outline-danger delete-category-btn" title="删除"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        html += '</tbody></table>';
+        categoryListContainer.innerHTML = html;
+
+        document.querySelectorAll('.edit-category-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const row = e.target.closest('tr');
+                const categoryName = row.dataset.category;
+                editCategory(categoryName);
+            });
+        });
+
+        document.querySelectorAll('.delete-category-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const row = e.target.closest('tr');
+                const categoryName = row.dataset.category;
+                deleteCategory(categoryName);
+            });
+        });
+
+        // 更新上级分类下拉框
+        let parentOptions = '<option value="">-- 无 (一级分类) --</option>';
+        Object.keys(categories).sort().forEach(cat => {
+            parentOptions += `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`;
+        });
+        newCategoryParentSelect.innerHTML = parentOptions;
+    }
+
+    function renderIconPreview(icon) {
+        if (!icon) return '<i class="fas fa-folder"></i>';
+        if (icon.startsWith('http') || icon.startsWith('data:image')) {
+            return `<img src="${icon}" style="max-width:24px; max-height:24px;">`;
+        } else {
+            return `<i class="${icon}"></i>`;
+        }
+    }
+
+    function editCategory(categoryName) {
+        const newName = prompt('请输入新分类名称（留空表示不修改）', categoryName);
+        if (newName === null) return;
+        const newIcon = prompt('请输入新图标（留空表示不修改）', allData.categories[categoryName]?.icon || '');
+        const newParent = prompt('请输入上级分类名称（留空表示无上级）', allData.categories[categoryName]?.parent || '');
+
+        const payload = {};
+        if (newName && newName !== categoryName) payload.new_name = newName;
+        if (newIcon) payload.icon = newIcon;
+        if (newParent !== undefined) payload.parent = newParent;
+
+        fetch(`/category/${encodeURIComponent(categoryName)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(result => {
+            if (result.success) {
+                alert('修改成功');
+                allData = result.data;
+                loadCategoryList();
+                refreshDataAndUI();
+            } else {
+                alert('修改失败：' + result.message);
+            }
+        })
+        .catch(err => alert('网络错误'));
+    }
+
+    function deleteCategory(categoryName) {
+        if (!confirm(`确定要删除分类“${categoryName}”吗？`)) return;
+        fetch(`/category/${encodeURIComponent(categoryName)}`, {
+            method: 'DELETE'
+        })
+        .then(res => res.json())
+        .then(result => {
+            if (result.success) {
+                alert('删除成功');
+                allData = result.data;
+                loadCategoryList();
+                refreshDataAndUI();
+            } else {
+                alert('删除失败：' + result.message);
+            }
+        })
+        .catch(err => alert('网络错误'));
+    }
+
+    // 切换表单显示的函数
+    function toggleAddCategoryForm() {
+        if (!addCategoryForm || !toggleAddCategoryBtn) return;
+        if (addCategoryForm.style.display === 'none') {
+            addCategoryForm.style.display = 'block';
+            toggleAddCategoryBtn.innerHTML = '<i class="fas fa-minus"></i> 隐藏表单';
+        } else {
+            addCategoryForm.style.display = 'none';
+            toggleAddCategoryBtn.innerHTML = '<i class="fas fa-plus"></i> 新增分类';
+        }
+    }
+
+    // 卡片头部点击事件（使用事件委托，避免获取不到元素）
+    const categoryHeader = document.querySelector('#categoryManageModal .card-header');
+    if (categoryHeader) {
+        categoryHeader.addEventListener('click', (e) => {
+            // 如果点击的元素在新增表单内或点击的是新增按钮本身，不触发
+            if (e.target.closest('#addCategoryForm') || e.target.closest('#toggleAddCategoryBtn')) {
+                return;
+            }
+            toggleAddCategoryForm();
+        });
+    }
+
+    // 新增分类按钮点击（单独处理，并阻止冒泡）
+    if (toggleAddCategoryBtn) {
+        toggleAddCategoryBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleAddCategoryForm();
+        });
+    }
+
+    // 图标选择联动
+    if (newCategoryIconSelect && newCategoryCustomIcon) {
+        newCategoryIconSelect.addEventListener('change', function() {
+            newCategoryCustomIcon.style.display = this.value === 'custom' ? 'block' : 'none';
+        });
+    }
+
+    // 保存新增分类
+    if (saveNewCategoryBtn) {
+        saveNewCategoryBtn.addEventListener('click', async () => {
+            const name = newCategoryNameInput.value.trim();
+            if (!name) {
+                alert('请输入分类名称');
+                return;
+            }
+
+            let icon;
+            if (newCategoryIconSelect.value === 'custom') {
+                icon = newCategoryCustomIcon.value.trim();
+                if (!icon) {
+                    alert('请输入自定义图标');
+                    return;
+                }
+            } else {
+                icon = newCategoryIconSelect.value || 'fas fa-folder';
+            }
+
+            const parent = newCategoryParentSelect.value || null;
+
+            try {
+                const res = await fetch('/add_category', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, icon, parent })
+                });
+                const result = await res.json();
+                if (res.ok && result.success) {
+                    alert('分类添加成功');
+                    newCategoryNameInput.value = '';
+                    newCategoryIconSelect.value = 'fas fa-folder';
+                    newCategoryCustomIcon.style.display = 'none';
+                    newCategoryCustomIcon.value = '';
+                    newCategoryParentSelect.value = '';
+                    addCategoryForm.style.display = 'none';
+                    toggleAddCategoryBtn.innerHTML = '<i class="fas fa-plus"></i> 新增分类';
+                    allData = result.data;
+                    loadCategoryList();
+                    refreshDataAndUI();
+                } else {
+                    alert('添加失败：' + (result.message || ''));
+                }
+            } catch (err) {
+                console.error(err);
+                alert('网络错误');
+            }
         });
     }
 

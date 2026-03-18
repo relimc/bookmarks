@@ -794,3 +794,51 @@ body {
 .custom-icon-input button:hover {
     background: #143157;
 }
+
+#categoryManageModal .card {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+/* 移除新增分类按钮的下划线 */
+#toggleAddCategoryBtn {
+    text-decoration: none;
+    border: none;
+    background: none;
+    color: #1e3c72; /* 保持与主题色一致 */
+}
+
+#toggleAddCategoryBtn:hover,
+#toggleAddCategoryBtn:focus {
+    text-decoration: none;
+    outline: none;
+}
+
+/* 新增分类表单内容居中（按钮本身宽度自适应） */
+#addCategoryForm .card-body {
+    text-align: center; /* 让内部元素居中 */
+}
+
+#addCategoryForm .form-label,
+#addCategoryForm .form-control,
+#addCategoryForm .form-select {
+    text-align: left;   /* 标签和输入框内容左对齐（更符合阅读习惯） */
+    width: 90%;         /* 宽度设为90%，并居中 */
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#addCategoryForm .btn {
+    width: auto;        /* 按钮宽度自适应 */
+    margin: 0 auto;     /* 居中 */
+}
+
+/* 使卡片头部显示手形，且有轻微的悬停反馈 */
+#categoryManageModal .card-header {
+    cursor: pointer;
+    user-select: none;
+}
+
+#categoryManageModal .card-header:hover {
+    background-color: #f0f4fa; /* 与原头部背景协调 */
+}

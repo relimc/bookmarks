@@ -59,6 +59,9 @@
                     </div>
 
                     <div class="header-right">
+                        <button class="import-btn" id="manageCategoriesBtn" title="管理分类">
+                            <i class="fas fa-folder"></i> 分类
+                        </button>
                         <button class="import-btn" id="importBookmarksBtn" title="导入浏览器书签">
                             <i class="fas fa-upload"></i> 导入
                         </button>
@@ -173,6 +176,75 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
                     <button type="button" class="btn btn-danger" id="deleteBtn" style="display: none;">删除</button>
                     <button type="button" class="btn btn-primary" id="submitBtn">提交</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分类管理模态框 -->
+    <div class="modal fade" id="categoryManageModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">📁 分类管理</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- 新增分类折叠区域 -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <button class="btn btn-link" type="button" id="toggleAddCategoryBtn">
+                                <i class="fas fa-plus"></i> 新增分类
+                            </button>
+                        </div>
+                        <div id="addCategoryForm" style="display: none;">
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label class="form-label">分类名称</label>
+                                    <input type="text" class="form-control" id="newCategoryNameInput" placeholder="输入分类名称">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">分类图标</label>
+                                    <select class="form-select" id="newCategoryIconSelect">
+                                        <optgroup label="📁 名词分类">
+                                            <option value="fas fa-folder">文件夹 (默认)</option>
+                                            <option value="fas fa-image">图片</option>
+                                            <option value="fas fa-music">音乐</option>
+                                            <option value="fas fa-video">视频</option>
+                                            <option value="fas fa-file-alt">文档</option>
+                                            <option value="fas fa-gamepad">游戏</option>
+                                            <option value="fas fa-heart">收藏</option>
+                                        </optgroup>
+                                        <optgroup label="🎯 动词分类">
+                                            <option value="fas fa-book-open">阅读</option>
+                                            <option value="fas fa-headphones">聆听</option>
+                                            <option value="fas fa-eye">观看</option>
+                                            <option value="fas fa-graduation-cap">学习</option>
+                                            <option value="fas fa-download">下载</option>
+                                            <option value="fas fa-search">搜索</option>
+                                        </optgroup>
+                                        <option value="custom">✏️ 自定义输入</option>
+                                    </select>
+                                    <input type="text" id="newCategoryCustomIcon" class="form-control mt-2" placeholder="输入自定义图标类名或图片URL" style="display: none;">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">上级分类 (可选)</label>
+                                    <select class="form-select" id="newCategoryParentSelect">
+                                        <option value="">-- 无 (一级分类) --</option>
+                                    </select>
+                                </div>
+                                <button class="btn btn-primary" id="saveNewCategoryBtn"><i class="fas fa-save"></i> 保存分类</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 分类列表 -->
+                    <div id="categoryListContainer">
+                        <!-- 动态生成 -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
                 </div>
             </div>
         </div>
