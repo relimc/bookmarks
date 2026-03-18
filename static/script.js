@@ -26,6 +26,7 @@
     const searchBtn = document.getElementById('searchBtn');
     const importBtn = document.getElementById('importBookmarksBtn');
     const selectedCategoryName = document.getElementById('selectedCategoryName');
+    const addBookmarkHeaderBtn = document.getElementById('addBookmarkHeaderBtn');
 
     // 自定义图标选择器元素
     const selectedIconDisplay = document.getElementById('selectedIconDisplay');
@@ -49,6 +50,7 @@
     const newCategoryCustomIcon = document.getElementById('newCategoryCustomIcon');
     const newCategoryParentSelect = document.getElementById('newCategoryParentSelect');
     const saveNewCategoryBtn = document.getElementById('saveNewCategoryBtn');
+    const newCategoryCustomIconManage = document.getElementById('newCategoryCustomIconManage');
 
     // 全局数据
     let allData = { bookmarks: [], categories: {} };
@@ -139,7 +141,7 @@
                 selectedIcon.title = name;
                 currentEngine = searchEngines.find(e => e.name === name) || searchEngines[0];
                 if (searchInput) {
-                    searchInput.placeholder = type === 'local' ? '可本地搜索，快速找到收藏网址' : `请输入关键字跳转至${name}搜索`;
+                    searchInput.placeholder = type === 'local' ? '可本地搜索，快速找到书签' : `请输入关键字跳转至${name}搜索`;
                 }
                 document.getElementById('engineDropdown').classList.remove('show');
             });
@@ -150,7 +152,7 @@
         if (!searchInput || !searchBtn) return;
 
         currentEngine = searchEngines[0];
-        searchInput.placeholder = currentEngine.type === 'local' ? '可本地搜索，快速找到收藏网址' : '请输入关键字跳转至搜索引擎搜索';
+        searchInput.placeholder = currentEngine.type === 'local' ? '可本地搜索，快速找到书签' : '请输入关键字跳转至搜索引擎搜索';
         const selectedEngineIcon = document.getElementById('selectedEngineIcon');
         selectedEngineIcon.innerHTML = `<i class="${searchEngines[0].iconClass}"></i>`;
         selectedEngineIcon.title = searchEngines[0].name;
@@ -1337,7 +1339,9 @@
     }
 
     function deleteCategory(categoryName) {
-        if (!confirm(`确定要删除分类“${categoryName}”吗？`)) return;
+        const msg = `确定要删除分类“${categoryName}”吗？\n这将同时删除其所有子分类及下属书签，且无法恢复！`;
+        if (!confirm(msg)) return;
+
         fetch(`/category/${encodeURIComponent(categoryName)}`, {
             method: 'DELETE'
         })
@@ -1346,8 +1350,8 @@
             if (result.success) {
                 alert('删除成功');
                 allData = result.data;
-                loadCategoryList();
-                refreshDataAndUI();
+                loadCategoryList(); // 刷新分类列表
+                refreshDataAndUI(); // 刷新主界面
             } else {
                 alert('删除失败：' + result.message);
             }
@@ -1388,9 +1392,9 @@
     }
 
     // 图标选择联动
-    if (newCategoryIconSelect && newCategoryCustomIcon) {
+    if (newCategoryIconSelect && newCategoryCustomIconManage) {
         newCategoryIconSelect.addEventListener('change', function() {
-            newCategoryCustomIcon.style.display = this.value === 'custom' ? 'block' : 'none';
+            newCategoryCustomIconManage.style.display = this.value === 'custom' ? 'block' : 'none';
         });
     }
 
@@ -1405,7 +1409,7 @@
 
             let icon;
             if (newCategoryIconSelect.value === 'custom') {
-                icon = newCategoryCustomIcon.value.trim();
+                icon = newCategoryCustomIconManage.value.trim(); // 使用新变量
                 if (!icon) {
                     alert('请输入自定义图标');
                     return;
@@ -1424,14 +1428,16 @@
                 });
                 const result = await res.json();
                 if (res.ok && result.success) {
-                    alert('分类添加成功');
+                   alert('分类添加成功');
+                    // 重置表单
                     newCategoryNameInput.value = '';
                     newCategoryIconSelect.value = 'fas fa-folder';
-                    newCategoryCustomIcon.style.display = 'none';
-                    newCategoryCustomIcon.value = '';
+                    newCategoryCustomIconManage.style.display = 'none';  // 隐藏自定义输入框
+                    newCategoryCustomIconManage.value = '';              // 清空输入值
                     newCategoryParentSelect.value = '';
                     addCategoryForm.style.display = 'none';
                     toggleAddCategoryBtn.innerHTML = '<i class="fas fa-plus"></i> 新增分类';
+                    // 刷新数据
                     allData = result.data;
                     loadCategoryList();
                     refreshDataAndUI();
@@ -1443,6 +1449,10 @@
                 alert('网络错误');
             }
         });
+    }
+
+    if (addBookmarkHeaderBtn) {
+        addBookmarkHeaderBtn.addEventListener('click', openAddModal);
     }
 
     // 初始化

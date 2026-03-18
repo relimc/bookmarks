@@ -54,16 +54,19 @@
                             <span class="engine-icon" id="selectedEngineIcon"><i class="fas fa-search"></i></span>
                             <div class="engine-dropdown" id="engineDropdown"></div>
                         </div>
-                        <input type="text" class="search-input" id="searchInput" placeholder="可本地搜索，快速找到收藏网址">
+                        <input type="text" class="search-input" id="searchInput" placeholder="可本地搜索，快速找到书签">
                         <button class="search-btn" id="searchBtn"><i class="fas fa-search"></i></button>
                     </div>
 
                     <div class="header-right">
-                        <button class="import-btn" id="manageCategoriesBtn" title="管理分类">
-                            <i class="fas fa-folder"></i> 分类
+                        <button class="import-btn" id="addBookmarkHeaderBtn" title="新增书签">
+                            <i class="fas fa-plus"></i> 新增书签
                         </button>
                         <button class="import-btn" id="importBookmarksBtn" title="导入浏览器书签">
-                            <i class="fas fa-upload"></i> 导入
+                            <i class="fas fa-upload"></i> 导入书签
+                        </button>
+                        <button class="import-btn" id="manageCategoriesBtn" title="管理分类">
+                            <i class="fas fa-folder"></i> 书签分类
                         </button>
                         <a href="https://github.com/你的用户名" target="_blank" class="github-link">
                             <i class="fab fa-github"></i> GitHub
@@ -225,7 +228,7 @@
                                         </optgroup>
                                         <option value="custom">✏️ 自定义输入</option>
                                     </select>
-                                    <input type="text" id="newCategoryCustomIcon" class="form-control mt-2" placeholder="输入自定义图标类名或图片URL" style="display: none;">
+                                    <input type="text" id="newCategoryCustomIconManage" class="form-control mt-2" placeholder="图标字体或图标链接" style="display: none;">
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">上级分类 (可选)</label>
@@ -233,7 +236,7 @@
                                         <option value="">-- 无 (一级分类) --</option>
                                     </select>
                                 </div>
-                                <button class="btn btn-primary" id="saveNewCategoryBtn"><i class="fas fa-save"></i> 保存分类</button>
+                                <button class="btn btn-primary" id="saveNewCategoryBtn"><i class="fas fa-save"></i> 保存</button>
                             </div>
                         </div>
                     </div>

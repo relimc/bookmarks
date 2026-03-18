@@ -244,7 +244,7 @@ def update_category(name):
 @app.route('/category/<string:name>', methods=['DELETE'])
 @auth.login_required
 def delete_category(name):
-    """删除分类，前提是没有书签和子分类"""
+    """强制删除分类及其所有子分类和下属书签"""
     data = load_data()
     categories = data['categories']
     bookmarks = data['bookmarks']
@@ -252,17 +252,26 @@ def delete_category(name):
     if name not in categories:
         return jsonify({'success': False, 'message': '分类不存在'}), 404
 
-    # 检查是否有书签属于该分类
-    has_bookmarks = any(b['category'] == name for b in bookmarks)
-    if has_bookmarks:
-        return jsonify({'success': False, 'message': '该分类下还有书签，请先移动或删除书签'}), 400
+    # 递归收集所有要删除的分类（包括自身）
+    def collect_categories(cat_name, collected):
+        collected.add(cat_name)
+        # 查找子分类
+        for c_name, c_info in categories.items():
+            if c_info.get('parent') == cat_name:
+                collect_categories(c_name, collected)
 
-    # 检查是否有子分类
-    has_children = any(cat.get('parent') == name for cat in categories.values())
-    if has_children:
-        return jsonify({'success': False, 'message': '该分类下有子分类，请先处理'}), 400
+    to_delete = set()
+    collect_categories(name, to_delete)
 
-    del categories[name]
+    # 删除所有相关的书签
+    new_bookmarks = [b for b in bookmarks if b['category'] not in to_delete]
+    data['bookmarks'] = new_bookmarks
+
+    # 删除所有相关分类
+    for cat in to_delete:
+        if cat in categories:
+            del categories[cat]
+
     save_data(data)
     return jsonify({'success': True, 'data': data})
 
