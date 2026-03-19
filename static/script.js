@@ -321,16 +321,6 @@
         setCategoryMode(!isAddingNewCategory);
     });
 
-    parentCategorySelect.addEventListener('change', function() {
-        if (isAddingNewCategory) {
-            if (this.value) {
-                newCategoryIconGroup.style.display = 'none';
-            } else {
-                newCategoryIconGroup.style.display = 'block';
-            }
-        }
-    });
-
     // 构建分类树
     function buildCategoryTree() {
         const categories = allData.categories || {};
