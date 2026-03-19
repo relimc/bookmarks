@@ -509,7 +509,7 @@
             <div class="card" onclick="window.open('${fullUrl}', '_blank')">
                 <button class="edit-btn" onclick="event.stopPropagation(); openEditModal(${b.id})">✏️</button>
                 <div class="card-body">
-                    <div class="card-icon">${iconHtml}</div>
+                    <div class="card-icon" onclick="event.stopPropagation(); changeIcon(${b.id})">${iconHtml}</div>
                     <div class="card-content">
                         <div class="card-title">${title}</div>
                         ${desc ? `<div class="card-description">${desc}</div>` : ''}
@@ -1579,6 +1579,31 @@
 
     // 页面初始化时检测
     updateLoginButton();
+
+    window.changeIcon = async function(id) {
+        const newIcon = prompt('请输入新的图标链接或字体图标类名：', '');
+        if (newIcon === null) return;
+        const newIconTrim = newIcon.trim();
+        if (!newIconTrim) return;
+
+        try {
+            const res = await fetch(`/edit/${id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ icon: newIconTrim })
+            });
+            const result = await res.json();
+            if (res.ok && result.success) {
+                alert('✅ 图标更新成功');
+                allData = result.data;
+                refreshDataAndUI(); // 刷新所有卡片
+            } else {
+                alert('❌ 更新失败：' + (result.message || ''));
+            }
+        } catch (err) {
+            alert('❌ 网络错误');
+        }
+    };
 
 
     // 初始化
