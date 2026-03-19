@@ -372,6 +372,8 @@
 
     function renderCategoryTree() {
         const tree = buildCategoryTree();
+        // 对一级分类按优先级排序（数字越小越靠前）
+        tree.sort((a, b) => (a.priority || 100) - (b.priority || 100));
 
         if (allData._expanded) {
             function applyExpanded(node) {
@@ -670,6 +672,11 @@
 
             renderCategoryTree();
 
+            // 新增：更新分类下拉框（供编辑模式使用）
+            if (typeof updateCategorySelect === 'function') {
+                updateCategorySelect();
+            }
+
             if (activeCategoryKey && allData.categories[activeCategoryKey]) {
                 setActiveCategory(activeCategoryKey);
             } else {
@@ -715,12 +722,17 @@
         urlInput.readOnly = false;
         titleInput.value = '';
         descriptionInput.value = '';
-        setCategoryMode(true);
+        setCategoryMode(false);
+        setCategoryMode(true); // 切换到新增模式，此时会调用 updateParentCategorySelect
+        // 但为了确保数据最新，再显式调用一次
+        updateParentCategorySelect();
+
         parentCategorySelect.value = '';
         deleteBtn.style.display = 'none';
         clipboardHint.innerText = '';
         lastFetchedIcon = '';
 
+        // 重置图标选择器
         if (selectedIconValue) selectedIconValue.value = 'fas fa-folder';
         if (selectedIconPreview) selectedIconPreview.innerHTML = '<i class="fas fa-folder"></i>';
         if (selectedIconText) selectedIconText.textContent = '请选择分类';
@@ -732,9 +744,6 @@
         if (customIconInputPanel) customIconInputPanel.value = '';
         if (iconDropdownPanel) iconDropdownPanel.classList.remove('show');
         if (caret) caret.classList.remove('open');
-
-        const privateCheckbox = document.getElementById('bookmarkPrivate');
-        if (privateCheckbox) privateCheckbox.checked = false;
 
         bookmarkModal.show();
 
@@ -869,7 +878,7 @@
             alert('❌ 网络错误');
         } finally {
             submitBtn.disabled = false;
-            submitBtn.textContent = editingId.value ? '保存修改' : '提交收藏';
+            submitBtn.textContent = editingId.value ? '保存修改' : '提交书签';
         }
     }
 
