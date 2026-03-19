@@ -34,7 +34,16 @@ def load_data():
         return {'bookmarks': [], 'categories': {}}
     try:
         with open(DATA_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            data = json.load(f)
+        # 为分类补充 private 字段
+        for cat_name, cat in data.get('categories', {}).items():
+            if 'private' not in cat:
+                cat['private'] = False
+        # 为书签补充 private 字段
+        for b in data.get('bookmarks', []):
+            if 'private' not in b:
+                b['private'] = False
+        return data
     except:
         return {'bookmarks': [], 'categories': {}}
 
@@ -81,7 +90,6 @@ def download_icon(icon_url):
 
         return f"/static/favicons/{filename}"
     except Exception as e:
-        print(f"下载图标失败: {e}")
         return None
 
 def save_data(data):
@@ -96,7 +104,24 @@ def index():
 
 @app.route('/list')
 def list_bookmarks():
-    return jsonify(load_data())
+    data = load_data()
+    # 手动检查认证头
+    auth = request.authorization
+    if auth and auth.username in users and users[auth.username] == auth.password:
+        # 已登录，返回全部数据
+        return jsonify(data)
+    else:
+        # 未登录，只返回公开书签
+        filtered = {
+            'categories': data['categories'],
+            'bookmarks': [b for b in data['bookmarks'] if not b.get('private', False)]
+        }
+        return jsonify(filtered)
+
+@app.route('/auth_check', methods=['GET'])
+@auth.login_required
+def auth_check():
+    return jsonify({'success': True})
 
 @app.route('/add', methods=['POST'])
 @auth.login_required
@@ -111,18 +136,20 @@ def add_bookmark():
     parent_category = req.get('parent_category', '').strip()
     title = req.get('title', '').strip()
     description = req.get('description', '').strip()
-    icon = req.get('icon', '').strip()  # 可能是抓取的 URL
+    icon = req.get('icon', '').strip()
+    private = req.get('private', False)  # 默认为 False
 
     data = load_data()
     bookmarks = data['bookmarks']
     categories = data['categories']
 
-    # 创建新分类（如果需要）
+    # 如果分类不存在且提供了分类图标，则创建新分类（默认公开）
     if category and category not in categories and category_icon:
         categories[category] = {
             'name': category,
             'icon': category_icon,
-            'parent': parent_category
+            'parent': parent_category,
+            'private': False  # 新增分类默认公开
         }
 
     # 生成新书签 ID
@@ -131,21 +158,24 @@ def add_bookmark():
         'id': new_id,
         'url': url,
         'category': category or '未分类',
-        'icon': icon,  # 先存原值，待会可能覆盖
+        'icon': icon,
         'title': title or category or '链接',
-        'description': description
+        'description': description,
+        'private': private
     }
 
-    # 尝试下载图标
-    if icon:
+    # 尝试下载图标（仅当是 URL 且不是 base64）
+    if icon and not icon.startswith('data:image'):
         local_icon = download_icon(icon)
         if local_icon:
-            new_item['icon'] = local_icon  # 替换为本地路径
+            new_item['icon'] = local_icon
 
     bookmarks.append(new_item)
     save_data(data)
 
     return jsonify({'success': True, 'data': data})
+
+
 
 @app.route('/edit/<int:item_id>', methods=['POST'])
 @auth.login_required
@@ -160,14 +190,15 @@ def edit_bookmark(item_id):
             # 更新分类（如果变更）
             if 'category' in req:
                 new_category = req['category'].strip() or '未分类'
-                # 如果新分类不存在，则自动创建
+                # 如果新分类不存在，则自动创建（默认公开）
                 if new_category not in categories:
                     # 获取上级分类（如果有）
                     parent = req.get('parent_category', '').strip() or None
                     categories[new_category] = {
                         'name': new_category,
-                        'icon': 'fas fa-folder',  # 默认图标
-                        'parent': parent
+                        'icon': 'fas fa-folder',
+                        'parent': parent,
+                        'private': False
                     }
                 item['category'] = new_category
 
@@ -178,11 +209,14 @@ def edit_bookmark(item_id):
                 item['title'] = req['title'].strip() or item['category']
             if 'description' in req:
                 item['description'] = req['description'].strip()
+            if 'private' in req:
+                item['private'] = bool(req['private'])  # 确保布尔值
 
             save_data(data)
             return jsonify({'success': True, 'data': data})
 
     return jsonify({'success': False, 'message': '条目不存在'}), 404
+
 
 @app.route('/delete/<int:item_id>', methods=['POST'])
 @auth.login_required
@@ -227,37 +261,30 @@ def add_category():
         if not req:
             return jsonify({'success': False, 'message': '无效的请求数据'}), 400
 
-        # 获取并验证 name
-        name = req.get('name')
-        if not name or not isinstance(name, str):
-            return jsonify({'success': False, 'message': '分类名称必须为字符串'}), 400
-        name = name.strip()
+        # 安全获取 name
+        name_raw = req.get('name')
+        name = str(name_raw).strip() if name_raw is not None else ''
         if not name:
             return jsonify({'success': False, 'message': '分类名称不能为空'}), 400
 
-        # 处理图标
-        icon = req.get('icon')
-        if icon is None or not isinstance(icon, str):
+        # 安全获取 icon
+        icon_raw = req.get('icon')
+        icon = str(icon_raw).strip() if icon_raw is not None else ''
+        if not icon:
             icon = 'fas fa-folder'
-        else:
-            icon = icon.strip() or 'fas fa-folder'
 
-        # 处理上级分类
-        parent = req.get('parent')
-        if parent is None or not isinstance(parent, str):
+        # 安全获取 parent
+        parent_raw = req.get('parent')
+        parent = str(parent_raw).strip() if parent_raw is not None else ''
+        if parent == '':
             parent = None
-        else:
-            parent = parent.strip() or None
 
-        # 处理优先级
-        priority = req.get('priority')
-        if priority is None:
+        # 优先级
+        priority_raw = req.get('priority', 100)
+        try:
+            priority = int(priority_raw)
+        except (ValueError, TypeError):
             priority = 100
-        else:
-            try:
-                priority = int(priority)
-            except (ValueError, TypeError):
-                priority = 100
 
         data = load_data()
         categories = data['categories']
@@ -273,8 +300,8 @@ def add_category():
         }
         save_data(data)
         return jsonify({'success': True, 'data': data})
+
     except Exception as e:
-        print(f"Error in add_category: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'message': '服务器内部错误'}), 500
@@ -301,7 +328,6 @@ def update_category(name):
         except:
             priority = None
 
-    # 如果修改了分类名称
     if new_name and new_name != name:
         if new_name in categories:
             return jsonify({'success': False, 'message': '新分类名称已存在'}), 400
@@ -315,7 +341,6 @@ def update_category(name):
                 cat['parent'] = new_name
         name = new_name
 
-    # 更新字段
     if icon:
         categories[name]['icon'] = icon
     if 'parent' in req:

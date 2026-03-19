@@ -59,6 +59,9 @@
                     </div>
 
                     <div class="header-right">
+                        <button class="import-btn" id="loginBtn" title="登录">
+                            <i class="fas fa-sign-in-alt"></i> 登录
+                        </button>
                         <button class="import-btn" id="addBookmarkHeaderBtn" title="新增书签">
                             <i class="fas fa-plus"></i> 新增书签
                         </button>
@@ -108,6 +111,7 @@
                         <label class="form-label">描述</label>
                         <textarea class="form-control" id="descriptionInput" rows="2"></textarea>
                     </div>
+
 
                     <!-- 上级分类（仅新增分类时显示） -->
                     <div class="mb-3" id="parentCategoryGroup" style="display: none;">
@@ -175,10 +179,21 @@
                         ➕ 新增分类
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-danger" id="deleteBtn" style="display: none;">删除</button>
-                    <button type="button" class="btn btn-primary" id="submitBtn">提交</button>
+                <div class="modal-footer d-flex justify-content-between align-items-center">
+                    <div class="left-section">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="bookmarkPrivate">
+                            <label class="form-check-label" for="bookmarkPrivate">
+                                私密
+                                <span class="info-icon" data-tip="勾选后，登录后才能看到此标签">ⓘ</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="right-section d-flex gap-2">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="button" class="btn btn-danger" id="deleteBtn" style="display: none;">删除</button>
+                        <button type="button" class="btn btn-primary" id="submitBtn">提交</button>
+                    </div>
                 </div>
             </div>
         </div>

@@ -373,9 +373,6 @@
     function renderCategoryTree() {
         const tree = buildCategoryTree();
 
-        // 在这里对一级分类按优先级排序（数字越小越靠前）
-        tree.sort((a, b) => (a.priority || 100) - (b.priority || 100));
-
         if (allData._expanded) {
             function applyExpanded(node) {
                 if (allData._expanded[node.name]) {
@@ -398,9 +395,11 @@
         const allNodeHtml = `
             <div class="tree-node">
                 <div class="tree-node-content ${activeCategoryKey === null ? 'active' : ''}" data-category="__all__">
-                    <span class="node-icon"><i class="fas fa-home"></i></span>
-                    <span class="node-name">全部</span>
-                    <span class="expand-icon placeholder" style="visibility:hidden;">❯</span>
+                    <div class="node-inner">
+                        <span class="node-icon"><i class="fas fa-home"></i></span>
+                        <span class="node-name">全部</span>
+                        <span class="expand-icon placeholder" style="visibility:hidden;">❯</span>
+                    </div>
                 </div>
             </div>
         `;
@@ -433,9 +432,11 @@
             let html = `
                 <div class="tree-node">
                     <div class="tree-node-content ${activeClass}" data-category="${node.name}">
-                        <span class="node-icon">${iconHtml}</span>
-                        <span class="node-name">${escapeHtml(node.name)}</span>
-                        ${arrowHtml}
+                        <div class="node-inner">
+                            <span class="node-icon">${iconHtml}</span>
+                            <span class="node-name">${escapeHtml(node.name)}</span>
+                            ${arrowHtml}
+                        </div>
                     </div>
             `;
 
@@ -702,6 +703,8 @@
         deleteBtn.style.display = 'block';
         deleteBtn.onclick = handleDelete;
         clipboardHint.innerText = '';
+        const privateCheckbox = document.getElementById('bookmarkPrivate');
+        if (privateCheckbox) privateCheckbox.checked = item.private ? true : false;
         bookmarkModal.show();
     };
 
@@ -729,6 +732,9 @@
         if (customIconInputPanel) customIconInputPanel.value = '';
         if (iconDropdownPanel) iconDropdownPanel.classList.remove('show');
         if (caret) caret.classList.remove('open');
+
+        const privateCheckbox = document.getElementById('bookmarkPrivate');
+        if (privateCheckbox) privateCheckbox.checked = false;
 
         bookmarkModal.show();
 
@@ -768,17 +774,17 @@
     }
 
     async function handleSubmit() {
-        console.log('=== handleSubmit called ===');
-        console.log('editingId.value:', editingId.value);
-        console.log('editingId.value type:', typeof editingId.value);
 
         const url = urlInput.value.trim();
         if (!url) { alert('请输入网址'); return; }
-        console.log('url:', url);
 
         let category;
         let categoryIcon = '';
         let parentCategory = '';
+
+        // 获取私密复选框状态
+        const privateCheckbox = document.getElementById('bookmarkPrivate');
+        const isPrivate = privateCheckbox ? privateCheckbox.checked : false;
 
         if (isAddingNewCategory) {
             category = selectedCategoryName.value.trim();
@@ -795,21 +801,15 @@
             if (!categoryIcon) categoryIcon = 'fas fa-folder';
 
             parentCategory = parentCategorySelect.value;
-            console.log('isAddingNewCategory = true');
-            console.log('category:', category, categoryIcon, parentCategory);
         } else {
             category = categorySelect.value;
             if (!category) { alert('请选择分类'); return; }
-            console.log('isAddingNewCategory = false');
-            console.log('selected category:', category);
         }
 
         let icon = '';
         if (editingId.value) {
             const original = allData.bookmarks.find(b => b.id === parseInt(editingId.value));
             icon = original ? original.icon : '';
-            console.log('editing mode: using original icon');
-            console.log('original icon:', icon);
         } else {
             if (lastFetchedIcon) {
                 icon = lastFetchedIcon;
@@ -821,7 +821,6 @@
                     icon = '';
                 }
             }
-            console.log('add mode: icon set to', icon);
         }
 
         const payload = {
@@ -831,9 +830,9 @@
             parent_category: parentCategory,
             title: titleInput.value.trim() || category || '链接',
             description: descriptionInput.value.trim() || '',
-            icon: icon
+            icon: icon,
+            private: isPrivate  // 加入私密字段
         };
-        console.log('payload:', payload);
 
         submitBtn.disabled = true;
         submitBtn.textContent = '提交中...';
@@ -841,14 +840,12 @@
         try {
             let res;
             if (editingId.value) {
-                console.log('➡️ Sending edit request to /edit/' + editingId.value);
                 res = await fetch(`/edit/${editingId.value}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
             } else {
-                console.log('➡️ Sending add request to /add');
                 res = await fetch('/add', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -856,9 +853,7 @@
                 });
             }
 
-            console.log('response status:', res.status);
             const result = await res.json();
-            console.log('response data:', result);
 
             if (res.ok && result.success) {
                 alert(editingId.value ? '✅ 修改成功！' : '✅ 提交成功！');
@@ -1245,7 +1240,8 @@
 
     // ---------- 分类管理功能 ----------
     if (manageCategoriesBtn) {
-        manageCategoriesBtn.addEventListener('click', () => {
+        manageCategoriesBtn.addEventListener('click', async () => {
+            await refreshDataAndUI();  // 强制刷新数据（确保登录状态生效）
             loadCategoryList();
             categoryManageModal.show();
         });
@@ -1253,26 +1249,22 @@
 
     function loadCategoryList() {
         const categories = allData.categories || {};
-        const tree = buildCategoryTree();
+        const categoryList = Object.keys(categories).sort((a, b) => {
+            const pa = categories[a].priority || 100;
+            const pb = categories[b].priority || 100;
+            return pa - pb;
+        });
 
-        const flatList = [];
-        function flatten(node) {
-            flatList.push(node);
-            if (node.children) {
-                node.children.forEach(flatten);
-            }
-        }
-        tree.forEach(flatten);
-
-        let html = ''; // 只生成表格行，不包含表头
-        flatList.forEach(node => {
-            const iconHtml = renderIconPreview(node.icon);
+        let html = '';
+        categoryList.forEach(name => {
+            const cat = categories[name];
+            const iconHtml = renderIconPreview(cat.icon);
             html += `
-                <tr data-category="${escapeHtml(node.name)}">
+                <tr data-category="${escapeHtml(name)}">
                     <td class="category-icon-cell">${iconHtml}</td>
-                    <td>${escapeHtml(node.name)}</td>
-                    <td>${node.parent ? escapeHtml(node.parent) : '-'}</td>
-                    <td>${escapeHtml(node.priority ?? 100)}</td>
+                    <td>${escapeHtml(name)}</td>
+                    <td>${cat.parent ? escapeHtml(cat.parent) : '-'}</td>
+                    <td>${escapeHtml(cat.priority ?? 100)}</td>
                     <td>
                         <button class="btn btn-sm btn-outline-primary edit-category-btn" title="编辑"><i class="fas fa-edit"></i></button>
                         <button class="btn btn-sm btn-outline-danger delete-category-btn" title="删除"><i class="fas fa-trash"></i></button>
@@ -1283,7 +1275,7 @@
 
         categoryListContainer.innerHTML = html;
 
-        // 重新绑定编辑/删除事件
+        // 重新绑定编辑/删除事件（不变）
         document.querySelectorAll('.edit-category-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const row = e.target.closest('tr');
@@ -1300,10 +1292,10 @@
             });
         });
 
-        // 更新上级分类下拉框
+        // 更新上级分类下拉框（不变）
         let parentOptions = '<option value="">-- 无 (一级分类) --</option>';
-        Object.keys(categories).sort().forEach(cat => {
-            parentOptions += `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`;
+        categoryList.forEach(name => {
+            parentOptions += `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`;
         });
         newCategoryParentSelect.innerHTML = parentOptions;
     }
@@ -1413,14 +1405,12 @@
     // 保存新增分类
     if (saveNewCategoryBtn) {
         saveNewCategoryBtn.addEventListener('click', async () => {
-            // 获取分类名称
             const name = newCategoryNameInput.value.trim();
             if (!name) {
                 alert('请输入分类名称');
                 return;
             }
 
-            // 获取图标
             let icon;
             if (newCategoryIconSelect.value === 'custom') {
                 icon = newCategoryCustomIconManage.value.trim();
@@ -1432,16 +1422,10 @@
                 icon = newCategoryIconSelect.value || 'fas fa-folder';
             }
 
-            // 获取上级分类
             const parent = newCategoryParentSelect.value || null;
-
-            // 获取优先级（确保为整数）
             let priority = parseInt(newCategoryPriority.value);
-            if (isNaN(priority) || priority < 0) {
-                priority = 100; // 默认值
-            }
+            if (isNaN(priority) || priority < 0) priority = 100;
 
-            // 发送请求
             try {
                 const res = await fetch('/add_category', {
                     method: 'POST',
@@ -1451,14 +1435,10 @@
                 const result = await res.json();
                 if (res.ok && result.success) {
                     alert('✅ 分类添加成功');
-                    // 更新全局数据
                     allData = result.data;
-                    // 刷新分类列表（表格内）
                     loadCategoryList();
-                    // 刷新侧边栏及卡片区域
                     refreshDataAndUI();
 
-                    // 重置表单并折叠
                     newCategoryNameInput.value = '';
                     newCategoryIconSelect.value = 'fas fa-folder';
                     newCategoryCustomIconManage.style.display = 'none';
@@ -1471,8 +1451,8 @@
                     alert('❌ 添加失败：' + (result.message || ''));
                 }
             } catch (err) {
-                console.error('添加分类异常:', err);
-                alert('❌ 网络错误，请稍后重试');
+                console.error(err);
+                alert('❌ 网络错误');
             }
         });
     }
@@ -1535,6 +1515,62 @@
             }
         });
     }
+
+    const loginBtn = document.getElementById('loginBtn');
+    if (loginBtn) {
+        loginBtn.addEventListener('click', () => {
+            fetch('/auth_check')
+                .then(res => {
+                    if (res.ok) {
+                        alert('您已登录');
+                        sessionStorage.setItem('loggedIn', 'true');
+                        loginBtn.style.display = 'none';
+                    } else {
+                        // 不应该发生，因为401会被catch?
+                    }
+                })
+                .catch(err => {
+                    // 用户取消登录或其他错误
+                    console.log('登录取消或失败');
+                });
+        });
+    }
+
+    function updateLoginButton() {
+        if (!loginBtn) return;
+        fetch('/auth_check')
+            .then(res => {
+                if (res.ok) {
+                    // 已登录：修改文字和图标，确保显示
+                    loginBtn.innerHTML = '<i class="fas fa-check-circle"></i> 您已登录';
+                    loginBtn.title = '已登录';
+                    loginBtn.style.display = 'inline-flex'; // 确保不隐藏
+                } else {
+                    // 未登录
+                    loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 登录';
+                    loginBtn.title = '登录';
+                    loginBtn.style.display = 'inline-flex';
+                }
+            })
+            .catch(() => {
+                // 请求失败视为未登录
+                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 登录';
+                loginBtn.title = '登录';
+                loginBtn.style.display = 'inline-flex';
+            });
+    }
+
+    // 点击按钮时重新检测登录状态
+    if (loginBtn) {
+        loginBtn.addEventListener('click', (e) => {
+            e.preventDefault(); // 防止可能的默认行为
+            updateLoginButton();
+        });
+    }
+
+    // 页面初始化时检测
+    updateLoginButton();
+
 
     // 初始化
     initSearch();

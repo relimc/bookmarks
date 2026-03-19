@@ -80,12 +80,38 @@ body {
 .tree-node-content {
     display: flex;
     align-items: center;
-    padding: 12px 40px;
+    padding: 0px 40px 0px 40px;     /* 原为 12px 40px，改为 6px 40px，与内层内边距协调 */
     cursor: pointer;
     color: #979898;
     transition: all 0.1s;
-    border-bottom: 1px solid #313437;
     font-size: 13px;
+}
+
+/* 图标和文字的包裹容器，负责下边框 */
+.node-content-wrapper {
+    display: flex;
+    align-items: center;
+    flex: 1;                 /* 占满剩余空间，将箭头推至右侧 */
+    padding-bottom: 0;       /* 边框紧贴文字底部 */
+    margin-right: 8px;        /* 与箭头保持间距 */
+}
+
+.child-nodes .tree-node-content .node-name {
+    border-bottom: none;
+}
+
+.sidebar.collapsed .node-content-wrapper {
+    border-bottom: none;      /* 折叠时隐藏边框，保持简洁 */
+}
+
+.sidebar.collapsed .tree-node-content {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.sidebar.collapsed .node-icon {
+    margin-right: 0;
 }
 
 .tree-node-content:hover {
@@ -99,10 +125,10 @@ body {
 .node-icon {
     width: 24px;
     height: 24px;
-    margin-right: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
 }
 
 .node-icon i {
@@ -962,4 +988,54 @@ body {
 }
 .suggestion-item.more-link i {
     color: #0d6efd;
+}
+.private-cell {
+    text-align: left;
+    vertical-align: middle;
+}
+#bookmarkModal .modal-footer .form-check {
+    margin-bottom: 0;
+    line-height: 1.5;
+}
+
+
+/* 内部容器，包裹图标、文字和箭头，并添加下边框 */
+.node-inner {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    border-bottom: 1px solid #313437;
+    padding: 12px 0;        /* 上下内边距 6px */
+    gap: 8px;
+}
+
+
+/* 文字自动扩展 */
+.node-name {
+    flex: 1;
+    white-space: nowrap;
+}
+
+/* 箭头固定宽度 */
+.expand-icon {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    color: #8fa3bc;
+    cursor: pointer;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+}
+
+/* 二级分类隐藏边框 */
+.child-nodes .node-inner {
+    border-bottom: none;
+}
+
+/* 折叠状态隐藏边框 */
+.sidebar.collapsed .node-inner {
+    border-bottom: none;
 }
