@@ -473,6 +473,21 @@
                     const treeNode = this.closest('.tree-node');
                     const hasChildren = treeNode.querySelector('.child-nodes') !== null;
                     if (hasChildren) {
+                        if (!allData._expanded) allData._expanded = {};
+
+                        const isTopLevel = allData.categories[cat] && !allData.categories[cat].parent;
+
+                        if (isTopLevel) {
+                            // 一级分类：先关闭其他一级分类
+                            for (let key in allData._expanded) {
+                                if (allData.categories[key] && !allData.categories[key].parent) {
+                                    if (key !== cat) {
+                                        allData._expanded[key] = false;
+                                    }
+                                }
+                            }
+                        }
+                        // 使用 toggleNodeExpanded 切换当前节点（它会处理自身的展开/折叠并重新渲染）
                         toggleNodeExpanded(cat);
                     }
                     setActiveCategory(cat);

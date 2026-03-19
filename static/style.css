@@ -175,7 +175,7 @@ body {
 }
 
 .child-nodes .tree-node-content {
-    padding-left: 52px;
+    padding-left: 72px;
 }
 
 .child-nodes .node-icon {
@@ -1030,12 +1030,12 @@ body {
     flex-shrink: 0;
 }
 
-/* 二级分类隐藏边框 */
-.child-nodes .node-inner {
-    border-bottom: none;
+.sidebar.collapsed .node-inner {
+    justify-content: center;
+    gap: 0;
+    width: auto;
 }
 
-/* 折叠状态隐藏边框 */
-.sidebar.collapsed .node-inner {
-    border-bottom: none;
+.sidebar.collapsed .node-icon {
+    margin-right: 0;
 }
