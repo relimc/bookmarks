@@ -462,34 +462,39 @@
 
         document.querySelectorAll('.tree-node-content').forEach(el => {
             el.addEventListener('click', function(e) {
-                if (sidebar.classList.contains('collapsed')) return;
+                // 点击箭头时由箭头事件处理，忽略
                 if (e.target.classList.contains('expand-icon')) return;
+
                 const cat = this.dataset.category;
                 if (cat === '__all__') {
                     setActiveCategory(null);
                     return;
                 }
                 if (cat) {
-                    const treeNode = this.closest('.tree-node');
-                    const hasChildren = treeNode.querySelector('.child-nodes') !== null;
-                    if (hasChildren) {
-                        if (!allData._expanded) allData._expanded = {};
+                    // 只有侧边栏未折叠时，才处理展开/折叠
+                    if (!sidebar.classList.contains('collapsed')) {
+                        const treeNode = this.closest('.tree-node');
+                        const hasChildren = treeNode.querySelector('.child-nodes') !== null;
+                        if (hasChildren) {
+                            if (!allData._expanded) allData._expanded = {};
 
-                        const isTopLevel = allData.categories[cat] && !allData.categories[cat].parent;
+                            const isTopLevel = allData.categories[cat] && !allData.categories[cat].parent;
 
-                        if (isTopLevel) {
-                            // 一级分类：先关闭其他一级分类
-                            for (let key in allData._expanded) {
-                                if (allData.categories[key] && !allData.categories[key].parent) {
-                                    if (key !== cat) {
-                                        allData._expanded[key] = false;
+                            if (isTopLevel) {
+                                // 一级分类：关闭其他同级分类
+                                for (let key in allData._expanded) {
+                                    if (allData.categories[key] && !allData.categories[key].parent) {
+                                        if (key !== cat) {
+                                            allData._expanded[key] = false;
+                                        }
                                     }
                                 }
                             }
+                            // 切换当前节点的展开状态
+                            toggleNodeExpanded(cat);
                         }
-                        // 使用 toggleNodeExpanded 切换当前节点（它会处理自身的展开/折叠并重新渲染）
-                        toggleNodeExpanded(cat);
                     }
+                    // 无论侧边栏状态如何，都选中该分类，刷新右侧卡片
                     setActiveCategory(cat);
                 }
             });
@@ -949,10 +954,17 @@
         const icon = collapseBtn.querySelector('i');
         if (sidebar.classList.contains('collapsed')) {
             icon.className = 'fas fa-chevron-right';
+            // 折叠时：清除所有展开状态
+            if (allData._expanded) {
+                Object.keys(allData._expanded).forEach(key => {
+                    allData._expanded[key] = false;
+                });
+                renderCategoryTree(); // 重新渲染使子节点隐藏
+            }
         } else {
             icon.className = 'fas fa-bars';
         }
-        hideSubcategoryPopup();
+        hideSubcategoryPopup(); // 隐藏可能的浮层
     });
 
     // 快捷键提示点击
