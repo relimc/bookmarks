@@ -1,5 +1,4 @@
 import json
-import os
 import time
 import requests
 from bs4 import BeautifulSoup
@@ -8,6 +7,7 @@ from flask_httpauth import HTTPBasicAuth
 from urllib.parse import urljoin
 import hashlib
 import os
+import random
 from urllib.parse import urlparse
 
 app = Flask(__name__)
@@ -472,9 +472,36 @@ def extract_icon_url(soup, base_url):
     # 这里简单返回第一个
     return candidates[0] if candidates else ''
 
+# 备用的 User-Agent 列表（当 fake-useragent 不可用时使用）
+FALLBACK_UA_LIST = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_1_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+]
+
+def get_headers():
+    """生成伪装性更强的请求头"""
+    try:
+        from fake_useragent import UserAgent
+        ua = UserAgent()
+        user_agent = ua.random
+    except:
+        user_agent = random.choice(FALLBACK_UA_LIST)
+    headers = {
+        'User-Agent': user_agent,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+        'Accept-Encoding': 'gzip, deflate',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Cache-Control': 'max-age=0',
+    }
+    return headers
+
 @app.route('/fetch-metadata', methods=['POST'])
 def fetch_metadata():
-    """接收URL，返回网页的标题、描述和图标（支持多种格式）"""
+    """增强版爬虫：获取网页标题、描述和图标，具备反爬伪装和多备选方案"""
     req = request.get_json()
     url = req.get('url', '').strip()
     if not url:
@@ -483,37 +510,73 @@ def fetch_metadata():
     if not url.startswith(('http://', 'https://')):
         url = 'http://' + url
 
+    # 随机延时，模拟人类操作
+    time.sleep(random.uniform(1, 3))
+
     try:
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        resp = requests.get(url, headers=headers, timeout=8)
+        headers = get_headers()
+        # 设置连接超时和读取超时，避免长时间挂起
+        resp = requests.get(url, headers=headers, timeout=(5, 10))
         resp.encoding = 'utf-8'
+        resp.raise_for_status()  # 检查HTTP状态码
+
         soup = BeautifulSoup(resp.text, 'html.parser')
 
-        # 获取标题
+        # ---------- 获取标题（多备选）----------
         title = ''
+        # 1. 标准 title 标签
         if soup.title and soup.title.string:
             title = soup.title.string.strip()
+        # 2. 如果没有，找 h1
         if not title:
             h1 = soup.find('h1')
             title = h1.get_text().strip() if h1 else ''
+        # 3. 再找 og:title
+        if not title:
+            og_title = soup.find('meta', property='og:title')
+            if og_title and og_title.get('content'):
+                title = og_title['content'].strip()
+        # 4. 最后取 twitter:title
+        if not title:
+            twitter_title = soup.find('meta', attrs={'name': 'twitter:title'})
+            if twitter_title and twitter_title.get('content'):
+                title = twitter_title['content'].strip()
 
-        # 获取描述
+        # ---------- 获取描述（多备选）----------
         description = ''
-        meta_desc = soup.find('meta', attrs={'name': 'description'}) or soup.find('meta', attrs={'property': 'og:description'})
+        # 1. 标准 description meta
+        meta_desc = soup.find('meta', attrs={'name': 'description'})
         if meta_desc and meta_desc.get('content'):
             description = meta_desc['content'].strip()
+        # 2. og:description
+        if not description:
+            og_desc = soup.find('meta', property='og:description')
+            if og_desc and og_desc.get('content'):
+                description = og_desc['content'].strip()
+        # 3. twitter:description
+        if not description:
+            twitter_desc = soup.find('meta', attrs={'name': 'twitter:description'})
+            if twitter_desc and twitter_desc.get('content'):
+                description = twitter_desc['content'].strip()
 
-        # 获取图标（增强版）
+        # ---------- 获取图标 ----------
         icon_url = extract_icon_url(soup, url)
 
         return jsonify({
             'success': True,
-            'title': title[:200],
+            'title': title[:200],        # 限制长度
             'description': description[:300],
             'icon': icon_url
         })
 
+    except requests.exceptions.Timeout:
+        return jsonify({'success': False, 'message': '请求超时'}), 500
+    except requests.exceptions.ConnectionError:
+        return jsonify({'success': False, 'message': '连接失败'}), 500
+    except requests.exceptions.HTTPError as e:
+        return jsonify({'success': False, 'message': f'HTTP错误 {e.response.status_code}'}), 500
     except Exception as e:
+        print(f"抓取元数据异常: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
 if __name__ == '__main__':

@@ -261,6 +261,7 @@
 
     // ---------- 分类相关 ----------
     function updateCategorySelect(selectedCategory = '') {
+        // 确保 categorySelect 元素存在
         if (!categorySelect || !categorySelect.tagName) {
             categorySelect = document.getElementById('categorySelect');
             if (!categorySelect) {
@@ -742,17 +743,25 @@
         urlInput.readOnly = false;
         titleInput.value = '';
         descriptionInput.value = '';
-        setCategoryMode(false);
-        setCategoryMode(true); // 切换到新增模式，此时会调用 updateParentCategorySelect
-        // 但为了确保数据最新，再显式调用一次
-        updateParentCategorySelect();
 
+        // 默认进入编辑模式（选择已有分类）
+        setCategoryMode(false);
+
+        // 确保分类下拉框选项最新
+        if (typeof updateCategorySelect === 'function') {
+            updateCategorySelect();
+        }
+
+        // 清空下拉框选中值
+        if (categorySelect) categorySelect.value = '';
+
+        // 其他重置
         parentCategorySelect.value = '';
         deleteBtn.style.display = 'none';
         clipboardHint.innerText = '';
         lastFetchedIcon = '';
 
-        // 重置图标选择器
+        // 重置图标选择器（即使隐藏也清空状态）
         if (selectedIconValue) selectedIconValue.value = 'fas fa-folder';
         if (selectedIconPreview) selectedIconPreview.innerHTML = '<i class="fas fa-folder"></i>';
         if (selectedIconText) selectedIconText.textContent = '请选择分类';
