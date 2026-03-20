@@ -222,40 +222,45 @@
 
     // 本地搜索
     function localSearch(keyword) {
-        const sections = document.querySelectorAll('.category-section');
         const lowerKeyword = keyword.toLowerCase();
 
+        // 移除之前的搜索结果容器（如果有）
         const oldResults = document.querySelector('.search-results');
         if (oldResults) oldResults.remove();
 
         if (!lowerKeyword) {
-            sections.forEach(section => section.style.display = 'block');
+            // 关键词为空，恢复原视图
+            if (activeCategoryKey === null) {
+                renderAllLeafCategories();
+            } else {
+                renderBookmarksByCategory(activeCategoryKey);
+            }
             return;
         }
 
-        sections.forEach(section => section.style.display = 'none');
-
+        // 清空整个网格容器
+        bookmarkGrid.innerHTML = '';
         const resultsContainer = document.createElement('div');
         resultsContainer.className = 'search-results row g-3';
         bookmarkGrid.appendChild(resultsContainer);
 
-        const allCards = document.querySelectorAll('.card');
+        // 收集所有书签
+        const allBookmarks = allData.bookmarks || [];
         let hasMatch = false;
 
-        allCards.forEach(card => {
-            const title = card.querySelector('.card-title')?.textContent.toLowerCase() || '';
-            const desc = card.querySelector('.card-description')?.textContent.toLowerCase() || '';
-            const url = card.querySelector('.card-toast')?.textContent.toLowerCase() || '';
-            const cardTags = Array.from(card.querySelectorAll('.tag')).map(t => t.textContent.toLowerCase());
-            const tagMatch = cardTags.some(t => t.includes(lowerKeyword));
+        for (let b of allBookmarks) {
+            // 匹配标题、描述、网址、标签
+            const title = (b.title || '').toLowerCase();
+            const desc = (b.description || '').toLowerCase();
+            const url = (b.url || '').toLowerCase();
+            const tags = (b.tags || []).map(t => t.toLowerCase()).join(' ');
 
-            if (title.includes(lowerKeyword) || desc.includes(lowerKeyword) || url.includes(lowerKeyword) || tagMatch)  {
-                const clonedCard = card.cloneNode(true);
-                clonedCard.style.display = 'flex';
-                resultsContainer.appendChild(clonedCard);
+            if (title.includes(lowerKeyword) || desc.includes(lowerKeyword) || url.includes(lowerKeyword) || tags.includes(lowerKeyword)) {
+                const cardHtml = renderSingleBookmarkCard(b);
+                resultsContainer.innerHTML += cardHtml;
                 hasMatch = true;
             }
-        });
+        }
 
         if (!hasMatch) {
             resultsContainer.innerHTML = '<div class="col-12 text-center p-5" style="color:#8fa3bc;">没有找到匹配的网址</div>';
