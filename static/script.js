@@ -524,7 +524,12 @@
             const faClass = lineconsToFA[b.icon] || b.icon || 'fas fa-tag';
             iconHtml = `<i class="${faClass}"></i>`;
         }
+        const title = escapeHtml(b.title || b.category || '链接');
+        const desc = escapeHtml(b.description || '');
+        const fullUrl = escapeHtml(b.url);
+        const shortUrl = shortenUrl(b.url);
 
+        // 生成标签HTML
         let tagsHtml = '';
         if (b.tags && b.tags.length > 0) {
             tagsHtml = '<div class="card-tags">';
@@ -534,20 +539,17 @@
             tagsHtml += '</div>';
         }
 
-        const title = escapeHtml(b.title || b.category || '链接');
-        const desc = escapeHtml(b.description || '');
-        const fullUrl = escapeHtml(b.url);
-        const shortUrl = shortenUrl(b.url);
-
         return `
             <div class="card" onclick="window.open('${fullUrl}', '_blank')">
                 <button class="edit-btn" onclick="event.stopPropagation(); openEditModal(${b.id})">✏️</button>
                 <div class="card-body">
                     <div class="card-icon" onclick="event.stopPropagation(); changeIcon(${b.id})">${iconHtml}</div>
                     <div class="card-content">
-                        <div class="card-title">${title}</div>
+                        <div class="card-title-wrapper">
+                            <div class="card-title">${title}</div>
+                            ${tagsHtml}
+                        </div>
                         ${desc ? `<div class="card-description">${desc}</div>` : ''}
-                        ${tagsHtml}
                     </div>
                 </div>
                 <div class="card-toast">${shortUrl}</div>

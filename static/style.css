@@ -1042,7 +1042,8 @@ body {
 
 /* 卡片标签 */
 .card-tags {
-    margin-top: 8px;
+    margin-bottom: 4px;
+    margin-right: 30px;
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
@@ -1060,4 +1061,60 @@ body {
 }
 .tag:hover {
     background: #d0e0f0;
+}
+
+/* 标题与标签同行布局 */
+.card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    flex-shrink: 0;            /* 标签区域不缩小 */
+}
+.tag {
+    background: #eef2f6;
+    color: #1e3a6b;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: background 0.1s;
+    user-select: none;
+    white-space: nowrap;
+}
+.tag:hover {
+    background: #d0e0f0;
+}
+.card-title-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;      /* 改为垂直居中 */
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 4px;
+    line-height: 1.5;
+}
+
+.card-title {
+    font-weight: bold;
+    font-size: 13px;
+    color: rgb(151, 152, 152);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
+    line-height: 1.5;         /* 与标签的 line-height 一致，确保对齐 */
+}
+
+.tag {
+    background: #eef2f6;
+    color: #1e3a6b;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: background 0.1s;
+    user-select: none;
+    white-space: nowrap;
+    line-height: 1.5;         /* 与标题的 line-height 相同 */
 }
