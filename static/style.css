@@ -1039,3 +1039,25 @@ body {
 .sidebar.collapsed .node-icon {
     margin-right: 0;
 }
+
+/* 卡片标签 */
+.card-tags {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.tag {
+    background: #eef2f6;
+    color: #1e3a6b;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    display: inline-block;
+    transition: background 0.1s;
+    user-select: none;
+}
+.tag:hover {
+    background: #d0e0f0;
+}

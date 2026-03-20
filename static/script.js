@@ -27,6 +27,7 @@
     const importBtn = document.getElementById('importBookmarksBtn');
     const selectedCategoryName = document.getElementById('selectedCategoryName');
     const addBookmarkHeaderBtn = document.getElementById('addBookmarkHeaderBtn');
+    const bookmarkTags = document.getElementById('bookmarkTags');
 
     // 自定义图标选择器元素
     const selectedIconDisplay = document.getElementById('selectedIconDisplay');
@@ -245,8 +246,10 @@
             const title = card.querySelector('.card-title')?.textContent.toLowerCase() || '';
             const desc = card.querySelector('.card-description')?.textContent.toLowerCase() || '';
             const url = card.querySelector('.card-toast')?.textContent.toLowerCase() || '';
+            const cardTags = Array.from(card.querySelectorAll('.tag')).map(t => t.textContent.toLowerCase());
+            const tagMatch = cardTags.some(t => t.includes(lowerKeyword));
 
-            if (title.includes(lowerKeyword) || desc.includes(lowerKeyword) || url.includes(lowerKeyword)) {
+            if (title.includes(lowerKeyword) || desc.includes(lowerKeyword) || url.includes(lowerKeyword) || tagMatch)  {
                 const clonedCard = card.cloneNode(true);
                 clonedCard.style.display = 'flex';
                 resultsContainer.appendChild(clonedCard);
@@ -521,6 +524,16 @@
             const faClass = lineconsToFA[b.icon] || b.icon || 'fas fa-tag';
             iconHtml = `<i class="${faClass}"></i>`;
         }
+
+        let tagsHtml = '';
+        if (b.tags && b.tags.length > 0) {
+            tagsHtml = '<div class="card-tags">';
+            b.tags.forEach(tag => {
+                tagsHtml += `<span class="tag" onclick="event.stopPropagation(); searchByTag('${escapeHtml(tag)}')">${escapeHtml(tag)}</span>`;
+            });
+            tagsHtml += '</div>';
+        }
+
         const title = escapeHtml(b.title || b.category || '链接');
         const desc = escapeHtml(b.description || '');
         const fullUrl = escapeHtml(b.url);
@@ -534,6 +547,7 @@
                     <div class="card-content">
                         <div class="card-title">${title}</div>
                         ${desc ? `<div class="card-description">${desc}</div>` : ''}
+                        ${tagsHtml}
                     </div>
                 </div>
                 <div class="card-toast">${shortUrl}</div>
@@ -733,6 +747,9 @@
         clipboardHint.innerText = '';
         const privateCheckbox = document.getElementById('bookmarkPrivate');
         if (privateCheckbox) privateCheckbox.checked = item.private ? true : false;
+        if (bookmarkTags) {
+            bookmarkTags.value = item.tags ? item.tags.join('/') : '';
+        }
         bookmarkModal.show();
     };
 
@@ -743,6 +760,7 @@
         urlInput.readOnly = false;
         titleInput.value = '';
         descriptionInput.value = '';
+        if (bookmarkTags) bookmarkTags.value = '';
 
         // 默认进入编辑模式（选择已有分类）
         setCategoryMode(false);
@@ -861,6 +879,12 @@
             }
         }
 
+        const tagsRaw = bookmarkTags ? bookmarkTags.value.trim() : '';
+        let tags = [];
+        if (tagsRaw) {
+            tags = tagsRaw.split('/').map(t => t.trim()).filter(t => t);
+        }
+
         const payload = {
             url: url,
             category: category,
@@ -869,7 +893,8 @@
             title: titleInput.value.trim() || category || '链接',
             description: descriptionInput.value.trim() || '',
             icon: icon,
-            private: isPrivate  // 加入私密字段
+            private: isPrivate,  // 加入私密字段
+            tags: tags
         };
 
         submitBtn.disabled = true;
@@ -1667,6 +1692,23 @@
         } else {
             parent.innerHTML = '<i class="fas fa-tag"></i>';
         }
+    };
+
+    window.searchByTag = function(tag) {
+        const searchInput = document.getElementById('searchInput');
+        if (!searchInput) return;
+        // 将引擎切换为本地搜索
+        currentEngine = searchEngines[0];
+        const selectedEngineIcon = document.getElementById('selectedEngineIcon');
+        if (selectedEngineIcon) {
+            selectedEngineIcon.innerHTML = `<i class="${searchEngines[0].iconClass}"></i>`;
+            selectedEngineIcon.title = searchEngines[0].name;
+        }
+        if (searchInput) {
+            searchInput.placeholder = '可本地搜索，快速找到收藏网址';
+            searchInput.value = tag;
+        }
+        localSearch(tag);
     };
 
 

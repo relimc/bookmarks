@@ -139,6 +139,10 @@ def add_bookmark():
     icon = req.get('icon', '').strip()
     private = req.get('private', False)  # 默认为 False
 
+    tags = req.get('tags', [])  # 默认为空列表
+    if not isinstance(tags, list):
+        tags = []
+
     data = load_data()
     bookmarks = data['bookmarks']
     categories = data['categories']
@@ -154,15 +158,8 @@ def add_bookmark():
 
     # 生成新书签 ID
     new_id = int(time.time() * 1000)
-    new_item = {
-        'id': new_id,
-        'url': url,
-        'category': category or '未分类',
-        'icon': icon,
-        'title': title or category or '链接',
-        'description': description,
-        'private': private
-    }
+    new_item = {'id': new_id, 'url': url, 'category': category or '未分类', 'icon': icon,
+                'title': title or category or '链接', 'description': description, 'private': private, 'tags': tags}
 
     # 尝试下载图标（仅当是 URL 且不是 base64）
     if icon and not icon.startswith('data:image'):
@@ -201,6 +198,13 @@ def edit_bookmark(item_id):
                         'private': False
                     }
                 item['category'] = new_category
+
+            if 'tags' in req:
+                if isinstance(req['tags'], list):
+                    item['tags'] = req['tags']
+                else:
+                    # 如果传入的不是列表，忽略或清空
+                    item['tags'] = []
 
             # 更新其他字段
             if 'icon' in req:
