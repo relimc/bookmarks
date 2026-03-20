@@ -516,7 +516,7 @@
     function renderSingleBookmarkCard(b) {
         let iconHtml = '';
         if (b.icon && (b.icon.startsWith('http') || b.icon.startsWith('data:image') || b.icon.startsWith('/static/'))) {
-            iconHtml = `<img src="${escapeHtml(b.icon)}" alt="icon" onerror="this.onerror=null; this.style.display='none'; let domainIcon = getDomainFaviconFromUrl('${escapeHtml(b.url)}'); if(domainIcon) { let img = new Image(); img.onload = function() { this.parentNode.innerHTML = ''; this.parentNode.appendChild(img); }; img.onerror = function() { this.parentNode.innerHTML = '<i class=\\'fas fa-tag\\'></i>'; }; img.src = domainIcon; } else { this.parentNode.innerHTML = '<i class=\\'fas fa-tag\\'></i>'; }">`;
+            iconHtml = `<img src="${escapeHtml(b.icon)}" alt="icon" data-url="${escapeHtml(b.url)}" onerror="fallbackIcon(this, '${escapeHtml(b.url)}')">`;
         } else {
             const faClass = lineconsToFA[b.icon] || b.icon || 'fas fa-tag';
             iconHtml = `<i class="${faClass}"></i>`;
@@ -1638,6 +1638,34 @@
             }
         } catch (err) {
             alert('❌ 网络错误');
+        }
+    };
+
+    window.fallbackIcon = function(img, url) {
+        img.onerror = null; // 防止循环
+        img.style.display = 'none';
+        const parent = img.parentNode;
+        if (!parent) return;
+
+        // 构造域名图标
+        let domainIcon = null;
+        try {
+            const urlObj = new URL(url);
+            domainIcon = urlObj.origin + '/favicon.ico';
+        } catch (e) {}
+
+        if (domainIcon && domainIcon !== img.src) {
+            const newImg = new Image();
+            newImg.onload = function() {
+                parent.innerHTML = '';
+                parent.appendChild(newImg);
+            };
+            newImg.onerror = function() {
+                parent.innerHTML = '<i class="fas fa-tag"></i>';
+            };
+            newImg.src = domainIcon;
+        } else {
+            parent.innerHTML = '<i class="fas fa-tag"></i>';
         }
     };
 
