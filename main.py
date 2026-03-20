@@ -481,7 +481,6 @@ FALLBACK_UA_LIST = [
 ]
 
 def get_headers():
-    """生成伪装性更强的请求头"""
     try:
         from fake_useragent import UserAgent
         ua = UserAgent()
@@ -491,7 +490,7 @@ def get_headers():
     headers = {
         'User-Agent': user_agent,
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',  # 优先中文
         'Accept-Encoding': 'gzip, deflate',
         'Connection': 'keep-alive',
         'Upgrade-Insecure-Requests': '1',
@@ -499,9 +498,97 @@ def get_headers():
     }
     return headers
 
+def detect_page_language(soup, headers):
+    """检测页面语言，返回语言代码（如 'zh', 'ja', 'en'）或 None"""
+    # 1. 从 <html lang> 属性获取
+    html_tag = soup.find('html')
+    if html_tag and html_tag.get('lang'):
+        lang = html_tag['lang'].split('-')[0].lower()
+        return lang
+    # 2. 从 Content-Language 响应头获取
+    content_lang = headers.get('Content-Language', '').split(',')[0].strip().split('-')[0].lower()
+    if content_lang:
+        return content_lang
+    # 3. 从 <meta http-equiv="content-language"> 获取
+    meta = soup.find('meta', attrs={'http-equiv': 'content-language'})
+    if meta and meta.get('content'):
+        lang = meta['content'].split('-')[0].lower()
+        return lang
+    # 4. 从 <meta name="language"> 获取
+    meta_name = soup.find('meta', attrs={'name': 'language'})
+    if meta_name and meta_name.get('content'):
+        lang = meta_name['content'].split('-')[0].lower()
+        return lang
+    return None
+
+def find_zh_url(soup, base_url):
+    """查找指向中文版本的链接（hreflang="zh"）"""
+    # 查找 <link rel="alternate" hreflang="zh" ...>
+    links = soup.find_all('link', rel='alternate')
+    for link in links:
+        hreflang = link.get('hreflang', '').split('-')[0].lower()
+        if hreflang == 'zh' and link.get('href'):
+            return urljoin(base_url, link['href'])
+    # 如果没有hreflang，可以尝试一些常见的中文路径（如 /zh-cn/）
+    # 但为避免误判，暂时不添加
+    return None
+
+def fetch_single_page(url, retry=1):
+    """请求单个页面，返回 (soup, headers) 或 (None, None)"""
+    for i in range(retry):
+        try:
+            time.sleep(random.uniform(1, 3))
+            headers = get_headers()
+            resp = requests.get(url, headers=headers, timeout=(5, 10))
+            resp.encoding = 'utf-8'
+            resp.raise_for_status()
+            soup = BeautifulSoup(resp.text, 'html.parser')
+            return soup, resp.headers
+        except Exception as e:
+            print(f"请求失败 (尝试 {i+1}): {e}")
+            if i == retry-1:
+                return None, None
+    return None, None
+
+def extract_metadata(soup, url):
+    """从soup中提取标题、描述、图标"""
+    # 标题
+    title = ''
+    if soup.title and soup.title.string:
+        title = soup.title.string.strip()
+    if not title:
+        h1 = soup.find('h1')
+        title = h1.get_text().strip() if h1 else ''
+    if not title:
+        og_title = soup.find('meta', property='og:title')
+        if og_title and og_title.get('content'):
+            title = og_title['content'].strip()
+    if not title:
+        twitter_title = soup.find('meta', attrs={'name': 'twitter:title'})
+        if twitter_title and twitter_title.get('content'):
+            title = twitter_title['content'].strip()
+
+    # 描述
+    description = ''
+    meta_desc = soup.find('meta', attrs={'name': 'description'})
+    if meta_desc and meta_desc.get('content'):
+        description = meta_desc['content'].strip()
+    if not description:
+        og_desc = soup.find('meta', property='og:description')
+        if og_desc and og_desc.get('content'):
+            description = og_desc['content'].strip()
+    if not description:
+        twitter_desc = soup.find('meta', attrs={'name': 'twitter:description'})
+        if twitter_desc and twitter_desc.get('content'):
+            description = twitter_desc['content'].strip()
+
+    # 图标
+    icon_url = extract_icon_url(soup, url)  # 复用之前的函数
+
+    return title[:200], description[:300], icon_url
+
 @app.route('/fetch-metadata', methods=['POST'])
 def fetch_metadata():
-    """增强版爬虫：获取网页标题、描述和图标，具备反爬伪装和多备选方案"""
     req = request.get_json()
     url = req.get('url', '').strip()
     if not url:
@@ -510,74 +597,43 @@ def fetch_metadata():
     if not url.startswith(('http://', 'https://')):
         url = 'http://' + url
 
-    # 随机延时，模拟人类操作
-    time.sleep(random.uniform(1, 3))
+    # 第一步：请求原始URL
+    soup, headers = fetch_single_page(url)
+    if not soup:
+        return jsonify({'success': False, 'message': '无法获取页面内容'}), 500
 
-    try:
-        headers = get_headers()
-        # 设置连接超时和读取超时，避免长时间挂起
-        resp = requests.get(url, headers=headers, timeout=(5, 10))
-        resp.encoding = 'utf-8'
-        resp.raise_for_status()  # 检查HTTP状态码
+    # 提取元数据
+    title, description, icon_url = extract_metadata(soup, url)
 
-        soup = BeautifulSoup(resp.text, 'html.parser')
+    # 检测页面语言
+    page_lang = detect_page_language(soup, headers)
+    print(f"页面语言: {page_lang}")
 
-        # ---------- 获取标题（多备选）----------
-        title = ''
-        # 1. 标准 title 标签
-        if soup.title and soup.title.string:
-            title = soup.title.string.strip()
-        # 2. 如果没有，找 h1
-        if not title:
-            h1 = soup.find('h1')
-            title = h1.get_text().strip() if h1 else ''
-        # 3. 再找 og:title
-        if not title:
-            og_title = soup.find('meta', property='og:title')
-            if og_title and og_title.get('content'):
-                title = og_title['content'].strip()
-        # 4. 最后取 twitter:title
-        if not title:
-            twitter_title = soup.find('meta', attrs={'name': 'twitter:title'})
-            if twitter_title and twitter_title.get('content'):
-                title = twitter_title['content'].strip()
+    # 如果语言不是中文，尝试查找中文版
+    if page_lang and page_lang not in ('zh', 'cn'):  # cn 是旧标准
+        zh_url = find_zh_url(soup, url)
+        if zh_url:
+            # 请求中文版，但避免无限循环（只重试一次）
+            zh_soup, zh_headers = fetch_single_page(zh_url)
+            if zh_soup:
+                zh_title, zh_description, zh_icon = extract_metadata(zh_soup, zh_url)
+                # 优先使用中文版的数据，但如果中文版某些字段缺失，则保留原版
+                if zh_title:
+                    title = zh_title
+                if zh_description:
+                    description = zh_description
+                if zh_icon:
+                    icon_url = zh_icon
+                # 可以选择在描述后添加提示，表示内容来自中文版
+                # if zh_description and description != zh_description:
+                #     description += " (来自中文版)"
 
-        # ---------- 获取描述（多备选）----------
-        description = ''
-        # 1. 标准 description meta
-        meta_desc = soup.find('meta', attrs={'name': 'description'})
-        if meta_desc and meta_desc.get('content'):
-            description = meta_desc['content'].strip()
-        # 2. og:description
-        if not description:
-            og_desc = soup.find('meta', property='og:description')
-            if og_desc and og_desc.get('content'):
-                description = og_desc['content'].strip()
-        # 3. twitter:description
-        if not description:
-            twitter_desc = soup.find('meta', attrs={'name': 'twitter:description'})
-            if twitter_desc and twitter_desc.get('content'):
-                description = twitter_desc['content'].strip()
-
-        # ---------- 获取图标 ----------
-        icon_url = extract_icon_url(soup, url)
-
-        return jsonify({
-            'success': True,
-            'title': title[:200],        # 限制长度
-            'description': description[:300],
-            'icon': icon_url
-        })
-
-    except requests.exceptions.Timeout:
-        return jsonify({'success': False, 'message': '请求超时'}), 500
-    except requests.exceptions.ConnectionError:
-        return jsonify({'success': False, 'message': '连接失败'}), 500
-    except requests.exceptions.HTTPError as e:
-        return jsonify({'success': False, 'message': f'HTTP错误 {e.response.status_code}'}), 500
-    except Exception as e:
-        print(f"抓取元数据异常: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+    return jsonify({
+        'success': True,
+        'title': title[:200],
+        'description': description[:300],
+        'icon': icon_url
+    })
 
 if __name__ == '__main__':
     app.run(debug=True)
