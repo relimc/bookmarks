@@ -589,18 +589,12 @@ body {
 .card-content {
     flex: 1;
     min-width: 0;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
 }
 
-.card-title {
-    font-weight: bold;
-    font-size: 13px;
-    color: rgb(151, 152, 152);
-    margin-bottom: 4px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    padding-right: 24px;
-}
+
 
 .card-description {
     font-size: 13px;
@@ -613,12 +607,12 @@ body {
 
 .edit-btn {
     position: absolute;
-    right: 12px;
+    right: 6px;
     top: 50%;
     transform: translateY(-50%);
     background: none;
     border: none;
-    font-size: 1rem;
+    font-size: 13px;
     cursor: pointer;
     color: #9bb1cc;
     padding: 8px 10px;
@@ -1042,7 +1036,6 @@ body {
 
 /* 卡片标签 */
 .card-tags {
-    margin-bottom: 4px;
     margin-right: 30px;
     display: flex;
     flex-wrap: wrap;
@@ -1090,7 +1083,7 @@ body {
     align-items: center;      /* 改为垂直居中 */
     flex-wrap: wrap;
     gap: 8px;
-    margin-bottom: 4px;
+    margin: 0 !important;
     line-height: 1.5;
 }
 
@@ -1104,6 +1097,8 @@ body {
     flex: 1;
     min-width: 0;
     line-height: 1.5;         /* 与标签的 line-height 一致，确保对齐 */
+    padding-right: 24px;
+    margin-bottom: 0;
 }
 
 .tag {
