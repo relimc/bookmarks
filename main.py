@@ -35,14 +35,16 @@ def load_data():
     try:
         with open(DATA_FILE, 'r', encoding='utf-8') as f:
             data = json.load(f)
-        # 为分类补充 private 字段
-        for cat_name, cat in data.get('categories', {}).items():
-            if 'private' not in cat:
-                cat['private'] = False
-        # 为书签补充 private 字段
+        # 为每个书签补充 click_count 字段（默认0）
         for b in data.get('bookmarks', []):
+            if 'click_count' not in b:
+                b['click_count'] = 0
             if 'private' not in b:
                 b['private'] = False
+        # 为分类补充 private 等字段（之前已加）
+        for cat in data.get('categories', {}).values():
+            if 'private' not in cat:
+                cat['private'] = False
         return data
     except:
         return {'bookmarks': [], 'categories': {}}
@@ -646,6 +648,29 @@ def fetch_metadata():
         'description': description[:300],
         'icon': icon_url
     })
+
+
+@app.route('/increment_click/<int:item_id>', methods=['POST'])
+@auth.login_required
+def increment_click(item_id):
+    """增加书签点击次数（仅登录用户）"""
+    data = load_data()
+    bookmarks = data['bookmarks']
+    for b in bookmarks:
+        if b['id'] == item_id:
+            b['click_count'] = b.get('click_count', 0) + 1
+            save_data(data)
+            return jsonify({'success': True, 'click_count': b['click_count']})
+    return jsonify({'success': False, 'message': '书签不存在'}), 404
+
+
+@app.route('/recommend')
+def recommend():
+    data = load_data()
+    bookmarks = data['bookmarks']
+    # 按点击次数排序，取前30
+    sorted_bookmarks = sorted(bookmarks, key=lambda x: x.get('click_count', 0), reverse=True)[:30]
+    return jsonify(sorted_bookmarks)
 
 if __name__ == '__main__':
     app.run(debug=True)

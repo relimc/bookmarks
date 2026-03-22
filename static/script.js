@@ -1,4 +1,6 @@
 (function() {
+    let isLoggedIn = false; // 登录状态
+
     // 获取模态框实例
     const bookmarkModal = new bootstrap.Modal(document.getElementById('bookmarkModal'));
 
@@ -381,8 +383,6 @@
 
     function renderCategoryTree() {
         const tree = buildCategoryTree();
-        // 对一级分类按优先级排序（数字越小越靠前）
-        tree.sort((a, b) => (a.priority || 100) - (b.priority || 100));
 
         if (allData._expanded) {
             function applyExpanded(node) {
@@ -398,11 +398,7 @@
             tree.forEach(applyExpanded);
         }
 
-        if (!tree.length && activeCategoryKey !== null) {
-            categoryTreeDiv.innerHTML = `<div class="text-center p-4" style="color:#8fa3bc;">📭 暂无分类</div>`;
-            return;
-        }
-
+        // 构建“全部”节点
         const allNodeHtml = `
             <div class="tree-node">
                 <div class="tree-node-content ${activeCategoryKey === null ? 'active' : ''}" data-category="__all__">
@@ -415,6 +411,20 @@
             </div>
         `;
 
+        // 构建“推荐”节点
+        const recommendNodeHtml = `
+            <div class="tree-node">
+                <div class="tree-node-content ${activeCategoryKey === '__recommend__' ? 'active' : ''}" data-category="__recommend__">
+                    <div class="node-inner">
+                        <span class="node-icon"><i class="fas fa-fire"></i></span>
+                        <span class="node-name">推荐</span>
+                        <span class="expand-icon placeholder" style="visibility:hidden;">❯</span>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 递归渲染普通分类节点
         function renderNode(node) {
             const hasChildren = node.children && node.children.length > 0;
             const isActive = (activeCategoryKey === node.name);
@@ -463,15 +473,16 @@
             return html;
         }
 
-        let treeHtml = allNodeHtml;
+        let treeHtml = allNodeHtml + recommendNodeHtml; // 添加全部和推荐节点
         for (let root of tree) {
             treeHtml += renderNode(root);
         }
         categoryTreeDiv.innerHTML = treeHtml;
 
+        // 绑定点击事件（分类节点）
         document.querySelectorAll('.tree-node-content').forEach(el => {
             el.addEventListener('click', function(e) {
-                // 点击箭头时由箭头事件处理，忽略
+                if (sidebar.classList.contains('collapsed')) return;
                 if (e.target.classList.contains('expand-icon')) return;
 
                 const cat = this.dataset.category;
@@ -479,36 +490,36 @@
                     setActiveCategory(null);
                     return;
                 }
+                if (cat === '__recommend__') {
+                    setActiveCategory('__recommend__');
+                    return;
+                }
                 if (cat) {
-                    // 只有侧边栏未折叠时，才处理展开/折叠
-                    if (!sidebar.classList.contains('collapsed')) {
-                        const treeNode = this.closest('.tree-node');
-                        const hasChildren = treeNode.querySelector('.child-nodes') !== null;
-                        if (hasChildren) {
-                            if (!allData._expanded) allData._expanded = {};
+                    const treeNode = this.closest('.tree-node');
+                    const hasChildren = treeNode.querySelector('.child-nodes') !== null;
+                    if (hasChildren) {
+                        if (!allData._expanded) allData._expanded = {};
 
-                            const isTopLevel = allData.categories[cat] && !allData.categories[cat].parent;
+                        const isTopLevel = allData.categories[cat] && !allData.categories[cat].parent;
 
-                            if (isTopLevel) {
-                                // 一级分类：关闭其他同级分类
-                                for (let key in allData._expanded) {
-                                    if (allData.categories[key] && !allData.categories[key].parent) {
-                                        if (key !== cat) {
-                                            allData._expanded[key] = false;
-                                        }
+                        if (isTopLevel) {
+                            // 一级分类：关闭其他同级分类
+                            for (let key in allData._expanded) {
+                                if (allData.categories[key] && !allData.categories[key].parent) {
+                                    if (key !== cat) {
+                                        allData._expanded[key] = false;
                                     }
                                 }
                             }
-                            // 切换当前节点的展开状态
-                            toggleNodeExpanded(cat);
                         }
+                        toggleNodeExpanded(cat);
                     }
-                    // 无论侧边栏状态如何，都选中该分类，刷新右侧卡片
                     setActiveCategory(cat);
                 }
             });
         });
 
+        // 绑定箭头点击事件
         document.querySelectorAll('.expand-icon').forEach(arrow => {
             arrow.addEventListener('click', function(e) {
                 e.stopPropagation();
@@ -545,7 +556,7 @@
         }
 
         return `
-            <div class="card" onclick="window.open('${fullUrl}', '_blank')">
+            <div class="card" onclick="window.open('${fullUrl}', '_blank'); incrementClick(${b.id})">
                 <button class="edit-btn" onclick="event.stopPropagation(); openEditModal(${b.id})">✏️</button>
                 <div class="card-body">
                     <div class="card-icon" onclick="event.stopPropagation(); changeIcon(${b.id})">${iconHtml}</div>
@@ -699,9 +710,42 @@
             if (nameEl) nameEl.innerText = '全部';
             return;
         }
+
+        if (categoryName === '__recommend__') {
+            activeCategoryKey = '__recommend__';
+            renderRecommend();
+            renderCategoryTree(); // 高亮推荐节点
+            const iconEl = document.getElementById('currentCategoryIcon');
+            const nameEl = document.getElementById('currentCategoryName');
+            if (iconEl) iconEl.innerHTML = '<i class="fas fa-fire"></i>';
+            if (nameEl) nameEl.innerText = '推荐';
+            return;
+        }
+
         activeCategoryKey = categoryName;
         renderCategoryTree();
         renderBookmarksByCategory(categoryName);
+    }
+
+     async function renderRecommend() {
+        try {
+            const res = await fetch('/recommend');
+            if (!res.ok) throw new Error('加载失败');
+            const bookmarks = await res.json();
+            if (bookmarks.length === 0) {
+                bookmarkGrid.innerHTML = `<div class="text-center p-5" style="color:#8fa3bc;">✨ 暂无推荐，点击更多网页来积累热度</div>`;
+                return;
+            }
+            let gridHtml = '<div class="row g-3">';
+            for (let b of bookmarks) {
+                gridHtml += `<div class="col-12 col-md-6 col-lg-4">${renderSingleBookmarkCard(b)}</div>`;
+            }
+            gridHtml += '</div>';
+            bookmarkGrid.innerHTML = gridHtml;
+        } catch (err) {
+            console.error(err);
+            bookmarkGrid.innerHTML = `<div class="text-center p-5 text-danger">❌ 加载推荐失败</div>`;
+        }
     }
 
     // ---------- 数据刷新 ----------
@@ -709,9 +753,9 @@
         try {
             const res = await fetch('/list');
             if (!res.ok) throw new Error('加载失败');
-            // 从响应头获取认证状态
             const isAuthenticated = res.headers.get('X-Authenticated') === 'true';
-            updateLoginButton(isAuthenticated);  // 直接根据状态更新按钮，无需额外请求
+            isLoggedIn = isAuthenticated; // 保存登录状态
+            updateLoginButton(isAuthenticated);
 
             allData = await res.json();
             if (!allData._expanded) allData._expanded = {};
@@ -722,15 +766,11 @@
                 updateCategorySelect();
             }
 
+            // 默认显示推荐分类
             if (activeCategoryKey && allData.categories[activeCategoryKey]) {
                 setActiveCategory(activeCategoryKey);
             } else {
-                renderAllLeafCategories();
-                activeCategoryKey = null;
-                const iconEl = document.getElementById('currentCategoryIcon');
-                const nameEl = document.getElementById('currentCategoryName');
-                if (iconEl) iconEl.innerHTML = '<i class="fas fa-home"></i>';
-                if (nameEl) nameEl.innerText = '全部';
+                setActiveCategory('__recommend__'); // 默认推荐
             }
         } catch (err) {
             console.error(err);
@@ -1715,6 +1755,12 @@
             searchInput.value = tag;
         }
         localSearch(tag);
+    };
+
+    window.incrementClick = function(id) {
+        if (isLoggedIn) {
+            fetch(`/increment_click/${id}`, { method: 'POST' }).catch(err => console.warn('计数失败', err));
+        }
     };
 
 
