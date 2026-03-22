@@ -108,15 +108,23 @@ def list_bookmarks():
     # 手动检查认证头
     auth = request.authorization
     if auth and auth.username in users and users[auth.username] == auth.password:
-        # 已登录，返回全部数据
-        return jsonify(data)
+        authenticated = True
+        result = data
     else:
-        # 未登录，只返回公开书签
-        filtered = {
+        authenticated = False
+        # 未登录：返回所有分类，但只返回公开书签
+        result = {
             'categories': data['categories'],
             'bookmarks': [b for b in data['bookmarks'] if not b.get('private', False)]
         }
-        return jsonify(filtered)
+
+    # 创建响应对象并添加自定义头
+    resp = jsonify(result)
+    resp.headers['X-Authenticated'] = 'true' if authenticated else 'false'
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    resp.headers['Pragma'] = 'no-cache'
+    resp.headers['Expires'] = '0'
+    return resp
 
 @app.route('/auth_check', methods=['GET'])
 @auth.login_required
