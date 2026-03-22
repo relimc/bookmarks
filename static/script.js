@@ -709,12 +709,15 @@
         try {
             const res = await fetch('/list');
             if (!res.ok) throw new Error('加载失败');
+            // 从响应头获取认证状态
+            const isAuthenticated = res.headers.get('X-Authenticated') === 'true';
+            updateLoginButton(isAuthenticated);  // 直接根据状态更新按钮，无需额外请求
+
             allData = await res.json();
             if (!allData._expanded) allData._expanded = {};
 
             renderCategoryTree();
 
-            // 新增：更新分类下拉框（供编辑模式使用）
             if (typeof updateCategorySelect === 'function') {
                 updateCategorySelect();
             }
@@ -935,8 +938,7 @@
                 alert('❌ 操作失败: ' + (result.message || ''));
             }
         } catch (err) {
-            console.error('❌ 网络错误', err);
-            alert('❌ 网络错误');
+            console.error(err);
         } finally {
             submitBtn.disabled = false;
             submitBtn.textContent = editingId.value ? '保存修改' : '提交书签';
@@ -967,7 +969,7 @@
                 alert('❌ 删除失败: ' + (result.message || ''));
             }
         } catch (err) {
-            alert('❌ 网络错误');
+            console.error(err);
         } finally {
             deleteBtn.disabled = false;
             deleteBtn.textContent = '删除';
@@ -1225,7 +1227,6 @@
             }
         } catch (err) {
             console.error('导入异常:', err);
-            alert('❌ 网络错误，请重试');
         } finally {
             importBtn.innerHTML = originalText;
             importBtn.disabled = false;
@@ -1529,7 +1530,6 @@
                 }
             } catch (err) {
                 console.error(err);
-                alert('❌ 网络错误');
             }
         });
     }
@@ -1613,40 +1613,39 @@
         });
     }
 
-    function updateLoginButton() {
+    function updateLoginButton(isAuthenticated) {
         if (!loginBtn) return;
-        fetch('/auth_check')
-            .then(res => {
-                if (res.ok) {
-                    // 已登录：修改文字和图标，确保显示
-                    loginBtn.innerHTML = '<i class="fas fa-check-circle"></i> 您已登录';
-                    loginBtn.title = '已登录';
-                    loginBtn.style.display = 'inline-flex'; // 确保不隐藏
-                } else {
-                    // 未登录
-                    loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 登录';
-                    loginBtn.title = '登录';
-                    loginBtn.style.display = 'inline-flex';
-                }
-            })
-            .catch(() => {
-                // 请求失败视为未登录
-                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 登录';
-                loginBtn.title = '登录';
-                loginBtn.style.display = 'inline-flex';
-            });
+        if (isAuthenticated) {
+            loginBtn.innerHTML = '<i class="fas fa-check-circle"></i> 您已登录';
+            loginBtn.title = '已登录';
+        } else {
+            loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 登录';
+            loginBtn.title = '登录';
+        }
+        loginBtn.style.display = 'inline-flex';
     }
 
     // 点击按钮时重新检测登录状态
     if (loginBtn) {
         loginBtn.addEventListener('click', (e) => {
-            e.preventDefault(); // 防止可能的默认行为
-            updateLoginButton();
+            e.preventDefault();
+            // 点击时请求 /auth_check，会触发浏览器认证（如果未登录）
+            fetch('/auth_check')
+                .then(res => {
+                    if (res.ok) {
+                        // 登录成功，重新获取数据以刷新状态
+                        refreshDataAndUI();
+                    } else {
+                        // 未登录或认证失败，按钮状态由 refreshDataAndUI 重新设置
+                        refreshDataAndUI();
+                    }
+                })
+                .catch(() => {
+                    // 网络错误时也刷新一次
+                    refreshDataAndUI();
+                });
         });
     }
-
-    // 页面初始化时检测
-    updateLoginButton();
 
     window.changeIcon = async function(id) {
         const newIcon = prompt('请输入新的图标链接或字体图标类名：', '');
@@ -1669,7 +1668,7 @@
                 alert('❌ 更新失败：' + (result.message || ''));
             }
         } catch (err) {
-            alert('❌ 网络错误');
+            console.error(err);
         }
     };
 
