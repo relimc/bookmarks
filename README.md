@@ -52,13 +52,24 @@ python main.py
 
 1. 确保已安装 Docker 和 Docker Compose。
 
-2. 创建目录并下载 docker-compose.yml：
+2. 创建docker-compose.yml文件：
 
 ```bash
-mkdir bookmarks && cd bookmarks
-curl -O https://raw.githubusercontent.com/relimc/bookmarks/main/docker-compose.yml 
+services:
+  bookmarks:
+    image: relimc/bookmarks:latest
+    container_name: bookmarks
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - /opt/containers/bookmarks/data:/app/data          # 数据文件
+      - /opt/containers/bookmarks/favicons:/app/static/favicons  # 图标文件
+    environment:
+      - ADMIN_USERNAME=yourname
+      - ADMIN_PASSWORD=yourpassword
 ```
-3. 根据需要修改环境变量（用户名、密码）和端口映射。
+3. 根据需要修改docker-compose.yml中的环境变量（用户名、密码）和端口映射。
 
 4. 启动服务：
 
