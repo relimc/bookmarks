@@ -384,6 +384,9 @@
     function renderCategoryTree() {
         const tree = buildCategoryTree();
 
+        // 对一级分类按优先级升序排序（数字越小越靠前）
+        tree.sort((a, b) => (a.priority || 100) - (b.priority || 100));
+
         if (allData._expanded) {
             function applyExpanded(node) {
                 if (allData._expanded[node.name]) {
@@ -473,7 +476,7 @@
             return html;
         }
 
-        let treeHtml = allNodeHtml + recommendNodeHtml; // 添加全部和推荐节点
+        let treeHtml = allNodeHtml + recommendNodeHtml;
         for (let root of tree) {
             treeHtml += renderNode(root);
         }

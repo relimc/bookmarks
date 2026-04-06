@@ -668,9 +668,20 @@ def increment_click(item_id):
 def recommend():
     data = load_data()
     bookmarks = data['bookmarks']
-    # 按点击次数排序，取前30
-    sorted_bookmarks = sorted(bookmarks, key=lambda x: x.get('click_count', 0), reverse=True)[:30]
+    # 检查登录状态
+    auth = request.authorization
+    is_authenticated = auth and auth.username in users and users[auth.username] == auth.password
+
+    if is_authenticated:
+        # 已登录：返回所有书签中点击次数最高的30个
+        filtered = bookmarks
+    else:
+        # 未登录：只返回公开书签
+        filtered = [b for b in bookmarks if not b.get('private', False)]
+
+    sorted_bookmarks = sorted(filtered, key=lambda x: x.get('click_count', 0), reverse=True)[:30]
     return jsonify(sorted_bookmarks)
+
 
 if __name__ == '__main__':
     app.run(debug=True)
