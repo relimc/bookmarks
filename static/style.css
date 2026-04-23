@@ -1113,3 +1113,28 @@ body {
     white-space: nowrap;
     line-height: 1.5;         /* 与标题的 line-height 相同 */
 }
+.title-wrapper {
+    position: relative;
+    display: inline-block;
+}
+.badge-enhanced {
+    position: absolute;
+    top: 5px;
+    right: -48px;   /* 可根据实际效果微调 */
+    font-size: 0.6rem;
+    font-weight: normal;
+    background: #4a627a;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 12px;
+    line-height: 1.2;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.sidebar.collapsed .badge-enhanced {
+    display: none;
+}
+/* 我的书签标题可点击样式 */
+.sidebar-header .title {
+    cursor: pointer;
+}

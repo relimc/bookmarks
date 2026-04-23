@@ -70,8 +70,7 @@
         { name: '百度', iconClass: 'fas fa-paw', type: 'web', url: 'https://www.baidu.com/s?wd=' },
         { name: '必应', iconClass: 'fab fa-microsoft', type: 'web', url: 'https://www.bing.com/search?q=' },
         { name: 'GitHub', iconClass: 'fab fa-github', type: 'web', url: 'https://github.com/search?q=' },
-        { name: 'Bilibili', iconClass: 'fab fa-bilibili', type: 'web', url: 'https://search.bilibili.com/all?keyword=' },
-        { name: 'DeepSeek', iconClass: 'fas fa-robot', type: 'web', url: 'https://chat.deepseek.com/?q=' }
+        { name: 'Bilibili', iconClass: 'fab fa-bilibili', type: 'web', url: 'https://search.bilibili.com/all?keyword=' }
     ];
     let currentEngine = searchEngines[0];
 
@@ -170,7 +169,7 @@
                 selectedIcon.title = name;
                 currentEngine = searchEngines.find(e => e.name === name) || searchEngines[0];
                 if (searchInput) {
-                    searchInput.placeholder = type === 'local' ? '可本地搜索，快速找到书签' : `请输入关键字跳转至${name}搜索`;
+                    searchInput.placeholder = type === 'local' ? '点击左侧图标切换搜索引擎，可本地搜索，快速找到书签' : `请输入关键字跳转至${name}搜索`;
                 }
                 document.getElementById('engineDropdown').classList.remove('show');
             });
@@ -181,7 +180,7 @@
         if (!searchInput || !searchBtn) return;
 
         currentEngine = searchEngines[0];
-        searchInput.placeholder = currentEngine.type === 'local' ? '可本地搜索，快速找到书签' : '请输入关键字跳转至搜索引擎搜索';
+        searchInput.placeholder = currentEngine.type === 'local' ? '点击左侧图标切换搜索引擎，可本地搜索，快速找到书签' : '请输入关键字跳转至搜索引擎搜索';
         const selectedEngineIcon = document.getElementById('selectedEngineIcon');
         selectedEngineIcon.innerHTML = `<i class="${searchEngines[0].iconClass}"></i>`;
         selectedEngineIcon.title = searchEngines[0].name;
@@ -1754,7 +1753,7 @@
             selectedEngineIcon.title = searchEngines[0].name;
         }
         if (searchInput) {
-            searchInput.placeholder = '可本地搜索，快速找到收藏网址';
+            searchInput.placeholder = '点击左侧图标切换搜索引擎，可本地搜索，快速找到书签';
             searchInput.value = tag;
         }
         localSearch(tag);
@@ -1766,8 +1765,48 @@
         }
     };
 
+    const exportBookmarksBtn = document.getElementById('exportBookmarksBtn');
+    if (exportBookmarksBtn) {
+        exportBookmarksBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/export');
+                if (!response.ok) throw new Error('导出失败');
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'bookmarks_export.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (err) {
+                console.error('导出错误', err);
+                alert('导出失败，请重试');
+            }
+        });
+    }
+
 
     // 初始化
     initSearch();
+    // 显示增强版说明（仅首次访问）
+    const hasSeenEnhancedNotice = localStorage.getItem('hasSeenEnhancedNotice');
+    if (!hasSeenEnhancedNotice) {
+        const noticeModal = new bootstrap.Modal(document.getElementById('enhancedNoticeModal'));
+        noticeModal.show();
+        localStorage.setItem('hasSeenEnhancedNotice', 'true');
+    }
+    // 增强版徽章和标题点击，打开提示模态框
+    const enhancedTitle = document.getElementById('enhancedTitle');
+    const enhancedBadge = document.getElementById('enhancedBadge');
+    const enhancedModal = new bootstrap.Modal(document.getElementById('enhancedNoticeModal'));
+
+    function showEnhancedNotice() {
+        enhancedModal.show();
+    }
+
+    if (enhancedTitle) enhancedTitle.addEventListener('click', showEnhancedNotice);
+    if (enhancedBadge) enhancedBadge.addEventListener('click', showEnhancedNotice);
     refreshDataAndUI();
 })();

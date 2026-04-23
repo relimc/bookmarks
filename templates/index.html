@@ -19,7 +19,10 @@
             <div class="sidebar col-auto" id="sidebar">
                 <div class="sidebar-header">
                     <span class="logo">🔖</span>
-                    <span class="title">我的书签</span>
+                    <div class="title-wrapper">
+                        <span class="title" id="enhancedTitle">我的书签</span>
+                        <span class="badge-enhanced" id="enhancedBadge">增强版</span>
+                    </div>
                 </div>
                 <div class="category-tree" id="categoryTree">
                     <div class="text-center p-4" style="color:#8fa3bc;">加载分类中...</div>
@@ -68,8 +71,11 @@
                         <button class="import-btn" id="importBookmarksBtn" title="导入浏览器书签">
                             <i class="fas fa-upload"></i> 导入书签
                         </button>
+                        <button class="import-btn" id="exportBookmarksBtn" title="导出书签">
+                            <i class="fas fa-upload"></i> 导出书签
+                        </button>
                         <button class="import-btn" id="manageCategoriesBtn" title="管理分类">
-                            <i class="fas fa-folder"></i> 书签分类
+                            <i class="fas fa-folder"></i> 管理分类
                         </button>
                         <a href="https://github.com/relimc/bookmarks" target="_blank" class="github-link">
                             <i class="fab fa-github"></i> GitHub
@@ -287,6 +293,32 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 首次访问提示模态框（增强版） -->
+    <div class="modal fade" id="enhancedNoticeModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">🚀 关于增强版</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>数据存储在服务器上，支持多端同步和高级功能。</strong></p>
+                    <ul>
+                        <li>✅ 优点：云端存储、跨设备访问、自动抓取网页图标和描述、私密书签（保障隐私）、推荐排序。</li>
+                        <li>❌ 缺点：需要登录、依赖网络。他人可浏览您的公开书签</li>
+                    </ul>
+                    <p>如需更轻量、离线的本地体验，请尝试 <strong>本地版</strong>：</p>
+                    <p><a href="/" class="btn btn-primary">前往本地版</a></p>
+                    <p class="text-muted small mt-2">（本地版数据完全存储在浏览器中，无需担心隐私泄露的问题）</p>
+                    <p class="text-muted small mt-2">💡 提示：点击左上角的“我的书签”或“增强版”徽章，可再次查看本提示。</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">知道了，继续使用</button>
                 </div>
             </div>
         </div>

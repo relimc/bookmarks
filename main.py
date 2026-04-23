@@ -102,7 +102,7 @@ def save_data(data):
 # ---------- 路由 ----------
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('local.html')
 
 @app.route('/list')
 def list_bookmarks():
@@ -409,40 +409,31 @@ def import_bookmarks():
     categories_data = req.get('categories', [])
 
     data = load_data()
-    bookmarks = data['bookmarks']
-    categories = data['categories']
+    existing_categories = data['categories']
+    existing_bookmarks = data['bookmarks']
 
-    # 先创建分类
+    # 合并分类：保留现有分类，新分类中不冲突的加入
     for cat in categories_data:
-        if cat['name'] not in categories:
-            categories[cat['name']] = {
-                'name': cat['name'],
+        name = cat.get('name')
+        if name not in existing_categories:
+            existing_categories[name] = {
+                'name': name,
                 'icon': cat.get('icon', 'fas fa-folder'),
                 'parent': cat.get('parent', '')
             }
 
-    # 批量添加书签
-    import_count = 0
+    # 合并书签：去重（基于 url + category ？简单起见，按 id 去重，但导入的数据没有 id，所以我们直接追加并给新 id）
+    existing_ids = set(b['id'] for b in existing_bookmarks)
+    new_id = int(time.time() * 1000)
     for b in bookmarks_data:
-        new_id = int(time.time() * 1000) + import_count
-        new_item = {
-            'id': new_id,
-            'url': b['url'],
-            'category': b.get('category', '未分类'),
-            'icon': b.get('icon', ''),  # 可能是 Base64 或 URL
-            'title': b.get('title', b['url']),
-            'description': b.get('description', '')
-        }
-        # 尝试下载图标（仅当图标是 URL 且不是 Base64 时）
-        if new_item['icon'] and not new_item['icon'].startswith('data:image'):
-            local_icon = download_icon(new_item['icon'])
-            if local_icon:
-                new_item['icon'] = local_icon
-        bookmarks.append(new_item)
-        import_count += 1
+        # 为导入的书签生成新 id
+        b['id'] = new_id
+        new_id += 1
+        existing_bookmarks.append(b)
 
     save_data(data)
-    return jsonify({'success': True, 'data': data, 'imported': import_count})
+    return jsonify({'success': True, 'data': data, 'imported': len(bookmarks_data)})
+
 
 def extract_icon_url(soup, base_url):
     """
@@ -681,6 +672,20 @@ def recommend():
 
     sorted_bookmarks = sorted(filtered, key=lambda x: x.get('click_count', 0), reverse=True)[:30]
     return jsonify(sorted_bookmarks)
+
+
+@app.route('/enhanced')
+def enhanced():
+    return render_template('index.html')
+
+
+@app.route('/export', methods=['GET'])
+@auth.login_required
+def export_bookmarks():
+    data = load_data()
+    response = jsonify(data)
+    response.headers['Content-Disposition'] = 'attachment; filename=bookmarks_export.json'
+    return response
 
 
 if __name__ == '__main__':
