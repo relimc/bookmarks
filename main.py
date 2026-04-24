@@ -1,56 +1,71 @@
-import json
-import time
-import requests
-from bs4 import BeautifulSoup
-from flask import Flask, request, jsonify, render_template
-from flask_httpauth import HTTPBasicAuth
-from urllib.parse import urljoin
-import hashlib
 import os
-import random
-from urllib.parse import urlparse
+import time
+import json
+import requests
+from urllib.parse import urljoin, urlparse
+from flask import Flask, request, jsonify, render_template, redirect, url_for, session
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
+from bs4 import BeautifulSoup
 
 app = Flask(__name__)
-auth = HTTPBasicAuth()
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///bookmarks.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# 从环境变量读取管理员账号密码（生产环境务必设置）
-ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
-ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'change_this_password')
+db = SQLAlchemy(app)
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
 
-# 存储用户名和密码（这里使用明文，生产环境建议使用哈希）
-users = { ADMIN_USERNAME: ADMIN_PASSWORD }
+# ---------- 数据库模型 ----------
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(200), nullable=False)
+    bookmarks = db.relationship('Bookmark', backref='user', lazy=True)
+    categories = db.relationship('Category', backref='user', lazy=True)
 
-@auth.verify_password
-def verify_password(username, password):
-    if username in users and users[username] == password:
-        return username
-    return None
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
 
-DATA_FILE = 'data/data.json'  # 使用子目录 data，便于 Docker 挂载
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
-# ---------- 数据操作 ----------
-def load_data():
-    if not os.path.exists(DATA_FILE):
-        return {'bookmarks': [], 'categories': {}}
-    try:
-        with open(DATA_FILE, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        # 为每个书签补充 click_count 字段（默认0）
-        for b in data.get('bookmarks', []):
-            if 'click_count' not in b:
-                b['click_count'] = 0
-            if 'private' not in b:
-                b['private'] = False
-        # 为分类补充 private 等字段（之前已加）
-        for cat in data.get('categories', {}).values():
-            if 'private' not in cat:
-                cat['private'] = False
-        return data
-    except:
-        return {'bookmarks': [], 'categories': {}}
+class Bookmark(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    url = db.Column(db.String(500), nullable=False)
+    title = db.Column(db.String(500))
+    description = db.Column(db.Text)
+    category = db.Column(db.String(100), default='未分类')
+    icon = db.Column(db.String(500))
+    tags = db.Column(db.String(200))  # 存储为逗号分隔
+    click_count = db.Column(db.Integer, default=0)
+    private = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.Integer, default=time.time)
+    status = db.Column(db.String(20), default='private')  # private, pending, approved
 
+class Category(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    icon = db.Column(db.String(100), default='fas fa-folder')
+    parent = db.Column(db.String(100))
+    priority = db.Column(db.Integer, default=100)
+    private = db.Column(db.Boolean, default=False)
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+# 创建数据库表（首次运行）
+with app.app_context():
+    db.create_all()
+
+# ---------- 辅助函数 ----------
 def download_icon(icon_url):
-    """下载图标到本地 static/favicons/，使用URL哈希作为文件名，返回本地路径，失败返回 None"""
+    """下载图标到本地 static/favicons/，返回本地路径或 None"""
     if not icon_url:
         return None
     try:
@@ -58,8 +73,7 @@ def download_icon(icon_url):
         resp = requests.get(icon_url, headers=headers, timeout=5, stream=True)
         if resp.status_code != 200:
             return None
-
-        # 确定文件扩展名
+        # 确定扩展名
         content_type = resp.headers.get('content-type', '').lower()
         if 'image/png' in content_type:
             ext = '.png'
@@ -75,71 +89,135 @@ def download_icon(icon_url):
             ext = os.path.splitext(path)[1]
             if not ext:
                 ext = '.ico'
-
         save_dir = os.path.join('static', 'favicons')
         os.makedirs(save_dir, exist_ok=True)
-
+        import hashlib
         file_hash = hashlib.md5(icon_url.encode('utf-8')).hexdigest()
         filename = f"{file_hash}{ext}"
         filepath = os.path.join(save_dir, filename)
-
-        if os.path.exists(filepath):
-            return f"/static/favicons/{filename}"
-
-        with open(filepath, 'wb') as f:
-            for chunk in resp.iter_content(chunk_size=8192):
-                f.write(chunk)
-
+        if not os.path.exists(filepath):
+            with open(filepath, 'wb') as f:
+                for chunk in resp.iter_content(chunk_size=8192):
+                    f.write(chunk)
         return f"/static/favicons/{filename}"
     except Exception as e:
+        print(f"下载图标失败: {e}")
         return None
 
-def save_data(data):
-    os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
-    with open(DATA_FILE, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+def get_headers():
+    """生成请求头，用于爬虫"""
+    import random
+    user_agents = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+    ]
+    return {
+        'User-Agent': random.choice(user_agents),
+        'Accept-Language': 'zh-CN,zh;q=0.9',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    }
+
+def extract_icon_url(soup, base_url):
+    candidates = []
+    for link in soup.find_all('link', rel=lambda x: x and ('icon' in x.lower() or 'shortcut icon' in x.lower())):
+        href = link.get('href')
+        if href:
+            candidates.append(urljoin(base_url, href))
+    if not candidates:
+        parsed = urlparse(base_url)
+        base = f"{parsed.scheme}://{parsed.netloc}"
+        candidates.append(f"{base}/favicon.ico")
+    return candidates[0] if candidates else ''
 
 # ---------- 路由 ----------
 @app.route('/')
 def index():
     return render_template('local.html')
 
-@app.route('/list')
-def list_bookmarks():
-    data = load_data()
-    # 手动检查认证头
-    auth = request.authorization
-    if auth and auth.username in users and users[auth.username] == auth.password:
-        authenticated = True
-        result = data
-    else:
-        authenticated = False
-        # 未登录：返回所有分类，但只返回公开书签
-        result = {
-            'categories': data['categories'],
-            'bookmarks': [b for b in data['bookmarks'] if not b.get('private', False)]
-        }
+@app.route('/login', methods=['POST'])
+def login():
+    username = request.form['username']
+    password = request.form['password']
+    user = User.query.filter_by(username=username).first()
+    if user and user.check_password(password):
+        login_user(user)
+        return jsonify({'success': True})
+    return jsonify({'success': False, 'message': '用户名或密码错误'}), 401
 
-    # 创建响应对象并添加自定义头
-    resp = jsonify(result)
-    resp.headers['X-Authenticated'] = 'true' if authenticated else 'false'
-    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    resp.headers['Pragma'] = 'no-cache'
-    resp.headers['Expires'] = '0'
-    return resp
-
-@app.route('/auth_check', methods=['GET'])
-@auth.login_required
-def auth_check():
+@app.route('/register', methods=['POST'])
+def register():
+    username = request.form['username']
+    password = request.form['password']
+    if User.query.filter_by(username=username).first():
+        return jsonify({'success': False, 'message': '用户名已存在'}), 400
+    user = User(username=username)
+    user.set_password(password)
+    db.session.add(user)
+    db.session.commit()
     return jsonify({'success': True})
 
+@login_manager.unauthorized_handler
+def unauthorized():
+    return jsonify({'error': 'Unauthorized'}), 401
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('index'))
+
+@app.route('/user')
+@login_required
+def get_current_user():
+    return jsonify({'username': current_user.username})
+
+
+@app.route('/list')
+def list_bookmarks():
+    if current_user.is_authenticated:
+        # 登录用户：返回自己的所有书签（不限状态）
+        bookmarks = Bookmark.query.filter_by(user_id=current_user.id).all()
+        categories = Category.query.filter_by(user_id=current_user.id).all()
+    else:
+        # 未登录用户：只返回已审核通过的公开书签
+        bookmarks = Bookmark.query.filter_by(status='approved').all()
+        # 分类需要返回所有可能用到的（为了侧边栏展示，可以返回所有分类，但这里简单处理）
+        categories = Category.query.all()
+
+    # 构建前端所需格式
+    bookmarks_data = []
+    for b in bookmarks:
+        bookmarks_data.append({
+            'id': b.id,
+            'url': b.url,
+            'title': b.title,
+            'description': b.description,
+            'category': b.category,
+            'icon': b.icon,
+            'tags': b.tags.split(',') if b.tags else [],
+            'click_count': b.click_count,
+            'status': b.status
+        })
+
+    categories_data = {}
+    for c in categories:
+        categories_data[c.name] = {
+            'name': c.name,
+            'icon': c.icon,
+            'parent': c.parent,
+            'priority': c.priority,
+            'private': False  # 分类暂无私密字段
+        }
+
+    return jsonify({'bookmarks': bookmarks_data, 'categories': categories_data})
+
 @app.route('/add', methods=['POST'])
-@auth.login_required
+@login_required
 def add_bookmark():
     req = request.get_json()
     url = req.get('url', '').strip()
     if not url:
-        return jsonify({'success': False, 'message': 'URL 不能为空'}), 400
+        return jsonify({'success': False, 'message': 'URL不能为空'}), 400
 
     category = req.get('category', '').strip()
     category_icon = req.get('category_icon', '')
@@ -147,450 +225,179 @@ def add_bookmark():
     title = req.get('title', '').strip()
     description = req.get('description', '').strip()
     icon = req.get('icon', '').strip()
-    private = req.get('private', False)  # 默认为 False
+    tags = req.get('tags', [])
+    status = req.get('status', 'private')  # private / public
 
-    tags = req.get('tags', [])  # 默认为空列表
-    if not isinstance(tags, list):
-        tags = []
+    # 用户提交公开时，实际状态为待审核
+    if status == 'public':
+        status = 'pending'
 
-    data = load_data()
-    bookmarks = data['bookmarks']
-    categories = data['categories']
+    # 如果分类不存在且提供了图标，则创建分类
+    if category and not Category.query.filter_by(user_id=current_user.id, name=category).first() and category_icon:
+        new_cat = Category(
+            user_id=current_user.id,
+            name=category,
+            icon=category_icon,
+            parent=parent_category or None
+        )
+        db.session.add(new_cat)
 
-    # 如果分类不存在且提供了分类图标，则创建新分类（默认公开）
-    if category and category not in categories and category_icon:
-        categories[category] = {
-            'name': category,
-            'icon': category_icon,
-            'parent': parent_category,
-            'private': False  # 新增分类默认公开
-        }
-
-    # 生成新书签 ID
-    new_id = int(time.time() * 1000)
-    new_item = {'id': new_id, 'url': url, 'category': category or '未分类', 'icon': icon,
-                'title': title or category or '链接', 'description': description, 'private': private, 'tags': tags}
-
-    # 尝试下载图标（仅当是 URL 且不是 base64）
+    # 下载图标（如果有）
+    local_icon = None
     if icon and not icon.startswith('data:image'):
         local_icon = download_icon(icon)
-        if local_icon:
-            new_item['icon'] = local_icon
+    final_icon = local_icon or icon
 
-    bookmarks.append(new_item)
-    save_data(data)
+    new_bookmark = Bookmark(
+        user_id=current_user.id,
+        url=url,
+        title=title or category or '链接',
+        description=description,
+        category=category or '未分类',
+        icon=final_icon,
+        tags=','.join(tags) if tags else '',
+        status=status
+    )
+    db.session.add(new_bookmark)
+    db.session.commit()
 
-    return jsonify({'success': True, 'data': data})
-
-
+    # 返回最新数据（前端会重新请求 /list，这里简化）
+    return jsonify({'success': True, 'data': {}})
 
 @app.route('/edit/<int:item_id>', methods=['POST'])
-@auth.login_required
+@login_required
 def edit_bookmark(item_id):
     req = request.get_json()
-    data = load_data()
-    bookmarks = data['bookmarks']
-    categories = data['categories']
-
-    for item in bookmarks:
-        if item['id'] == item_id:
-            # 更新分类（如果变更）
-            if 'category' in req:
-                new_category = req['category'].strip() or '未分类'
-                # 如果新分类不存在，则自动创建（默认公开）
-                if new_category not in categories:
-                    # 获取上级分类（如果有）
-                    parent = req.get('parent_category', '').strip() or None
-                    categories[new_category] = {
-                        'name': new_category,
-                        'icon': 'fas fa-folder',
-                        'parent': parent,
-                        'private': False
-                    }
-                item['category'] = new_category
-
-            if 'tags' in req:
-                if isinstance(req['tags'], list):
-                    item['tags'] = req['tags']
-                else:
-                    # 如果传入的不是列表，忽略或清空
-                    item['tags'] = []
-
-            # 更新其他字段
-            if 'icon' in req:
-                item['icon'] = req['icon'].strip()
-            if 'title' in req:
-                item['title'] = req['title'].strip() or item['category']
-            if 'description' in req:
-                item['description'] = req['description'].strip()
-            if 'private' in req:
-                item['private'] = bool(req['private'])  # 确保布尔值
-
-            save_data(data)
-            return jsonify({'success': True, 'data': data})
-
-    return jsonify({'success': False, 'message': '条目不存在'}), 404
-
-
-@app.route('/delete/<int:item_id>', methods=['POST'])
-@auth.login_required
-def delete_bookmark(item_id):
-    """删除一条收藏，并清理空分类（不删除图标文件）"""
-    data = load_data()
-    bookmarks = data['bookmarks']
-    categories = data['categories']
-
-    item_to_delete = None
-    for item in bookmarks:
-        if item['id'] == item_id:
-            item_to_delete = item
-            break
-
-    if not item_to_delete:
+    bookmark = Bookmark.query.filter_by(id=item_id, user_id=current_user.id).first()
+    if not bookmark:
         return jsonify({'success': False, 'message': '条目不存在'}), 404
 
-    category = item_to_delete.get('category')
+    # 更新分类
+    if 'category' in req:
+        new_category = req['category'].strip() or '未分类'
+        # 自动创建不存在的分类
+        if not Category.query.filter_by(user_id=current_user.id, name=new_category).first():
+            new_cat = Category(
+                user_id=current_user.id,
+                name=new_category,
+                icon='fas fa-folder',
+                parent=req.get('parent_category', '') or None
+            )
+            db.session.add(new_cat)
+        bookmark.category = new_category
 
-    # 删除条目
-    new_bookmarks = [item for item in bookmarks if item['id'] != item_id]
-    data['bookmarks'] = new_bookmarks
+    # 更新其他字段
+    if 'title' in req:
+        bookmark.title = req['title'].strip() or bookmark.category
+    if 'description' in req:
+        bookmark.description = req['description'].strip()
+    if 'icon' in req:
+        new_icon = req['icon'].strip()
+        if new_icon and not new_icon.startswith('data:image'):
+            local_icon = download_icon(new_icon)
+            bookmark.icon = local_icon or new_icon
+        else:
+            bookmark.icon = new_icon
+    if 'tags' in req:
+        tags = req['tags'] if isinstance(req['tags'], list) else []
+        bookmark.tags = ','.join(tags) if tags else ''
+    if 'status' in req:
+        status = req['status']
+        if status == 'public':
+            # 用户尝试公开 → 待审核
+            bookmark.status = 'pending'
+        else:
+            bookmark.status = 'private'
 
-    # 检查该分类是否还有其它书签
+    db.session.commit()
+    return jsonify({'success': True, 'data': {}})
+
+@app.route('/delete/<int:item_id>', methods=['POST'])
+@login_required
+def delete_bookmark(item_id):
+    bookmark = Bookmark.query.filter_by(id=item_id, user_id=current_user.id).first()
+    if not bookmark:
+        return jsonify({'success': False, 'message': '条目不存在'}), 404
+    category = bookmark.category
+    db.session.delete(bookmark)
+    db.session.commit()
+    # 检查该分类是否还有其它书签，如果没有则删除分类（可选）
     if category:
-        other_in_category = any(b['category'] == category for b in new_bookmarks)
-        if not other_in_category:
-            # 检查该分类是否有子分类
-            has_children = any(cat.get('parent') == category for cat in categories.values())
-            if not has_children and category in categories:
-                del categories[category]
-
-    save_data(data)
-    return jsonify({'success': True, 'data': data})
+        remaining = Bookmark.query.filter_by(user_id=current_user.id, category=category).count()
+        if remaining == 0:
+            cat_obj = Category.query.filter_by(user_id=current_user.id, name=category).first()
+            if cat_obj:
+                db.session.delete(cat_obj)
+                db.session.commit()
+    return jsonify({'success': True, 'data': {}})
 
 @app.route('/add_category', methods=['POST'])
-@auth.login_required
+@login_required
 def add_category():
-    try:
-        req = request.get_json()
-        if not req:
-            return jsonify({'success': False, 'message': '无效的请求数据'}), 400
+    req = request.get_json()
+    name = req.get('name', '').strip()
+    if not name:
+        return jsonify({'success': False, 'message': '分类名称不能为空'}), 400
+    icon = req.get('icon', '').strip() or 'fas fa-folder'
+    parent = req.get('parent', '').strip() or None
+    priority = req.get('priority', 100)
+    private = req.get('private', False)
 
-        # 安全获取 name
-        name_raw = req.get('name')
-        name = str(name_raw).strip() if name_raw is not None else ''
-        if not name:
-            return jsonify({'success': False, 'message': '分类名称不能为空'}), 400
-
-        # 安全获取 icon
-        icon_raw = req.get('icon')
-        icon = str(icon_raw).strip() if icon_raw is not None else ''
-        if not icon:
-            icon = 'fas fa-folder'
-
-        # 安全获取 parent
-        parent_raw = req.get('parent')
-        parent = str(parent_raw).strip() if parent_raw is not None else ''
-        if parent == '':
-            parent = None
-
-        # 优先级
-        priority_raw = req.get('priority', 100)
-        try:
-            priority = int(priority_raw)
-        except (ValueError, TypeError):
-            priority = 100
-
-        data = load_data()
-        categories = data['categories']
-
-        if name in categories:
-            return jsonify({'success': False, 'message': '分类已存在'}), 400
-
-        categories[name] = {
-            'name': name,
-            'icon': icon,
-            'parent': parent,
-            'priority': priority
-        }
-        save_data(data)
-        return jsonify({'success': True, 'data': data})
-
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({'success': False, 'message': '服务器内部错误'}), 500
-
+    if Category.query.filter_by(user_id=current_user.id, name=name).first():
+        return jsonify({'success': False, 'message': '分类已存在'}), 400
+    new_cat = Category(
+        user_id=current_user.id,
+        name=name,
+        icon=icon,
+        parent=parent,
+        priority=priority,
+        private=private
+    )
+    db.session.add(new_cat)
+    db.session.commit()
+    return jsonify({'success': True, 'data': {}})
 
 @app.route('/category/<string:name>', methods=['PUT'])
-@auth.login_required
+@login_required
 def update_category(name):
     req = request.get_json()
-    data = load_data()
-    categories = data['categories']
-    bookmarks = data['bookmarks']
-
-    if name not in categories:
+    cat = Category.query.filter_by(user_id=current_user.id, name=name).first()
+    if not cat:
         return jsonify({'success': False, 'message': '分类不存在'}), 404
 
     new_name = req.get('new_name', '').strip()
-    icon = req.get('icon', '').strip()
-    parent = req.get('parent', '').strip() or None
-    priority = req.get('priority')
-    if priority is not None:
-        try:
-            priority = int(priority)
-        except:
-            priority = None
-
     if new_name and new_name != name:
-        if new_name in categories:
+        if Category.query.filter_by(user_id=current_user.id, name=new_name).first():
             return jsonify({'success': False, 'message': '新分类名称已存在'}), 400
-        categories[new_name] = categories.pop(name)
-        categories[new_name]['name'] = new_name
-        for b in bookmarks:
-            if b['category'] == name:
-                b['category'] = new_name
-        for cat in categories.values():
-            if cat.get('parent') == name:
-                cat['parent'] = new_name
+        # 更新所有书签的 category 引用
+        Bookmark.query.filter_by(user_id=current_user.id, category=name).update({'category': new_name})
+        cat.name = new_name
         name = new_name
-
-    if icon:
-        categories[name]['icon'] = icon
+    if 'icon' in req:
+        cat.icon = req['icon'].strip() or 'fas fa-folder'
     if 'parent' in req:
-        categories[name]['parent'] = parent
-    if priority is not None:
-        categories[name]['priority'] = priority
-
-    save_data(data)
-    return jsonify({'success': True, 'data': data})
-
+        cat.parent = req['parent'].strip() or None
+    if 'priority' in req:
+        cat.priority = req['priority']
+    if 'private' in req:
+        cat.private = bool(req['private'])
+    db.session.commit()
+    return jsonify({'success': True, 'data': {}})
 
 @app.route('/category/<string:name>', methods=['DELETE'])
-@auth.login_required
+@login_required
 def delete_category(name):
-    """强制删除分类及其所有子分类和下属书签"""
-    data = load_data()
-    categories = data['categories']
-    bookmarks = data['bookmarks']
-
-    if name not in categories:
+    cat = Category.query.filter_by(user_id=current_user.id, name=name).first()
+    if not cat:
         return jsonify({'success': False, 'message': '分类不存在'}), 404
-
-    # 递归收集所有要删除的分类（包括自身）
-    def collect_categories(cat_name, collected):
-        collected.add(cat_name)
-        # 查找子分类
-        for c_name, c_info in categories.items():
-            if c_info.get('parent') == cat_name:
-                collect_categories(c_name, collected)
-
-    to_delete = set()
-    collect_categories(name, to_delete)
-
-    # 删除所有相关的书签
-    new_bookmarks = [b for b in bookmarks if b['category'] not in to_delete]
-    data['bookmarks'] = new_bookmarks
-
-    # 删除所有相关分类
-    for cat in to_delete:
-        if cat in categories:
-            del categories[cat]
-
-    save_data(data)
-    return jsonify({'success': True, 'data': data})
-
-
-@app.route('/import', methods=['POST'])
-@auth.login_required
-def import_bookmarks():
-    req = request.get_json()
-    bookmarks_data = req.get('bookmarks', [])
-    categories_data = req.get('categories', [])
-
-    data = load_data()
-    existing_categories = data['categories']
-    existing_bookmarks = data['bookmarks']
-
-    # 合并分类：保留现有分类，新分类中不冲突的加入
-    for cat in categories_data:
-        name = cat.get('name')
-        if name not in existing_categories:
-            existing_categories[name] = {
-                'name': name,
-                'icon': cat.get('icon', 'fas fa-folder'),
-                'parent': cat.get('parent', '')
-            }
-
-    # 合并书签：去重（基于 url + category ？简单起见，按 id 去重，但导入的数据没有 id，所以我们直接追加并给新 id）
-    existing_ids = set(b['id'] for b in existing_bookmarks)
-    new_id = int(time.time() * 1000)
-    for b in bookmarks_data:
-        # 为导入的书签生成新 id
-        b['id'] = new_id
-        new_id += 1
-        existing_bookmarks.append(b)
-
-    save_data(data)
-    return jsonify({'success': True, 'data': data, 'imported': len(bookmarks_data)})
-
-
-def extract_icon_url(soup, base_url):
-    """
-    从BeautifulSoup对象中提取最合适的图标URL
-    优先级：link[rel="icon"] > link[rel="shortcut icon"] > link[rel="apple-touch-icon"] > meta[property="og:image"] > 域名/favicon.ico
-    """
-    # 候选链接列表
-    candidates = []
-
-    # 1. 查找所有 <link rel="icon"> 或 <link rel="shortcut icon">
-    for link in soup.find_all('link', rel=lambda x: x and ('icon' in x.lower() or 'shortcut icon' in x.lower())):
-        href = link.get('href')
-        if href:
-            # 处理相对路径
-            full_url = urljoin(base_url, href)
-            candidates.append(full_url)
-
-    # 2. 查找 apple-touch-icon（常用于移动端）
-    for link in soup.find_all('link', rel=lambda x: x and 'apple-touch-icon' in x.lower()):
-        href = link.get('href')
-        if href:
-            full_url = urljoin(base_url, href)
-            candidates.append(full_url)
-
-    # 3. 查找 Open Graph 图片（有些网站用 og:image 作为分享图标，可能不是标准图标，但可作后备）
-    og_image = soup.find('meta', property='og:image')
-    if og_image and og_image.get('content'):
-        full_url = urljoin(base_url, og_image['content'])
-        candidates.append(full_url)
-
-    # 4. 如果以上都没找到，尝试构造域名下的 /favicon.ico
-    if not candidates:
-        # 解析域名
-        from urllib.parse import urlparse
-        parsed = urlparse(base_url)
-        base = f"{parsed.scheme}://{parsed.netloc}"
-        candidates.append(f"{base}/favicon.ico")
-
-    # 返回第一个候选（可根据需要调整优先级，如选择 .ico 优先于 .svg 等，但简单起见返回第一个）
-    # 注意：有些网站可能有多个图标，我们可以选择第一个，或者按文件类型偏好排序
-    # 这里简单返回第一个
-    return candidates[0] if candidates else ''
-
-# 备用的 User-Agent 列表（当 fake-useragent 不可用时使用）
-FALLBACK_UA_LIST = [
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
-    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_1_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-]
-
-def get_headers():
-    try:
-        from fake_useragent import UserAgent
-        ua = UserAgent()
-        user_agent = ua.random
-    except:
-        user_agent = random.choice(FALLBACK_UA_LIST)
-    headers = {
-        'User-Agent': user_agent,
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',  # 优先中文
-        'Accept-Encoding': 'gzip, deflate',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-        'Cache-Control': 'max-age=0',
-    }
-    return headers
-
-def detect_page_language(soup, headers):
-    """检测页面语言，返回语言代码（如 'zh', 'ja', 'en'）或 None"""
-    # 1. 从 <html lang> 属性获取
-    html_tag = soup.find('html')
-    if html_tag and html_tag.get('lang'):
-        lang = html_tag['lang'].split('-')[0].lower()
-        return lang
-    # 2. 从 Content-Language 响应头获取
-    content_lang = headers.get('Content-Language', '').split(',')[0].strip().split('-')[0].lower()
-    if content_lang:
-        return content_lang
-    # 3. 从 <meta http-equiv="content-language"> 获取
-    meta = soup.find('meta', attrs={'http-equiv': 'content-language'})
-    if meta and meta.get('content'):
-        lang = meta['content'].split('-')[0].lower()
-        return lang
-    # 4. 从 <meta name="language"> 获取
-    meta_name = soup.find('meta', attrs={'name': 'language'})
-    if meta_name and meta_name.get('content'):
-        lang = meta_name['content'].split('-')[0].lower()
-        return lang
-    return None
-
-def find_zh_url(soup, base_url):
-    """查找指向中文版本的链接（hreflang="zh"）"""
-    # 查找 <link rel="alternate" hreflang="zh" ...>
-    links = soup.find_all('link', rel='alternate')
-    for link in links:
-        hreflang = link.get('hreflang', '').split('-')[0].lower()
-        if hreflang == 'zh' and link.get('href'):
-            return urljoin(base_url, link['href'])
-    # 如果没有hreflang，可以尝试一些常见的中文路径（如 /zh-cn/）
-    # 但为避免误判，暂时不添加
-    return None
-
-def fetch_single_page(url, retry=1):
-    """请求单个页面，返回 (soup, headers) 或 (None, None)"""
-    for i in range(retry):
-        try:
-            time.sleep(random.uniform(1, 3))
-            headers = get_headers()
-            resp = requests.get(url, headers=headers, timeout=(5, 10))
-            resp.encoding = 'utf-8'
-            resp.raise_for_status()
-            soup = BeautifulSoup(resp.text, 'html.parser')
-            return soup, resp.headers
-        except Exception as e:
-            print(f"请求失败 (尝试 {i+1}): {e}")
-            if i == retry-1:
-                return None, None
-    return None, None
-
-def extract_metadata(soup, url):
-    """从soup中提取标题、描述、图标"""
-    # 标题
-    title = ''
-    if soup.title and soup.title.string:
-        title = soup.title.string.strip()
-    if not title:
-        h1 = soup.find('h1')
-        title = h1.get_text().strip() if h1 else ''
-    if not title:
-        og_title = soup.find('meta', property='og:title')
-        if og_title and og_title.get('content'):
-            title = og_title['content'].strip()
-    if not title:
-        twitter_title = soup.find('meta', attrs={'name': 'twitter:title'})
-        if twitter_title and twitter_title.get('content'):
-            title = twitter_title['content'].strip()
-
-    # 描述
-    description = ''
-    meta_desc = soup.find('meta', attrs={'name': 'description'})
-    if meta_desc and meta_desc.get('content'):
-        description = meta_desc['content'].strip()
-    if not description:
-        og_desc = soup.find('meta', property='og:description')
-        if og_desc and og_desc.get('content'):
-            description = og_desc['content'].strip()
-    if not description:
-        twitter_desc = soup.find('meta', attrs={'name': 'twitter:description'})
-        if twitter_desc and twitter_desc.get('content'):
-            description = twitter_desc['content'].strip()
-
-    # 图标
-    icon_url = extract_icon_url(soup, url)  # 复用之前的函数
-
-    return title[:200], description[:300], icon_url
+    # 检查是否有子分类或书签
+    has_children = Category.query.filter_by(user_id=current_user.id, parent=name).count() > 0
+    has_bookmarks = Bookmark.query.filter_by(user_id=current_user.id, category=name).count() > 0
+    if has_children or has_bookmarks:
+        return jsonify({'success': False, 'message': '该分类下还有子分类或书签，无法删除'}), 400
+    db.session.delete(cat)
+    db.session.commit()
+    return jsonify({'success': True, 'data': {}})
 
 @app.route('/fetch-metadata', methods=['POST'])
 def fetch_metadata():
@@ -598,94 +405,145 @@ def fetch_metadata():
     url = req.get('url', '').strip()
     if not url:
         return jsonify({'success': False, 'message': 'URL不能为空'}), 400
-
     if not url.startswith(('http://', 'https://')):
         url = 'http://' + url
+    try:
+        time.sleep(1)
+        headers = get_headers()
+        resp = requests.get(url, headers=headers, timeout=8)
+        resp.encoding = 'utf-8'
+        soup = BeautifulSoup(resp.text, 'html.parser')
+        title = soup.title.string.strip() if soup.title else ''
+        if not title:
+            h1 = soup.find('h1')
+            title = h1.get_text().strip() if h1 else ''
+        description = ''
+        meta_desc = soup.find('meta', attrs={'name': 'description'})
+        if meta_desc and meta_desc.get('content'):
+            description = meta_desc['content'].strip()
+        icon_url = extract_icon_url(soup, url)
+        return jsonify({'success': True, 'title': title[:200], 'description': description[:300], 'icon': icon_url})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
-    # 第一步：请求原始URL
-    soup, headers = fetch_single_page(url)
-    if not soup:
-        return jsonify({'success': False, 'message': '无法获取页面内容'}), 500
+@app.route('/import', methods=['POST'])
+@login_required
+def import_bookmarks():
+    req = request.get_json()
+    bookmarks_data = req.get('bookmarks', [])
+    categories_data = req.get('categories', [])
+    for cat in categories_data:
+        name = cat.get('name')
+        if not Category.query.filter_by(user_id=current_user.id, name=name).first():
+            new_cat = Category(
+                user_id=current_user.id,
+                name=name,
+                icon=cat.get('icon', 'fas fa-folder'),
+                parent=cat.get('parent', ''),
+                priority=cat.get('priority', 100)
+            )
+            db.session.add(new_cat)
+    for b in bookmarks_data:
+        icon = b.get('icon', '')
+        if icon and not icon.startswith('data:image'):
+            local_icon = download_icon(icon)
+            final_icon = local_icon or icon
+        else:
+            final_icon = icon
+        new_bm = Bookmark(
+            user_id=current_user.id,
+            url=b['url'],
+            title=b.get('title', b['url']),
+            description=b.get('description', ''),
+            category=b.get('category', '未分类'),
+            icon=final_icon,
+            tags=','.join(b.get('tags', [])),
+            private=b.get('private', False)
+        )
+        db.session.add(new_bm)
+    db.session.commit()
+    return jsonify({'success': True, 'data': {}})
 
-    # 提取元数据
-    title, description, icon_url = extract_metadata(soup, url)
-
-    # 检测页面语言
-    page_lang = detect_page_language(soup, headers)
-    print(f"页面语言: {page_lang}")
-
-    # 如果语言不是中文，尝试查找中文版
-    if page_lang and page_lang not in ('zh', 'cn'):  # cn 是旧标准
-        zh_url = find_zh_url(soup, url)
-        if zh_url:
-            # 请求中文版，但避免无限循环（只重试一次）
-            zh_soup, zh_headers = fetch_single_page(zh_url)
-            if zh_soup:
-                zh_title, zh_description, zh_icon = extract_metadata(zh_soup, zh_url)
-                # 优先使用中文版的数据，但如果中文版某些字段缺失，则保留原版
-                if zh_title:
-                    title = zh_title
-                if zh_description:
-                    description = zh_description
-                if zh_icon:
-                    icon_url = zh_icon
-                # 可以选择在描述后添加提示，表示内容来自中文版
-                # if zh_description and description != zh_description:
-                #     description += " (来自中文版)"
-
-    return jsonify({
-        'success': True,
-        'title': title[:200],
-        'description': description[:300],
-        'icon': icon_url
-    })
-
+@app.route('/export', methods=['GET'])
+@login_required
+def export_bookmarks():
+    bookmarks = Bookmark.query.filter_by(user_id=current_user.id).all()
+    categories = Category.query.filter_by(user_id=current_user.id).all()
+    data = {
+        'bookmarks': [{'url': b.url, 'title': b.title, 'description': b.description, 'category': b.category, 'icon': b.icon, 'tags': b.tags.split(',') if b.tags else [], 'private': b.private} for b in bookmarks],
+        'categories': [{'name': c.name, 'icon': c.icon, 'parent': c.parent, 'priority': c.priority, 'private': c.private} for c in categories]
+    }
+    response = jsonify(data)
+    response.headers['Content-Disposition'] = 'attachment; filename=bookmarks_export.json'
+    return response
 
 @app.route('/increment_click/<int:item_id>', methods=['POST'])
-@auth.login_required
+@login_required
 def increment_click(item_id):
-    """增加书签点击次数（仅登录用户）"""
-    data = load_data()
-    bookmarks = data['bookmarks']
-    for b in bookmarks:
-        if b['id'] == item_id:
-            b['click_count'] = b.get('click_count', 0) + 1
-            save_data(data)
-            return jsonify({'success': True, 'click_count': b['click_count']})
-    return jsonify({'success': False, 'message': '书签不存在'}), 404
-
+    bookmark = Bookmark.query.filter_by(id=item_id, user_id=current_user.id).first()
+    if bookmark:
+        bookmark.click_count += 1
+        db.session.commit()
+        return jsonify({'success': True, 'click_count': bookmark.click_count})
+    return jsonify({'success': False}), 404
 
 @app.route('/recommend')
+@login_required
 def recommend():
-    data = load_data()
-    bookmarks = data['bookmarks']
-    # 检查登录状态
-    auth = request.authorization
-    is_authenticated = auth and auth.username in users and users[auth.username] == auth.password
-
-    if is_authenticated:
-        # 已登录：返回所有书签中点击次数最高的30个
-        filtered = bookmarks
-    else:
-        # 未登录：只返回公开书签
-        filtered = [b for b in bookmarks if not b.get('private', False)]
-
-    sorted_bookmarks = sorted(filtered, key=lambda x: x.get('click_count', 0), reverse=True)[:30]
-    return jsonify(sorted_bookmarks)
-
+    bookmarks = Bookmark.query.filter_by(user_id=current_user.id).order_by(Bookmark.click_count.desc()).limit(30).all()
+    return jsonify([{
+        'id': b.id,
+        'url': b.url,
+        'title': b.title,
+        'description': b.description,
+        'category': b.category,
+        'icon': b.icon,
+        'tags': b.tags.split(',') if b.tags else [],
+        'click_count': b.click_count
+    } for b in bookmarks])
 
 @app.route('/enhanced')
 def enhanced():
     return render_template('index.html')
 
+@app.route('/admin/pending')
+@login_required
+def admin_pending():
+    if current_user.username != 'admin':  # 可改为更灵活的角色
+        return jsonify({'error': 'Forbidden'}), 403
+    pending = Bookmark.query.filter_by(status='pending').all()
+    return jsonify([{'id': b.id, 'title': b.title, 'url': b.url, 'user_id': b.user_id} for b in pending])
 
-@app.route('/export', methods=['GET'])
-@auth.login_required
-def export_bookmarks():
-    data = load_data()
-    response = jsonify(data)
-    response.headers['Content-Disposition'] = 'attachment; filename=bookmarks_export.json'
-    return response
+@app.route('/admin/approve/<int:id>', methods=['POST'])
+@login_required
+def admin_approve(id):
+    if current_user.username != 'admin':
+        return jsonify({'error': 'Forbidden'}), 403
+    b = Bookmark.query.get(id)
+    if b:
+        b.status = 'approved'
+        db.session.commit()
+        return jsonify({'success': True})
+    return jsonify({'error': 'Not found'}), 404
+
+@app.route('/admin/reject/<int:id>', methods=['POST'])
+@login_required
+def admin_reject(id):
+    if current_user.username != 'admin':
+        return jsonify({'error': 'Forbidden'}), 403
+    b = Bookmark.query.get(id)
+    if b:
+        b.status = 'private'
+        db.session.commit()
+        return jsonify({'success': True})
+    return jsonify({'success': False}), 404
+
+@app.route('/admin')
+@login_required
+def admin_page():
+    if current_user.username != 'admin':
+        return 'Forbidden', 403
+    return render_template('admin.html')
 
 
 if __name__ == '__main__':

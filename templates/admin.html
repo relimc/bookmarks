@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>审核公开书签</title>
+    <link rel="stylesheet" href="/static/bootstrap/bootstrap.min.css">
+</head>
+<body>
+<div class="container mt-4">
+    <h2>待审核书签</h2>
+    <table class="table" id="pending-table">
+        <thead><tr><th>标题</th><th>URL</th><th>用户ID</th><th>操作</th></tr></thead>
+        <tbody></tbody>
+    </table>
+</div>
+<script>
+    fetch('/admin/pending')
+        .then(res => res.json())
+        .then(data => {
+            const tbody = document.querySelector('#pending-table tbody');
+            data.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${escapeHtml(item.title)}</td>
+                    <td><a href="${escapeHtml(item.url)}" target="_blank">${escapeHtml(item.url)}</a></td>
+                    <td>${item.user_id}</td>
+                    <td>
+                        <button class="btn btn-success btn-sm" onclick="approve(${item.id})">通过</button>
+                        <button class="btn btn-danger btn-sm" onclick="reject(${item.id})">拒绝</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        });
+    function approve(id) {
+        fetch(`/admin/approve/${id}`, {method:'POST'}).then(() => location.reload());
+    }
+    function reject(id) {
+        fetch(`/admin/reject/${id}`, {method:'POST'}).then(() => location.reload());
+    }
+    function escapeHtml(str) {
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+</script>
+</body>
+</html>

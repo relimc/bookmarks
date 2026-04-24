@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - 我的书签</title>
+    <link rel="stylesheet" href="/static/bootstrap/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/fontawesome/css/all.min.css">
+    <style>
+        body { background: #f5f7fa; }
+        .login-card { margin-top: 100px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center login-card">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">登录</h4>
+                    </div>
+                    <div class="card-body">
+                        {% if error %}
+                            <div class="alert alert-danger">{{ error }}</div>
+                        {% endif %}
+                        <form method="post">
+                            <div class="mb-3">
+                                <label>用户名</label>
+                                <input type="text" name="username" class="form-control" required autofocus>
+                            </div>
+                            <div class="mb-3">
+                                <label>密码</label>
+                                <input type="password" name="password" class="form-control" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">登录</button>
+                        </form>
+                    </div>
+                    <div class="card-footer text-center">
+                        <a href="/register">注册新账号</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

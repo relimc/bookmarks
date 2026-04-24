@@ -1138,3 +1138,14 @@ body {
 .sidebar-header .title {
     cursor: pointer;
 }
+/* 用户下拉菜单悬停显示 */
+#userDropdown .dropdown-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: auto;
+}
+body.logged-in #userDropdown:hover .dropdown-menu {
+    display: block;
+}

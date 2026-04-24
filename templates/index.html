@@ -62,14 +62,21 @@
                     </div>
 
                     <div class="header-right">
-                        <button class="import-btn" id="loginBtn" title="登录">
-                            <i class="fas fa-sign-in-alt"></i> 登录
-                        </button>
+                        <div class="dropdown" id="userDropdown">
+                            <button class="import-btn dropdown-toggle" type="button" id="userMenuBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                                未登录
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenuBtn">
+                                <li><span class="dropdown-item-text" id="usernameDisplay"></span></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><button class="dropdown-item" id="logoutBtn">退出登录</button></li>
+                            </ul>
+                        </div>
                         <button class="import-btn" id="addBookmarkHeaderBtn" title="新增书签">
                             <i class="fas fa-plus"></i> 新增书签
                         </button>
                         <button class="import-btn" id="importBookmarksBtn" title="导入浏览器书签">
-                            <i class="fas fa-upload"></i> 导入书签
+                            <i class="fas fa-download"></i> 导入书签
                         </button>
                         <button class="import-btn" id="exportBookmarksBtn" title="导出书签">
                             <i class="fas fa-upload"></i> 导出书签
@@ -190,13 +197,15 @@
                     </div>
                 </div>
                 <div class="modal-footer d-flex justify-content-between align-items-center">
-                    <div class="left-section">
-                        <div class="form-check">
-                            <input type="checkbox" class="form-check-input" id="bookmarkPrivate">
-                            <label class="form-check-label" for="bookmarkPrivate">
-                                私密
-                                <span class="info-icon" data-tip="勾选后，登录后才能看到此标签">ⓘ</span>
-                            </label>
+                    <div class="mb-3">
+                        <label>可见性</label><br>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="bookmarkStatus" id="statusPrivate" value="private" checked>
+                            <label class="form-check-label" for="statusPrivate">私密（仅自己可见）</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="bookmarkStatus" id="statusPublic" value="public">
+                            <label class="form-check-label" for="statusPublic">公开（需管理员审核）</label>
                         </div>
                     </div>
                     <div class="right-section d-flex gap-2">
@@ -310,15 +319,72 @@
                     <p><strong>数据存储在服务器上，支持多端同步和高级功能。</strong></p>
                     <ul>
                         <li>✅ 优点：云端存储、跨设备访问、自动抓取网页图标和描述、私密书签（保障隐私）、推荐排序。</li>
-                        <li>❌ 缺点：需要登录、依赖网络。他人可浏览您的公开书签</li>
+                        <li>❌ 缺点：需要登录、依赖网络。别人可浏览您的公开书签</li>
                     </ul>
-                    <p>如需更轻量、离线的本地体验，请尝试 <strong>本地版</strong>：</p>
+                    <p>如需更轻量、离线的本地体验，请体验<strong>本地版</strong>：</p>
                     <p><a href="/" class="btn btn-primary">前往本地版</a></p>
                     <p class="text-muted small mt-2">（本地版数据完全存储在浏览器中，无需担心隐私泄露的问题）</p>
                     <p class="text-muted small mt-2">💡 提示：点击左上角的“我的书签”或“增强版”徽章，可再次查看本提示。</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">知道了，继续使用</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 登录模态框 -->
+    <div class="modal fade" id="loginModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">登录</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="loginError" class="alert alert-danger" style="display: none;"></div>
+                    <form id="loginForm">
+                        <div class="mb-3">
+                            <label>用户名</label>
+                            <input type="text" id="loginUsername" class="form-control" required autofocus>
+                        </div>
+                        <div class="mb-3">
+                            <label>密码</label>
+                            <input type="password" id="loginPassword" class="form-control" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">登录</button>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <span>没有账号？ <a href="#" id="showRegisterBtn">注册新账号</a></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 注册模态框 -->
+    <div class="modal fade" id="registerModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">注册</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="registerError" class="alert alert-danger" style="display: none;"></div>
+                    <form id="registerForm">
+                        <div class="mb-3">
+                            <label>用户名</label>
+                            <input type="text" id="regUsername" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label>密码</label>
+                            <input type="password" id="regPassword" class="form-control" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">注册</button>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <span>已有账号？ <a href="#" id="showLoginBtn">去登录</a></span>
                 </div>
             </div>
         </div>
