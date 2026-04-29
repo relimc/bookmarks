@@ -33,6 +33,7 @@
     const manageCategoriesBtn = document.getElementById('manageCategoriesBtn');
     const bookmarkTags = document.getElementById('bookmarkTags');
     const selectedCategoryName = document.getElementById('selectedCategoryName');
+    const userStatusBtn = document.getElementById('userStatusBtn');
 
     // 自定义图标选择器元素
     const selectedIconDisplay = document.getElementById('selectedIconDisplay');
@@ -212,62 +213,168 @@
         return roots;
     }
 
+
     function renderCategoryTree() {
-        const tree = buildCategoryTree();
-        tree.sort((a,b) => (a.priority||100) - (b.priority||100));
-        if (allDataExpanded) {
-            const apply = (node) => {
-                node.expanded = !!allDataExpanded[node.name];
-                node.children.forEach(apply);
-            };
-            tree.forEach(apply);
+        // ---- 构建分类树 ----
+        function buildTree() {
+            const categories = allData.categories || {};
+            const nodes = {};
+            for (let name in categories) {
+                nodes[name] = {
+                    name: name,
+                    icon: categories[name].icon || 'fas fa-folder',
+                    parent: categories[name].parent || null,
+                    priority: categories[name].priority || 100,
+                    children: []
+                };
+            }
+            const roots = [];
+            for (let name in nodes) {
+                const node = nodes[name];
+                if (node.parent && nodes[node.parent]) {
+                    nodes[node.parent].children.push(node);
+                } else {
+                    roots.push(node);
+                }
+            }
+            roots.sort((a, b) => (a.priority || 100) - (b.priority || 100));
+            roots.forEach(r => r.children.sort((a, b) => (a.priority || 100) - (b.priority || 100)));
+            return roots;
         }
-        const allNode = `<div class="tree-node"><div class="tree-node-content ${activeCategoryKey === null ? 'active' : ''}" data-category="__all__"><div class="node-inner"><span class="node-icon"><i class="fas fa-home"></i></span><span class="node-name">全部</span><span class="expand-icon placeholder" style="visibility:hidden;">❯</span></div></div></div>`;
-        const recommendNode = `<div class="tree-node"><div class="tree-node-content ${activeCategoryKey === '__recommend__' ? 'active' : ''}" data-category="__recommend__"><div class="node-inner"><span class="node-icon"><i class="fas fa-fire"></i></span><span class="node-name">推荐</span><span class="expand-icon placeholder" style="visibility:hidden;">❯</span></div></div></div>`;
+
+        const tree = buildTree();
+
+        // ---- 应用展开状态 ----
+        function applyExpanded(nodes) {
+            for (let node of nodes) {
+                node.expanded = allData._expanded && allData._expanded[node.name];
+                if (node.children) applyExpanded(node.children);
+            }
+        }
+        applyExpanded(tree);
+
+        // ---- 递归渲染单个节点 ----
         function renderNode(node) {
             const hasChildren = node.children.length > 0;
-            const activeClass = (activeCategoryKey === node.name) ? 'active' : '';
+            const isActive = (activeCategoryKey === node.name);
+            const activeClass = isActive ? 'active' : '';
+
             let iconHtml = '';
-            if (node.icon.startsWith('http') || node.icon.startsWith('data:')) iconHtml = `<img src="${node.icon}" onerror="this.style.display='none'">`;
-            else iconHtml = `<i class="${node.icon}"></i>`;
-            const arrow = hasChildren ? `<span class="expand-icon${node.expanded ? ' expanded' : ''}" data-node="${node.name}">❯</span>` : `<span class="expand-icon placeholder" style="visibility:hidden;">❯</span>`;
-            let html = `<div class="tree-node"><div class="tree-node-content ${activeClass}" data-category="${node.name}"><div class="node-inner"><span class="node-icon">${iconHtml}</span><span class="node-name">${escapeHtml(node.name)}</span>${arrow}</div></div>`;
-            if (hasChildren) html += `<div class="child-nodes ${node.expanded ? 'expanded' : ''}">${node.children.map(c => renderNode(c)).join('')}</div>`;
+            if (node.icon.startsWith('http') || node.icon.startsWith('data:')) {
+                iconHtml = `<img src="${node.icon}" onerror="this.style.display='none'">`;
+            } else {
+                iconHtml = `<i class="${node.icon}"></i>`;
+            }
+
+            let arrowHtml = '';
+            if (hasChildren) {
+                const expandedClass = node.expanded ? ' expanded' : '';
+                arrowHtml = `<span class="expand-icon${expandedClass}" data-node="${node.name}">❯</span>`;
+            } else {
+                arrowHtml = `<span class="expand-icon placeholder" style="visibility:hidden;">❯</span>`;
+            }
+
+            let html = `
+                <div class="tree-node">
+                    <div class="tree-node-content ${activeClass}" data-category="${node.name}">
+                        <div class="node-inner">
+                            <span class="node-icon">${iconHtml}</span>
+                            <span class="node-name">${escapeHtml(node.name)}</span>
+                            ${arrowHtml}
+                        </div>
+                    </div>
+            `;
+            if (hasChildren) {
+                const expandedClass = node.expanded ? 'expanded' : '';
+                html += `<div class="child-nodes ${expandedClass}">`;
+                for (let child of node.children) {
+                    html += renderNode(child);
+                }
+                html += `</div>`;
+            }
             html += `</div>`;
             return html;
         }
-        let treeHtml = allNode + recommendNode;
-        tree.forEach(root => { treeHtml += renderNode(root); });
+
+        // ---- 特殊节点：全部 & 推荐 ----
+        const allNodeHtml = `
+            <div class="tree-node">
+                <div class="tree-node-content ${activeCategoryKey === null ? 'active' : ''}" data-category="__all__">
+                    <div class="node-inner">
+                        <span class="node-icon"><i class="fas fa-home"></i></span>
+                        <span class="node-name">全部</span>
+                        <span class="expand-icon placeholder" style="visibility:hidden;">❯</span>
+                    </div>
+                </div>
+            </div>
+        `;
+        const recommendNodeHtml = `
+            <div class="tree-node">
+                <div class="tree-node-content ${activeCategoryKey === '__recommend__' ? 'active' : ''}" data-category="__recommend__">
+                    <div class="node-inner">
+                        <span class="node-icon"><i class="fas fa-fire"></i></span>
+                        <span class="node-name">推荐</span>
+                        <span class="expand-icon placeholder" style="visibility:hidden;">❯</span>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        let treeHtml = allNodeHtml + recommendNodeHtml;
+        for (let root of tree) {
+            treeHtml += renderNode(root);
+        }
         categoryTreeDiv.innerHTML = treeHtml;
-        // 绑定点击事件
+
+        // ---- 绑定点击事件（分类节点） ----
         document.querySelectorAll('.tree-node-content').forEach(el => {
-            el.addEventListener('click', function(e) {
+            el.addEventListener('click', (e) => {
+                if (sidebar.classList.contains('collapsed')) return;
                 if (e.target.classList.contains('expand-icon')) return;
-                const cat = this.dataset.category;
-                if (cat === '__all__') setActiveCategory(null);
-                else if (cat === '__recommend__') setActiveCategory('__recommend__');
-                else if (cat) {
-                    const hasChildren = !!allData.categories[cat] && Object.values(allData.categories).some(c => c.parent === cat);
-                    if (hasChildren) {
-                        if (!allDataExpanded) allDataExpanded = {};
-                        // 一级分类互斥折叠
-                        if (!allData.categories[cat]?.parent) {
-                            Object.keys(allDataExpanded).forEach(k => { if (!allData.categories[k]?.parent) allDataExpanded[k] = false; });
-                        }
-                        allDataExpanded[cat] = !allDataExpanded[cat];
-                        renderCategoryTree();
-                    }
-                    setActiveCategory(cat);
+
+                const cat = el.dataset.category;
+                if (!cat) return;
+
+                if (cat === '__all__') {
+                    setActiveCategory(null);
+                    return;
                 }
+                if (cat === '__recommend__') {
+                    setActiveCategory('__recommend__');
+                    return;
+                }
+
+                // 判断是否有子节点（通过检查其他分类的 parent）
+                const hasChildren = Object.values(allData.categories).some(c => c.parent === cat);
+                if (hasChildren) {
+                    if (!allData._expanded) allData._expanded = {};
+                    const isTopLevel = !allData.categories[cat]?.parent;
+                    if (isTopLevel) {
+                        // 关闭其他一级分类
+                        for (let key in allData._expanded) {
+                            const other = allData.categories[key];
+                            if (other && !other.parent && key !== cat) {
+                                allData._expanded[key] = false;
+                            }
+                        }
+                    }
+                    // 切换当前分类的展开状态
+                    allData._expanded[cat] = !allData._expanded[cat];
+                    renderCategoryTree(); // 重新渲染
+                }
+                // 选中当前分类（刷新右侧内容）
+                setActiveCategory(cat);
             });
         });
+
+        // ---- 绑定箭头点击事件（仅切换展开/折叠，不改变选中） ----
         document.querySelectorAll('.expand-icon').forEach(arrow => {
             arrow.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const nodeName = arrow.dataset.node;
                 if (nodeName) {
-                    if (!allDataExpanded) allDataExpanded = {};
-                    allDataExpanded[nodeName] = !allDataExpanded[nodeName];
+                    if (!allData._expanded) allData._expanded = {};
+                    allData._expanded[nodeName] = !allData._expanded[nodeName];
                     renderCategoryTree();
                 }
             });
@@ -371,6 +478,11 @@
 
     // ---------- 书签操作 ----------
     window.openEditModal = async function(id) {
+        if (!isLoggedIn) {
+            loginModal.show();
+            return;
+        }
+
         const item = allData.bookmarks.find(b => b.id === id);
         if (!item) return;
         modalTitle.innerText = '✏️ 编辑书签';
@@ -384,25 +496,27 @@
         descriptionInput.value = item.description || '';
         if (bookmarkTags) bookmarkTags.value = (item.tags || []).join('/');
 
-        // 设置可见性单选框
-        const statusPrivate = document.getElementById('statusPrivate');
-        const statusPublic = document.getElementById('statusPublic');
-        if (statusPrivate && statusPublic) {
-            if (item.status === 'approved') {
-                statusPublic.checked = true;
-                statusPrivate.checked = false;
-            } else {
-                statusPrivate.checked = true;
-                statusPublic.checked = false;
-            }
+        // 设置私密复选框
+        const isPrivateCheckbox = document.getElementById('isPrivateCheckbox');
+        if (isPrivateCheckbox) {
+            isPrivateCheckbox.checked = !(item.status === 'approved');
         }
 
-        deleteBtn.style.display = 'block';
-        deleteBtn.onclick = handleDelete;
+        // 安全操作删除按钮（如果存在）
+        if (deleteBtn) {
+            deleteBtn.style.display = 'block';
+            deleteBtn.onclick = handleDelete;
+        }
+
         bookmarkModal.show();
     };
 
     async function openAddModal() {
+        if (!isLoggedIn) {
+            loginModal.show();
+            return;
+        }
+
         modalTitle.innerText = '📋 新增书签';
         editingId.value = '';
         urlInput.value = '';
@@ -410,32 +524,47 @@
         titleInput.value = '';
         descriptionInput.value = '';
         if (bookmarkTags) bookmarkTags.value = '';
+
         setCategoryMode(false);
-        updateCategorySelect();
-        categorySelect.value = '';
-        parentCategorySelect.value = '';
-        deleteBtn.style.display = 'none';
-        document.getElementById('statusPrivate').checked = true;
-        clipboardHint.innerText = '';
+        setCategoryMode(true);
+
+        if (typeof updateCategorySelect === 'function') updateCategorySelect();
+        if (categorySelect) categorySelect.value = '';
+        if (parentCategorySelect) parentCategorySelect.value = '';
+        if (deleteBtn) deleteBtn.style.display = 'none';
+        if (clipboardHint) clipboardHint.innerText = '';
         lastFetchedIcon = '';
+
         // 重置图标选择器
         if (selectedIconValue) selectedIconValue.value = 'fas fa-folder';
         if (selectedIconPreview) selectedIconPreview.innerHTML = '<i class="fas fa-folder"></i>';
         if (selectedIconText) selectedIconText.textContent = '请选择分类';
         if (selectedCategoryName) selectedCategoryName.value = '';
-        if (newCategoryCustomIcon) { newCategoryCustomIcon.style.display = 'none'; newCategoryCustomIcon.value = ''; }
+        if (newCategoryCustomIcon) {
+            newCategoryCustomIcon.style.display = 'none';
+            newCategoryCustomIcon.value = '';
+        }
         if (customIconInputPanel) customIconInputPanel.value = '';
         if (iconDropdownPanel) iconDropdownPanel.classList.remove('show');
         if (caret) caret.classList.remove('open');
+
+        const isPrivateCheckbox = document.getElementById('isPrivateCheckbox');
+        if (isPrivateCheckbox) isPrivateCheckbox.checked = true;
+
         bookmarkModal.show();
+
         try {
             const text = await navigator.clipboard.readText();
             if (text) {
                 urlInput.value = text;
-                clipboardHint.innerText = '✅ 已读取剪贴板，正在获取信息...';
+                clipboardHint.innerText = '✅ 已读取剪贴板，正在获取网页信息...';
                 fetchMetadata(text);
-            } else clipboardHint.innerText = '⚠️ 剪贴板为空';
-        } catch { clipboardHint.innerText = '⚠️ 无法读取剪贴板'; }
+            } else {
+                clipboardHint.innerText = '⚠️ 剪贴板为空';
+            }
+        } catch (err) {
+            clipboardHint.innerText = '⚠️ 无法读取剪贴板';
+        }
     }
 
     async function fetchMetadata(url) {
@@ -456,14 +585,13 @@
     }
 
     async function handleSubmit() {
-        // 1. 登录检查
+        // 登录检查
         if (!isLoggedIn) {
             alert('请先登录');
             loginModal.show();
             return;
         }
 
-        // 2. 获取基础输入
         const url = urlInput.value.trim();
         if (!url) {
             alert('请输入网址');
@@ -474,23 +602,15 @@
         let categoryIcon = '';
         let parentCategory = '';
 
-        // 3. 获取可见性
-        let status = 'private';
-        const statusRadio = document.querySelector('input[name="bookmarkStatus"]:checked');
-        if (statusRadio) {
-            status = statusRadio.value;
-        } else {
-            console.warn('未找到可见性单选框，使用默认值 private');
-        }
-
-        // 4. 公开时二次确认
+        // 获取私密复选框状态
+        const isPrivateCheckbox = document.getElementById('isPrivateCheckbox');
+        let status = (isPrivateCheckbox && isPrivateCheckbox.checked) ? 'private' : 'public';
         if (status === 'public') {
             if (!confirm('公开书签需管理员审核后，才能发布。是否确定提交审核？')) {
                 return;
             }
         }
 
-        // 5. 处理分类（新增模式或编辑模式）
         if (isAddingNewCategory) {
             category = selectedCategoryName.value.trim();
             if (!category) {
@@ -504,7 +624,6 @@
                 categoryIcon = selectedIconValue.value || 'fas fa-folder';
             }
             if (!categoryIcon) categoryIcon = 'fas fa-folder';
-
             parentCategory = parentCategorySelect.value;
         } else {
             category = categorySelect.value;
@@ -514,7 +633,7 @@
             }
         }
 
-        // 6. 图标处理（抓取或保留原有）
+        // 图标处理
         let icon = '';
         if (editingId.value) {
             const original = allData.bookmarks.find(b => b.id === parseInt(editingId.value));
@@ -532,14 +651,13 @@
             }
         }
 
-        // 7. 标签处理
+        // 标签处理
         const tagsRaw = bookmarkTags ? bookmarkTags.value.trim() : '';
         let tags = [];
         if (tagsRaw) {
             tags = tagsRaw.split('/').map(t => t.trim()).filter(t => t);
         }
 
-        // 8. 构建 payload
         const payload = {
             url: url,
             category: category,
@@ -552,21 +670,18 @@
             status: status
         };
 
-        // 9. 禁用提交按钮
         submitBtn.disabled = true;
         submitBtn.textContent = '提交中...';
 
         try {
             let res;
             if (editingId.value) {
-                // 编辑模式
                 res = await fetch(`/edit/${editingId.value}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
             } else {
-                // 新增模式
                 res = await fetch('/add', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -578,7 +693,6 @@
             if (res.ok && result.success) {
                 alert(editingId.value ? '✅ 修改成功！' : '✅ 提交成功！');
                 closeModal();
-                // 刷新数据
                 await refreshDataAndUI();
             } else {
                 alert('❌ 操作失败：' + (result.message || '未知错误'));
@@ -588,7 +702,7 @@
             alert('❌ 网络错误，请重试');
         } finally {
             submitBtn.disabled = false;
-            submitBtn.textContent = editingId.value ? '保存修改' : '提交书签';
+            submitBtn.textContent = editingId.value ? '保存修改' : '保存';
         }
     }
 
@@ -630,21 +744,35 @@
     function setCategoryMode(isNew) {
         isAddingNewCategory = isNew;
         if (isNew) {
+            // 新增模式
             if (existingCategoryGroup) existingCategoryGroup.style.display = 'none';
             if (newCategoryIconGroup) newCategoryIconGroup.style.display = 'block';
             if (parentCategoryGroup) parentCategoryGroup.style.display = 'block';
-            if (toggleCategoryMode) { toggleCategoryMode.style.display = 'inline'; toggleCategoryMode.innerText = '🔽 选择已有分类'; }
+            if (toggleCategoryMode) {
+                toggleCategoryMode.style.display = 'inline';
+                toggleCategoryMode.innerText = '🔽 选择已有分类';
+            }
             updateParentCategorySelect();
+
             if (selectedCategoryName) selectedCategoryName.value = '';
             if (selectedIconValue) selectedIconValue.value = 'fas fa-folder';
             if (selectedIconPreview) selectedIconPreview.innerHTML = '<i class="fas fa-folder"></i>';
             if (selectedIconText) selectedIconText.textContent = '请选择分类';
-            if (newCategoryCustomIcon) { newCategoryCustomIcon.style.display = 'none'; newCategoryCustomIcon.value = ''; }
+            // 安全操作 newCategoryCustomIcon
+            if (newCategoryCustomIcon) {
+                newCategoryCustomIcon.style.display = 'none';
+                newCategoryCustomIcon.value = '';
+            }
         } else {
+            // 编辑模式
             if (existingCategoryGroup) existingCategoryGroup.style.display = 'block';
             if (newCategoryIconGroup) newCategoryIconGroup.style.display = 'none';
             if (parentCategoryGroup) parentCategoryGroup.style.display = 'none';
-            if (toggleCategoryMode) { toggleCategoryMode.style.display = 'inline'; toggleCategoryMode.innerText = '➕ 新增分类'; }
+            if (toggleCategoryMode) {
+                toggleCategoryMode.style.display = 'inline';
+                toggleCategoryMode.innerText = '➕ 新增分类';
+            }
+            // 不需要操作 newCategoryCustomIcon
         }
     }
 
@@ -875,6 +1003,10 @@
     }
 
     importBtn?.addEventListener('click', () => {
+        if (!isLoggedIn) {
+            loginModal.show();
+            return;
+        }
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = '.html,.htm';
@@ -882,18 +1014,27 @@
         input.click();
     });
 
-    exportBtn?.addEventListener('click', async () => {
+    exportBookmarksBtn?.addEventListener('click', async () => {
         try {
-            const res = await fetch('/export');
-            if (!res.ok) throw new Error();
-            const blob = await res.blob();
+            const response = await fetch('/export');
+            if (!response.ok) throw new Error('导出失败');
+            const blob = await response.blob();
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'bookmarks_export.json';
+            // 从响应头中提取文件名
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = 'bookmarks_export.json';
+            if (contentDisposition) {
+                const match = contentDisposition.match(/filename="?([^"]+)"?/);
+                if (match) filename = match[1];
+            }
+            a.download = filename;
             a.click();
             URL.revokeObjectURL(url);
-        } catch { alert('导出失败'); }
+        } catch (err) {
+            alert('导出失败');
+        }
     });
 
     // ---------- 辅助函数 ----------
@@ -937,7 +1078,23 @@
     async function refreshDataAndUI() {
         try {
             const res = await fetch('/list');
+            // 未认证或会话过期
+            if (res.status === 401) {
+                isLoggedIn = false;
+                document.body.classList.remove('logged-in');
+                if (userStatusBtn) {
+                    userStatusBtn.innerText = '点击登录';
+                    userStatusBtn.title = '';
+                }
+                allData = { bookmarks: [], categories: {} };
+                if (!allData._expanded) allData._expanded = {};
+                renderCategoryTree();
+                updateCategorySelect();
+                bookmarkGrid.innerHTML = '<div class="text-center p-5" style="color:#8fa3bc;">✨ 请登录后查看</div>';
+                return;
+            }
             if (!res.ok) throw new Error('加载失败');
+
             const data = await res.json();
             allData = data;
             if (!allData._expanded) allData._expanded = {};
@@ -948,33 +1105,49 @@
             if (activeCategoryKey && allData.categories[activeCategoryKey]) {
                 setActiveCategory(activeCategoryKey);
             } else {
-                setActiveCategory(null);
+                setActiveCategory('__recommend__');  // 默认显示推荐分类
             }
 
-            // 尝试获取用户信息（用于显示登录状态）
-            const userRes = await fetch('/user');
-            if (userRes.ok) {
-                const userData = await userRes.json();
-                isLoggedIn = true;
-                document.body.classList.add('logged-in');
-                userMenuBtn.innerText = '已登录';
-                usernameDisplay.innerText = '当前用户：' + userData.username;
-            } else {
+            // 获取当前用户信息并更新头部（可能返回401，需要捕获）
+            try {
+                const userRes = await fetch('/user');
+                if (userRes.ok) {
+                    const userData = await userRes.json();
+                    isLoggedIn = true;
+                    document.body.classList.add('logged-in');
+                    if (userStatusBtn) {
+                        userStatusBtn.innerText = '退出登录';
+                        userStatusBtn.title = `当前登录：${userData.username}`;
+                    }
+                } else {
+                    throw new Error('Not logged in');
+                }
+            } catch (err) {
                 isLoggedIn = false;
                 document.body.classList.remove('logged-in');
-                userMenuBtn.innerText = '未登录';
-                usernameDisplay.innerText = '';
+                if (userStatusBtn) {
+                    userStatusBtn.innerText = '点击登录';
+                    userStatusBtn.title = '';
+                }
             }
         } catch (err) {
-            console.error(err);
+            console.error('刷新数据失败:', err);
             categoryTreeDiv.innerHTML = `<div class="text-center p-4 text-danger">❌ 加载失败</div>`;
-            bookmarkGrid.innerHTML = `<div class="text-center p-5 text-danger">❌ 无法加载数据，请刷新重试</div>`;
+            bookmarkGrid.innerHTML = `<div class="text-center p-5 text-danger">❌ 无法加载数据，请检查网络或刷新重试</div>`;
         }
     }
 
     // ---------- 事件绑定 ----------
     addBookmarkHeaderBtn?.addEventListener('click', openAddModal);
-    manageCategoriesBtn?.addEventListener('click', async () => { await refreshDataAndUI(); loadCategoryList(); categoryManageModal.show(); });
+    manageCategoriesBtn.addEventListener('click', async () => {
+        if (!isLoggedIn) {
+            loginModal.show();
+            return;
+        }
+        await refreshDataAndUI();
+        loadCategoryList();
+        categoryManageModal.show();
+    });
     submitBtn?.addEventListener('click', handleSubmit);
     collapseBtn?.addEventListener('click', () => {
         sidebar.classList.toggle('collapsed');
@@ -987,7 +1160,16 @@
             renderCategoryTree();
         }
     });
-    document.addEventListener('keydown', (e) => { if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'v') { e.preventDefault(); openAddModal(); } });
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'v') {
+            e.preventDefault();
+            if (!isLoggedIn) {
+                loginModal.show();
+                return;
+            }
+            openAddModal();
+        }
+    });
     document.querySelector('.shortcut-hint')?.addEventListener('click', () => openAddModal());
 
     // 浮层
@@ -1084,4 +1266,16 @@
             }
         });
     }
+
+    userStatusBtn.addEventListener('click', () => {
+        if (isLoggedIn) {
+            if (confirm('确定要退出登录吗？')) {
+                fetch('/logout').finally(() => {
+                    refreshDataAndUI();
+                });
+            }
+        } else {
+            loginModal.show();
+        }
+    });
 })();

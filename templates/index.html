@@ -62,16 +62,7 @@
                     </div>
 
                     <div class="header-right">
-                        <div class="dropdown" id="userDropdown">
-                            <button class="import-btn dropdown-toggle" type="button" id="userMenuBtn" data-bs-toggle="dropdown" aria-expanded="false">
-                                未登录
-                            </button>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenuBtn">
-                                <li><span class="dropdown-item-text" id="usernameDisplay"></span></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><button class="dropdown-item" id="logoutBtn">退出登录</button></li>
-                            </ul>
-                        </div>
+                        <button class="import-btn" id="userStatusBtn">未登录</button>
                         <button class="import-btn" id="addBookmarkHeaderBtn" title="新增书签">
                             <i class="fas fa-plus"></i> 新增书签
                         </button>
@@ -197,21 +188,15 @@
                     </div>
                 </div>
                 <div class="modal-footer d-flex justify-content-between align-items-center">
-                    <div class="mb-3">
-                        <label>可见性</label><br>
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="radio" name="bookmarkStatus" id="statusPrivate" value="private" checked>
-                            <label class="form-check-label" for="statusPrivate">私密（仅自己可见）</label>
-                        </div>
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="radio" name="bookmarkStatus" id="statusPublic" value="public">
-                            <label class="form-check-label" for="statusPublic">公开（需管理员审核）</label>
-                        </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="isPrivateCheckbox" checked>
+                        <label class="form-check-label" for="isPrivateCheckbox">私密</label>
+                        <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" title="仅自己可见。取消勾选将变为公开书签"></i>
                     </div>
-                    <div class="right-section d-flex gap-2">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <div class="d-flex gap-2">
                         <button type="button" class="btn btn-danger" id="deleteBtn" style="display: none;">删除</button>
-                        <button type="button" class="btn btn-primary" id="submitBtn">提交</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="button" class="btn btn-primary" id="submitBtn">保存</button>
                     </div>
                 </div>
             </div>

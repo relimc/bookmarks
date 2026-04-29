@@ -8,6 +8,7 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from bs4 import BeautifulSoup
+from datetime import datetime
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
@@ -464,17 +465,40 @@ def import_bookmarks():
     db.session.commit()
     return jsonify({'success': True, 'data': {}})
 
+
 @app.route('/export', methods=['GET'])
 @login_required
 def export_bookmarks():
-    bookmarks = Bookmark.query.filter_by(user_id=current_user.id).all()
-    categories = Category.query.filter_by(user_id=current_user.id).all()
+    user_id = current_user.id
+    bookmarks = Bookmark.query.filter_by(user_id=user_id).all()
+    categories = Category.query.filter_by(user_id=user_id).all()
+
     data = {
-        'bookmarks': [{'url': b.url, 'title': b.title, 'description': b.description, 'category': b.category, 'icon': b.icon, 'tags': b.tags.split(',') if b.tags else [], 'private': b.private} for b in bookmarks],
-        'categories': [{'name': c.name, 'icon': c.icon, 'parent': c.parent, 'priority': c.priority, 'private': c.private} for c in categories]
+        'bookmarks': [{
+            'url': b.url,
+            'title': b.title,
+            'description': b.description,
+            'category': b.category,
+            'icon': b.icon,
+            'tags': b.tags.split(',') if b.tags else [],
+            'click_count': b.click_count,
+            'private': b.private,
+        } for b in bookmarks],
+        'categories': [{
+            'name': c.name,
+            'icon': c.icon,
+            'parent': c.parent,
+            'priority': c.priority,
+        } for c in categories]
     }
+
     response = jsonify(data)
-    response.headers['Content-Disposition'] = 'attachment; filename=bookmarks_export.json'
+    timestamp = datetime.now().strftime('%Y-%m-%dT%H_%M_%S')
+    filename = f'bookmarks_backup_{timestamp}.json'
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
     return response
 
 @app.route('/increment_click/<int:item_id>', methods=['POST'])
@@ -487,10 +511,17 @@ def increment_click(item_id):
         return jsonify({'success': True, 'click_count': bookmark.click_count})
     return jsonify({'success': False}), 404
 
+
 @app.route('/recommend')
-@login_required
 def recommend():
-    bookmarks = Bookmark.query.filter_by(user_id=current_user.id).order_by(Bookmark.click_count.desc()).limit(30).all()
+    if current_user.is_authenticated:
+        # 登录用户：返回自己的所有书签，按点击次数降序，取前30
+        bookmarks = Bookmark.query.filter_by(user_id=current_user.id).order_by(Bookmark.click_count.desc()).limit(
+            30).all()
+    else:
+        # 未登录用户：只返回已审核通过的公开书签，按点击次数降序，取前30
+        bookmarks = Bookmark.query.filter_by(status='approved').order_by(Bookmark.click_count.desc()).limit(30).all()
+
     return jsonify([{
         'id': b.id,
         'url': b.url,
@@ -499,7 +530,8 @@ def recommend():
         'category': b.category,
         'icon': b.icon,
         'tags': b.tags.split(',') if b.tags else [],
-        'click_count': b.click_count
+        'click_count': b.click_count,
+        'status': b.status
     } for b in bookmarks])
 
 @app.route('/enhanced')

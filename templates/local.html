@@ -75,7 +75,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="modalTitle">📋 新增书签</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="editingId" value="">
@@ -93,16 +93,19 @@
                     </div>
                     <div class="mb-3">
                         <label>分类</label>
-                        <select class="form-select" id="categorySelect"></select>
+                        <div class="d-flex gap-2">
+                            <select class="form-select" id="categorySelect"></select>
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="quickAddCategoryBtn">➕</button>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label>标签 (多个用 / 分割)</label>
                         <input type="text" class="form-control" id="tagsInput" placeholder="前端/React/UI">
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <div class="modal-footer d-flex justify-content-end">
                     <button type="button" class="btn btn-danger" id="deleteBtn" style="display: none;">删除</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
                     <button type="button" class="btn btn-primary" id="submitBtn">保存</button>
                 </div>
             </div>
