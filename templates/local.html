@@ -9,7 +9,7 @@
     <!-- 本地 Font Awesome -->
     <link rel="stylesheet" href="/static/fontawesome/css/all.min.css">
     <!-- 复用原有样式 -->
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/common.css">
     <link rel="stylesheet" href="/static/local.css">
 </head>
 <body>
@@ -21,7 +21,7 @@
                     <span class="logo">🔖</span>
                     <div class="title-wrapper">
                         <span class="title" id="localTitle">我的书签</span>
-                        <span class="badge-local" id="localBadge">本地版</span>
+                        <span class="badge" id="localBadge">本地版</span>
                     </div>
                 </div>
                 <div class="category-tree" id="categoryTree">
@@ -63,7 +63,7 @@
                     </div>
                 </div>
                 <div class="bookmark-grid" id="bookmarkGrid">
-                    <div class="text-center p-5" style="color:#8fa3bc;">✨ 正在加载...</div>
+                    <div class="text-center p-5" style="color:#8fa3bc;">⏳ 正在加载书签...</div>
                 </div>
             </div>
         </div>
@@ -188,7 +188,7 @@
                     </ul>
                     <p><strong>⚠️ 重要提醒：</strong>在更换设备或者清理浏览器缓存前，请先使用右上角的“<strong>导出书签</strong>”功能将数据保存到本地。</p>
                     <p>如需更丰富的功能（多端同步、自动抓取、私密书签、推荐排序等），请体验<strong>增强版</strong>：</p>
-                    <p><a href="/enhanced" class="btn btn-primary">前往增强版</a></p>
+                    <p><a href="/online" class="btn btn-primary">前往增强版</a></p>
 <!--                    <p class="text-muted small mt-2">（增强版需要部署后端，支持云端存储和跨设备访问）</p>-->
                     <p class="text-muted small mt-2">💡 提示：点击左上角的“我的书签”或“本地版”徽章，可再次查看本提示。</p>
                 </div>
@@ -202,6 +202,7 @@
     <!-- Bootstrap JS -->
     <script src="/static/bootstrap/bootstrap.bundle.min.js"></script>
     <!-- 本地脚本 -->
+    <script src="/static/common.js"></script>
     <script src="/static/local.js"></script>
 </body>
 </html>

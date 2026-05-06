@@ -335,28 +335,46 @@ def delete_bookmark(item_id):
 @app.route('/add_category', methods=['POST'])
 @login_required
 def add_category():
-    req = request.get_json()
-    name = req.get('name', '').strip()
-    if not name:
-        return jsonify({'success': False, 'message': '分类名称不能为空'}), 400
-    icon = req.get('icon', '').strip() or 'fas fa-folder'
-    parent = req.get('parent', '').strip() or None
-    priority = req.get('priority', 100)
-    private = req.get('private', False)
+    try:
+        req = request.get_json()
+        name = req.get('name', '').strip()
+        if not name:
+            return jsonify({'success': False, 'message': '分类名称不能为空'}), 400
+        if len(name) > 100:
+            return jsonify({'success': False, 'message': '分类名称不能超过100个字符'}), 400
 
-    if Category.query.filter_by(user_id=current_user.id, name=name).first():
-        return jsonify({'success': False, 'message': '分类已存在'}), 400
-    new_cat = Category(
-        user_id=current_user.id,
-        name=name,
-        icon=icon,
-        parent=parent,
-        priority=priority,
-        private=private
-    )
-    db.session.add(new_cat)
-    db.session.commit()
-    return jsonify({'success': True, 'data': {}})
+        icon = req.get('icon', '').strip() or 'fas fa-folder'
+        if len(icon) > 100:
+            icon = icon[:100]
+
+        # 修复 parent = None 时调用 strip 的问题
+        parent = req.get('parent')
+        if parent and isinstance(parent, str):
+            parent = parent.strip() or None
+        else:
+            parent = None
+
+        priority = req.get('priority', 100)
+        private = req.get('private', False)
+
+        if Category.query.filter_by(user_id=current_user.id, name=name).first():
+            return jsonify({'success': False, 'message': '分类已存在'}), 400
+
+        new_cat = Category(
+            user_id=current_user.id,
+            name=name,
+            icon=icon,
+            parent=parent,
+            priority=priority,
+            private=private
+        )
+        db.session.add(new_cat)
+        db.session.commit()
+        return jsonify({'success': True, 'data': {}})
+    except Exception as e:
+        print(f"添加分类出错: {e}")
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'服务器内部错误: {str(e)}'}), 500
 
 @app.route('/category/<string:name>', methods=['PUT'])
 @login_required
@@ -534,9 +552,9 @@ def recommend():
         'status': b.status
     } for b in bookmarks])
 
-@app.route('/enhanced')
+@app.route('/online')
 def enhanced():
-    return render_template('index.html')
+    return render_template('online.html')
 
 @app.route('/admin/pending')
 @login_required
