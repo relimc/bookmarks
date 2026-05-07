@@ -15,12 +15,9 @@
     const urlInput = document.getElementById('urlInput');
     const titleInput = document.getElementById('titleInput');
     const descriptionInput = document.getElementById('descriptionInput');
-    const parentCategoryGroup = document.getElementById('parentCategoryGroup');
-    const parentCategorySelect = document.getElementById('parentCategorySelect');
+
     let categorySelect = document.getElementById('categorySelect');
     const newCategoryInput = document.getElementById('newCategoryInput');
-    const toggleCategoryMode = document.getElementById('toggleCategoryMode');
-    const newCategoryIconGroup = document.getElementById('newCategoryIconGroup');
     const existingCategoryGroup = document.getElementById('existingCategoryGroup');
     const submitBtn = document.getElementById('submitBtn');
     const deleteBtn = document.getElementById('deleteBtn');
@@ -50,7 +47,6 @@
     // 分类管理相关元素
     const categoryListContainer = document.getElementById('categoryListContainer');
     const newCategoryNameInput = document.getElementById('newCategoryNameInput');
-    const newCategoryIconSelect = document.getElementById('newCategoryIconSelect');
     const newCategoryCustomIconManage = document.getElementById('newCategoryCustomIconManage');
     const newCategoryParentSelect = document.getElementById('newCategoryParentSelect');
     const newCategoryPriority = document.getElementById('newCategoryPriority');
@@ -67,7 +63,6 @@
 
     // ---------- 全局变量 ----------
     let activeCategoryKey = null;
-    let isAddingNewCategory = false;
     let lastFetchedIcon = '';
     let isLoggedIn = false;
     let allDataExpanded = {};
@@ -94,38 +89,12 @@
     // ---------- 辅助函数（在线版特有）----------
     function updateCategorySelect(selected = '') {
         if (!categorySelect) categorySelect = document.getElementById('categorySelect');
-        const cats = Object.keys(allData.categories || {}).sort();
+        const cats = Object.keys(window.allData.categories || {}).sort();
         let html = '<option value="">-- 选择已有分类 --</option>';
-        cats.forEach(c => { html += `<option value="${escapeHtml(c)}" ${c === selected ? 'selected' : ''}>${escapeHtml(c)}</option>`; });
+        cats.forEach(c => {
+            html += `<option value="${escapeHtml(c)}" ${c === selected ? 'selected' : ''}>${escapeHtml(c)}</option>`;
+        });
         categorySelect.innerHTML = html;
-    }
-
-    function updateParentCategorySelect() {
-        const cats = Object.keys(allData.categories || {}).sort();
-        let html = '<option value="">可选，不选则下方分类为一级分类</option>';
-        cats.forEach(c => { html += `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`; });
-        parentCategorySelect.innerHTML = html;
-    }
-
-    function setCategoryMode(isNew) {
-        isAddingNewCategory = isNew;
-        if (isNew) {
-            existingCategoryGroup.style.display = 'none';
-            newCategoryIconGroup.style.display = 'block';
-            parentCategoryGroup.style.display = 'block';
-            toggleCategoryMode.innerText = '🔽 选择已有分类';
-            updateParentCategorySelect();
-            selectedCategoryName.value = '';
-            selectedIconValue.value = 'fas fa-folder';
-            selectedIconPreview.innerHTML = '<i class="fas fa-folder"></i>';
-            selectedIconText.textContent = '请选择分类';
-            if (newCategoryCustomIcon) { newCategoryCustomIcon.style.display = 'none'; newCategoryCustomIcon.value = ''; }
-        } else {
-            existingCategoryGroup.style.display = 'block';
-            newCategoryIconGroup.style.display = 'none';
-            parentCategoryGroup.style.display = 'none';
-            toggleCategoryMode.innerText = '➕ 新增分类';
-        }
     }
 
     if (addCategoryFooterBtn) {
@@ -134,7 +103,7 @@
             const parentSelect = document.getElementById('newCategoryParent');
             if (parentSelect) {
                 const cats = Object.keys(window.allData.categories || {}).sort();
-                let html = '<option value="">-- 无 (一级分类) --</option>';
+                let html = '<option value="">-- 无 --</option>';
                 cats.forEach(c => html += `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`);
                 parentSelect.innerHTML = html;
             }
@@ -150,25 +119,21 @@
         });
     }
 
-    if (newCategoryIconSelect) {
-        newCategoryIconSelect.addEventListener('change', function() {
-            newCategoryCustomIcon.style.display = this.value === 'custom' ? 'block' : 'none';
-        });
-    }
-
     if (confirmNewCategoryBtn) {
         confirmNewCategoryBtn.addEventListener('click', async () => {
             const name = document.getElementById('newCategoryName').value.trim();
             if (!name) { alert('请输入分类名称'); return; }
 
-            let iconSelect = document.getElementById('newCategoryIconSelect');
-            let icon = iconSelect.value === 'custom'
-                ? document.getElementById('newCategoryCustomIcon').value.trim()
-                : iconSelect.value;
-            if (!icon) icon = 'fas fa-folder';
+            // 只从隐藏字段获取图标值
+            const icon = document.getElementById('newCatSelectedIconValue').value || 'fas fa-folder';
 
             const parent = document.getElementById('newCategoryParent').value || null;
             const priority = parseInt(document.getElementById('newCategoryPriority').value) || 100;
+
+            // 图标验证：如果既不是 HTTP(S) 也不是有效的 FA 类名，可以给出警告
+            if (!icon.startsWith('http') && !icon.startsWith('data:') && !icon.startsWith('fas ') && !icon.startsWith('far ') && !icon.startsWith('fab ')) {
+                if (!confirm('图标格式可能不正确，是否继续？')) return;
+            }
 
             try {
                 const res = await fetch('/add_category', {
@@ -179,16 +144,16 @@
                 const result = await res.json();
                 if (res.ok && result.success) {
                     alert('✅ 分类添加成功');
-                    // 关闭独立模态框
-                    const newCategoryModalEl = document.getElementById('newCategoryModal');
-                    const modal = bootstrap.Modal.getInstance(newCategoryModalEl);
+                    const modalEl = document.getElementById('newCategoryModal');
+                    const modal = bootstrap.Modal.getInstance(modalEl);
                     modal.hide();
-                    // 刷新全局数据
                     await refreshDataAndUI();
-                    // 如果分类管理主模态框是打开的，则刷新其中的列表
-                    const mainModalEl = document.getElementById('categoryManageModal');
-                    if (mainModalEl.classList.contains('show')) {
+                    // 如果分类列表模态框是打开的，刷新它
+                    const manageModal = document.getElementById('categoryManageModal');
+                    if (manageModal && manageModal.classList.contains('show')) {
                         loadCategoryList();
+                        const searchInput = document.getElementById('categorySearchInput');
+                        if (searchInput) searchInput.value = '';
                     }
                 } else {
                     alert('❌ 添加失败：' + (result.message || ''));
@@ -199,9 +164,6 @@
             }
         });
     }
-
-
-    toggleCategoryMode?.addEventListener('click', () => setCategoryMode(!isAddingNewCategory));
 
     // ---------- 书签操作 ----------
     async function fetchMetadata(url) {
@@ -230,52 +192,55 @@
         titleInput.value = '';
         descriptionInput.value = '';
         if (bookmarkTags) bookmarkTags.value = '';
-        setCategoryMode(false);
-        setCategoryMode(true);
+
+        // 刷新分类下拉框
         updateCategorySelect();
         if (categorySelect) categorySelect.value = '';
-        parentCategorySelect.value = '';
+
         deleteBtn.style.display = 'none';
         clipboardHint.innerText = '';
         lastFetchedIcon = '';
-        selectedIconValue.value = 'fas fa-folder';
-        selectedIconPreview.innerHTML = '<i class="fas fa-folder"></i>';
-        selectedIconText.textContent = '请选择分类';
-        selectedCategoryName.value = '';
-        if (newCategoryCustomIcon) { newCategoryCustomIcon.style.display = 'none'; newCategoryCustomIcon.value = ''; }
-        customIconInputPanel.value = '';
-        iconDropdownPanel?.classList.remove('show');
-        caret?.classList.remove('open');
+
         const isPrivateCheckbox = document.getElementById('isPrivateCheckbox');
         if (isPrivateCheckbox) isPrivateCheckbox.checked = true;
+
         bookmarkModal.show();
+
+        // 尝试读取剪贴板
         try {
             const text = await navigator.clipboard.readText();
-            if (text) {
+            if (text && urlInput) {
                 urlInput.value = text;
                 clipboardHint.innerText = '✅ 已读取剪贴板，正在获取网页信息...';
                 fetchMetadata(text);
-            } else clipboardHint.innerText = '⚠️ 剪贴板为空';
-        } catch { clipboardHint.innerText = '⚠️ 无法读取剪贴板'; }
+            } else if (clipboardHint) {
+                clipboardHint.innerText = '⚠️ 剪贴板为空';
+            }
+        } catch (err) {
+            clipboardHint.innerText = '⚠️ 无法读取剪贴板';
+        }
     };
 
     window.openEditModal = async function(id) {
         if (!isLoggedIn) { loginModal.show(); return; }
-        const item = allData.bookmarks.find(b => b.id === id);
+        const item = window.allData.bookmarks.find(b => b.id === id);
         if (!item) return;
         modalTitle.innerText = '✏️ 编辑书签';
         editingId.value = id;
         urlInput.value = item.url;
         urlInput.readOnly = true;
-        setCategoryMode(false);
-        updateCategorySelect(item.category);
-        categorySelect.value = item.category;
         titleInput.value = item.title || '';
         descriptionInput.value = item.description || '';
         if (bookmarkTags) bookmarkTags.value = (item.tags || []).join('/');
+
+        updateCategorySelect(item.category);
+        categorySelect.value = item.category;
+
         const isPrivateCheckbox = document.getElementById('isPrivateCheckbox');
         if (isPrivateCheckbox) isPrivateCheckbox.checked = !(item.status === 'approved');
-        if (deleteBtn) { deleteBtn.style.display = 'block'; deleteBtn.onclick = handleDelete; }
+
+        deleteBtn.style.display = 'block';
+        deleteBtn.onclick = handleDelete;
         bookmarkModal.show();
     };
 
@@ -301,25 +266,16 @@
         const url = urlInput.value.trim();
         if (!url) { alert('请输入网址'); return; }
 
-        let category, categoryIcon = '', parentCategory = '';
+        const category = categorySelect.value;
+        if (!category) { alert('请选择分类'); return; }
+
         const isPrivateCheckbox = document.getElementById('isPrivateCheckbox');
         let status = (isPrivateCheckbox && isPrivateCheckbox.checked) ? 'private' : 'public';
         if (status === 'public' && !confirm('公开书签需管理员审核后，才能发布。是否确定提交审核？')) return;
 
-        if (isAddingNewCategory) {
-            category = selectedCategoryName.value.trim();
-            if (!category) { alert('请选择一个分类图标'); return; }
-            if (newCategoryCustomIcon.style.display === 'block' && newCategoryCustomIcon.value.trim()) categoryIcon = newCategoryCustomIcon.value.trim();
-            else categoryIcon = selectedIconValue.value || 'fas fa-folder';
-            parentCategory = parentCategorySelect.value;
-        } else {
-            category = categorySelect.value;
-            if (!category) { alert('请选择分类'); return; }
-        }
-
         let icon = '';
         if (editingId.value) {
-            const original = allData.bookmarks.find(b => b.id === parseInt(editingId.value));
+            const original = window.allData.bookmarks.find(b => b.id === parseInt(editingId.value));
             icon = original ? original.icon : '';
         } else {
             if (lastFetchedIcon) icon = lastFetchedIcon;
@@ -329,24 +285,39 @@
         const tagsRaw = bookmarkTags ? bookmarkTags.value.trim() : '';
         let tags = tagsRaw ? tagsRaw.split('/').map(t => t.trim()).filter(t => t) : [];
 
-        const payload = { url, category, category_icon: categoryIcon, parent_category: parentCategory,
-            title: titleInput.value.trim() || category || '链接', description: descriptionInput.value.trim() || '',
-            icon, tags, status };
+        const payload = {
+            url,
+            category,
+            title: titleInput.value.trim() || category || '链接',
+            description: descriptionInput.value.trim() || '',
+            icon,
+            tags,
+            status
+        };
 
         submitBtn.disabled = true;
         submitBtn.textContent = '提交中...';
         try {
             let res;
-            if (editingId.value) res = await fetch(`/edit/${editingId.value}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            else res = await fetch('/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (editingId.value) {
+                res = await fetch(`/edit/${editingId.value}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            } else {
+                res = await fetch('/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            }
             const result = await res.json();
             if (res.ok && result.success) {
                 alert(editingId.value ? '✅ 修改成功！' : '✅ 提交成功！');
                 closeModal();
                 await refreshDataAndUI();
-            } else alert('❌ 操作失败：' + (result.message || '未知错误'));
-        } catch { alert('❌ 网络错误'); }
-        finally { submitBtn.disabled = false; submitBtn.textContent = editingId.value ? '保存修改' : '保存'; }
+            } else {
+                alert('❌ 操作失败：' + (result.message || '未知错误'));
+            }
+        } catch (err) {
+            alert('❌ 网络错误');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = editingId.value ? '保存修改' : '保存';
+        }
     }
 
     function closeModal() { bookmarkModal.hide(); urlInput.readOnly = false; }
@@ -447,7 +418,6 @@
             .catch(() => alert('网络错误'));
     }
 
-    newCategoryIconSelect?.addEventListener('change', function() { newCategoryCustomIconManage.style.display = this.value === 'custom' ? 'block' : 'none'; });
 
     // 图标选择器
     selectedIconDisplay?.addEventListener('click', (e) => { e.stopPropagation(); iconDropdownPanel.classList.toggle('show'); caret.classList.toggle('open', iconDropdownPanel.classList.contains('show')); });
@@ -805,13 +775,6 @@
         });
     }
 
-    // 处理自定义图标输入显示
-    if (newCategoryIconSelect) {
-        newCategoryIconSelect.addEventListener('change', function() {
-            newCategoryCustomIcon.style.display = this.value === 'custom' ? 'block' : 'none';
-        });
-    }
-
     // 新增分类（下拉菜单项）
     const addCategoryDropdownItem = document.getElementById('addCategoryDropdownItem');
     if (addCategoryDropdownItem) {
@@ -821,7 +784,7 @@
             const parentSelect = document.getElementById('newCategoryParent');
             if (parentSelect) {
                 const cats = Object.keys(window.allData.categories || {}).sort();
-                let html = '<option value="">-- 无 (一级分类) --</option>';
+                let html = '<option value="">-- 无 --</option>';
                 cats.forEach(c => html += `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`);
                 parentSelect.innerHTML = html;
             }
@@ -938,5 +901,94 @@
         });
     }
 
+    // 初始化新增分类弹窗中的图标选择器
+    function initNewCategoryIconSelector() {
+        const display = document.getElementById('newCatSelectedIconDisplay');
+        const panel = document.getElementById('newCatIconDropdownPanel');
+        const caret = display?.querySelector('.caret');
+        const preview = document.getElementById('newCatSelectedIconPreview');
+        const text = document.getElementById('newCatSelectedIconText');
+        const iconValue = document.getElementById('newCatSelectedIconValue');
+        const catName = document.getElementById('newCatSelectedCategoryName');
+        const customInput = document.getElementById('newCatCustomIconInput');
+        const applyBtn = document.getElementById('newCatApplyCustomIcon');
+
+        if (!display || !panel) return;
+
+        // 点击显示/隐藏下拉面板
+        display.addEventListener('click', (e) => {
+            e.stopPropagation();
+            panel.classList.toggle('show');
+            if (caret) caret.classList.toggle('open', panel.classList.contains('show'));
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!display.contains(e.target) && !panel.contains(e.target)) {
+                panel.classList.remove('show');
+                if (caret) caret.classList.remove('open');
+            }
+        });
+
+        // 选项点击
+        panel.querySelectorAll('.icon-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                const value = opt.dataset.value;
+                const name = opt.dataset.name;
+                preview.innerHTML = opt.querySelector('i').cloneNode(true).outerHTML;
+                text.innerText = name;
+                iconValue.value = value;
+                catName.value = name;
+                panel.classList.remove('show');
+                if (caret) caret.classList.remove('open');
+            });
+        });
+
+        // 自定义图标
+        if (applyBtn && customInput) {
+            applyBtn.addEventListener('click', () => {
+                const custom = customInput.value.trim();
+                if (!custom) return;
+
+                // 不再解析分类名，直接将输入作为图标值
+                const icon = custom;
+                const name = icon; // 用于显示的文字，可以是图标的值
+
+                if (icon.startsWith('http') || icon.startsWith('data:')) {
+                    preview.innerHTML = `<img src="${icon}" style="max-width:20px; max-height:20px;">`;
+                } else {
+                    preview.innerHTML = `<i class="${icon}"></i>`;
+                }
+                text.innerText = name;
+                iconValue.value = icon;
+                catName.value = '';  // 不再存储分类名称，留空
+                panel.classList.remove('show');
+                if (caret) caret.classList.remove('open');
+                customInput.value = ''; // 清空
+            });
+        }
+    }
+
+    initNewCategoryIconSelector();
+
+    if (collapseBtn && sidebar) {
+        // 移除可能已绑定的监听器（避免重复）
+        collapseBtn.removeEventListener('click', collapseHandler);
+        function collapseHandler() {
+            sidebar.classList.toggle('collapsed');
+            const icon = collapseBtn.querySelector('i');
+            if (icon) {
+                if (sidebar.classList.contains('collapsed')) {
+                    icon.className = 'fas fa-chevron-right';
+                } else {
+                    icon.className = 'fas fa-bars';
+                }
+            }
+            if (sidebar.classList.contains('collapsed') && window.allDataExpanded) {
+                Object.keys(window.allDataExpanded).forEach(k => window.allDataExpanded[k] = false);
+                if (typeof renderCategoryTree === 'function') renderCategoryTree();
+            }
+        }
+        collapseBtn.addEventListener('click', collapseHandler);
+    }
 
 })();
