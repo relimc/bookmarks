@@ -1,7 +1,18 @@
-/* 增强版特有样式 */
+/* online.css - 在线版特有样式 */
 
+/* 隐藏默认的 .import-btn（除特定ID外） */
+.header-right .import-btn {
+    display: none;
+}
 
-/* 用户下拉菜单悬停显示 */
+/* 显式显示需要的按钮（通过ID放行） */
+.header-right .import-btn#userStatusBtn,
+.header-right .import-btn#manageBookmarkDropdown,
+.header-right .import-btn#manageCategoriesDropdown {
+    display: inline-flex !important;
+}
+
+/* 用户下拉菜单悬停显示（登录相关） */
 #userDropdown .dropdown-menu {
     display: none;
     position: absolute;
@@ -10,52 +21,12 @@
     left: auto;
 }
 
-.header-right .import-btn {
-    display: none;
-}
-
-/* 显示特定 ID 的按钮 */
-.header-right .import-btn#addBookmarkHeaderBtn,
-.header-right .import-btn#importBookmarksBtn,
-.header-right .import-btn#exportBookmarksBtn,
-/* 新增：显示下拉菜单按钮（无 id，使用父容器区分） */
-.header-right .dropdown .import-btn {
-    display: inline-flex !important;
-}
-
-
 body.logged-in #userDropdown:hover .dropdown-menu {
     display: block;
 }
 
-/* 强制显示登录/用户状态按钮 */
-.header-right .import-btn#userStatusBtn {
-    display: inline-flex !important;
-}
-
-/* 显示管理书签下拉按钮 */
-.header-right .import-btn#manageBookmarkDropdown {
-    display: inline-flex !important;
-}
-
-.header-right .dropdown {
-    display: inline-flex;
-}
-.header-right .dropdown-menu {
-    min-width: 100%;
-    width: max-content;
-}
-
-/* 下拉菜单项样式与管理按钮统一 */
-.header-right .dropdown-menu .dropdown-item {
-    color: #5f7d9c;          /* 与按钮文字颜色相同 */
-    font-size: 0.9rem;       /* 与按钮字体大小相同 */
-    background-color: transparent;
-    padding: 6px 16px;       /* 保持舒适的内边距 */
-}
-
-.header-right .dropdown-menu .dropdown-item:hover,
-.header-right .dropdown-menu .dropdown-item:focus {
-    background-color: #eef2f6;
-    color: #1e3a6b;          /* hover 时与按钮 hover 颜色一致 */
+/* 增强版提示模态框按钮样式（可选） */
+#enhancedNoticeModal .btn-primary {
+    background-color: #2563eb;
+    border-color: #2563eb;
 }

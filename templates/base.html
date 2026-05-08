@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}我的书签{% endblock %}</title>
+    <link rel="icon" type="image/png" href="/static/bookmark.png">
+    <!-- 公共样式 -->
+    <link rel="stylesheet" href="/static/bootstrap/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="/static/common.css">
+    <!-- 版本特有样式 -->
+    {% block styles %}{% endblock %}
+</head>
+<body>
+<div class="container-fluid h-100 p-0">
+    <div class="row h-100 g-0">
+        <!-- 侧边栏（完全公共） -->
+        <div class="sidebar col-auto" id="sidebar">
+            <div class="sidebar-header">
+                <span class="logo">🔖</span>
+                <div class="title-wrapper">
+                    <span class="title" id="{{ title_id }}">{{ title_text }}</span>
+                    <span class="badge" id="{{ badge_id }}">{{ badge_text }}</span>
+                </div>
+            </div>
+            <div class="category-tree" id="categoryTree">
+                <div class="text-center p-4" style="color:#8fa3bc;">加载分类中...</div>
+            </div>
+            <div class="sidebar-footer">
+                <div class="shortcut-hint" id="shortcutHint">
+                    <span class="hint-text"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd> 新增书签</span>
+                    <span class="hint-icon"><i class="fas fa-lightbulb"></i></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧主面板 -->
+        <div class="col main-panel">
+            <div class="panel-header">
+                <div class="header-left">
+                    <button class="collapse-btn" id="collapseSidebarBtn">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                </div>
+                <div class="search-container">
+                    <div class="search-engine-selector" id="engineSelector">
+                        <span class="engine-icon" id="selectedEngineIcon"><i class="fas fa-search"></i></span>
+                        <div class="engine-dropdown" id="engineDropdown"></div>
+                    </div>
+                    <input type="text" class="search-input" id="searchInput" placeholder="点击左侧图标切换搜索引擎，可本地搜索">
+                    <button class="search-btn" id="searchBtn"><i class="fas fa-search"></i></button>
+                </div>
+                <div class="header-right">
+                    {% block header_right %}{% endblock %}
+                </div>
+            </div>
+            <div class="bookmark-grid" id="bookmarkGrid">
+                <div class="text-center p-5" style="color:#8fa3bc;">⏳ 正在加载书签...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 公共模态框：新增/编辑书签、分类列表、新增分类 -->
+{% block common_modals %}
+    <!-- 新增/编辑书签模态框 -->
+    <div class="modal fade" id="bookmarkModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog" style="margin-top: 30px;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">📋 新增书签</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="editingId" value="">
+                    <div class="mb-3">
+                        <label class="form-label">网址</label>
+                        <input type="url" class="form-control" id="urlInput" placeholder="https:// 或 http://">
+                        <div class="form-text text-muted small" id="clipboardHint"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">标题</label>
+                        <input type="text" class="form-control" id="titleInput" placeholder="自动抓取或手动输入">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">描述</label>
+                        <textarea class="form-control" id="descriptionInput" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">标签</label>
+                        <input type="text" class="form-control" id="bookmarkTags" placeholder="多个标签用 / 分割，例如：前端/React/Vue">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">分类</label>
+                        <select class="form-select" id="categorySelect">
+                            <option value="">-- 选择已有分类 --</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" id="deleteBtn" style="display: none;">删除</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="submitBtn">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分类列表模态框 -->
+    <div class="modal fade" id="categoryManageModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">📋 分类列表</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <input type="text" id="categorySearchInput" class="form-control" placeholder="🔍 搜索分类...">
+                    </div>
+                    <table class="table table-hover">
+                        <thead>
+                            <tr><th>图标</th><th>分类名称</th><th>上级分类</th><th>优先级</th><th>操作</th></tr>
+                        </thead>
+                        <tbody id="categoryListContainer"></tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新增分类独立模态框 -->
+    <div class="modal fade" id="newCategoryModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">📁 新增分类</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">分类名称</label>
+                        <input type="text" class="form-control" id="newCategoryName" placeholder="输入名称">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">分类图标</label>
+                        <div class="custom-icon-selector" id="newCategoryIconSelector">
+                            <div class="selected-icon" id="newCatSelectedIconDisplay">
+                                <span class="selected-icon-preview" id="newCatSelectedIconPreview"><i class="fas fa-folder"></i></span>
+                                <span class="selected-icon-text" id="newCatSelectedIconText">请选择图标</span>
+                                <span class="caret">▼</span>
+                            </div>
+                            <div class="icon-dropdown-panel" id="newCatIconDropdownPanel">
+                                <div class="icon-grid">
+                                    <div class="icon-column">
+                                        <div class="column-header">📁 名词分类</div>
+                                        <div class="icon-option" data-value="fas fa-image" data-name="图片"><i class="fas fa-image"></i> 图片</div>
+                                        <div class="icon-option" data-value="fas fa-music" data-name="音乐"><i class="fas fa-music"></i> 音乐</div>
+                                        <div class="icon-option" data-value="fas fa-video" data-name="视频"><i class="fas fa-video"></i> 视频</div>
+                                        <div class="icon-option" data-value="fas fa-file-alt" data-name="文档"><i class="fas fa-file-alt"></i> 文档</div>
+                                        <div class="icon-option" data-value="fas fa-gamepad" data-name="游戏"><i class="fas fa-gamepad"></i> 游戏</div>
+                                        <div class="icon-option" data-value="fas fa-heart" data-name="收藏"><i class="fas fa-heart"></i> 收藏</div>
+                                    </div>
+                                    <div class="icon-column">
+                                        <div class="column-header">🎯 动词分类</div>
+                                        <div class="icon-option" data-value="fas fa-book-open" data-name="阅读"><i class="fas fa-book-open"></i> 阅读</div>
+                                        <div class="icon-option" data-value="fas fa-headphones" data-name="聆听"><i class="fas fa-headphones"></i> 聆听</div>
+                                        <div class="icon-option" data-value="fas fa-eye" data-name="观看"><i class="fas fa-eye"></i> 观看</div>
+                                        <div class="icon-option" data-value="fas fa-graduation-cap" data-name="学习"><i class="fas fa-graduation-cap"></i> 学习</div>
+                                        <div class="icon-option" data-value="fas fa-download" data-name="下载"><i class="fas fa-download"></i> 下载</div>
+                                        <div class="icon-option" data-value="fas fa-search" data-name="搜索"><i class="fas fa-search"></i> 搜索</div>
+                                    </div>
+                                    <div class="icon-column">
+                                        <div class="column-header">✨ 推荐分类</div>
+                                        <div class="icon-option" data-value="fas fa-briefcase" data-name="工作"><i class="fas fa-briefcase"></i> 工作</div>
+                                        <div class="icon-option" data-value="fas fa-tv" data-name="娱乐"><i class="fas fa-tv"></i> 娱乐</div>
+                                        <div class="icon-option" data-value="fas fa-comments" data-name="社交"><i class="fas fa-comments"></i> 社交</div>
+                                        <div class="icon-option" data-value="fas fa-tags" data-name="购物"><i class="fas fa-tags"></i> 购物</div>
+                                        <div class="icon-option" data-value="fas fa-microchip" data-name="科技"><i class="fas fa-microchip"></i> 科技</div>
+                                        <div class="icon-option more-option" data-link="https://fontawesome.com/search" data-name="更多">
+                                            <i class="fas fa-external-link-alt"></i> 更多
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="custom-icon-input">
+                                    <input type="text" id="newCatCustomIconInput" placeholder="图标字体类名或链接，如 fas fa-star 或 https://">
+                                    <button type="button" id="newCatApplyCustomIcon">自定义</button>
+                                </div>
+                            </div>
+                        </div>
+                        <input type="hidden" id="newCatSelectedIconValue" value="fas fa-folder">
+                        <input type="hidden" id="newCatSelectedCategoryName" value="">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">上级分类</label>
+                        <select class="form-select" id="newCategoryParent">
+                            <option value="">-- 无 --</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">优先级</label>
+                        <input type="number" class="form-control" id="newCategoryPriority" value="100">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="confirmNewCategoryBtn">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+<!-- 版本特有模态框（如登录/注册、本地提示等） -->
+{% block extra_modals %}{% endblock %}
+
+<!-- JavaScript -->
+<script src="/static/bootstrap/bootstrap.bundle.min.js"></script>
+<script src="/static/common.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

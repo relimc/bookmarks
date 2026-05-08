@@ -323,7 +323,7 @@ body {
     color: #1e3a6b;
 }
 
-/* 按钮通用样式 */
+/* 按钮通用样式（在线版和本地版共享基础样式） */
 .import-btn,
 .github-link {
     flex-shrink: 0;
@@ -337,26 +337,15 @@ body {
     border: 1px solid #e0e8f0;
     border-radius: 8px;
     transition: all 0.2s;
-}
-.github-link i {
-    font-size: 1.2rem;
-}
-.github-link:hover {
-    background: #eef2f6;
-    color: #1e3a6b;
-}
-.github-link {
-    color: #5f7d9c;
-    text-decoration: none;
-    font-size: 0.9rem;
-}
-.import-btn {
     background: none;
     cursor: pointer;
     color: #5f7d9c;
     font-size: 0.9rem;
+    text-decoration: none;
 }
-.import-btn i {
+.import-btn i,
+.github-link i {
+    margin-right: 6px;
     font-size: 1rem;
 }
 .import-btn:hover,
@@ -364,9 +353,34 @@ body {
     background: #eef2f6;
     color: #1e3a6b;
 }
-.import-btn i,
-.github-link i {
-    margin-right: 6px;
+
+/* 下拉菜单容器与菜单宽度控制（统一位置） */
+.header-right .dropdown {
+    display: inline-block;
+    position: relative;
+}
+/* 下拉菜单容器：宽度自动适应内容，但至少与按钮等宽 */
+.header-right .dropdown-menu {
+    min-width: 100%;          /* 至少和按钮一样宽 */
+    width: auto;              /* 如果内容更长，则自动扩展 */
+    left: 0 !important;
+    right: auto !important;
+}
+
+/* 下拉菜单项样式（通用） */
+.header-right .dropdown-menu .dropdown-item {
+    color: #5f7d9c;
+    font-size: 0.9rem;
+    background-color: transparent;
+    padding: 6px 16px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.header-right .dropdown-menu .dropdown-item:hover,
+.header-right .dropdown-menu .dropdown-item:focus {
+    background-color: #eef2f6;
+    color: #1e3a6b;
 }
 
 /* 卡片网格容器 */
@@ -375,26 +389,6 @@ body {
     overflow-y: auto;
     overflow-x: hidden;
     padding: 4px 4px 20px;
-}
-
-/* 分类区块（首页分组） */
-.category-section {
-    width: 100%;
-    margin-bottom: 15px;
-}
-.category-section-title {
-    font-size: 17px;
-    font-weight: 400;
-    color: rgb(85, 85, 85);
-    margin: 0 0 5px 0;
-    padding-bottom: 8px;
-    display: flex;
-    align-items: center;
-}
-.category-section-title i {
-    margin-right: 8px;
-    font-size: 17px;
-    color: rgb(85, 85, 85);
 }
 
 /* 卡片样式 */
@@ -556,7 +550,7 @@ body {
     visibility: visible;
 }
 
-/* 自定义图标选择器通用样式 */
+/* 自定义图标选择器 */
 .custom-icon-selector {
     position: relative;
     width: 100%;
@@ -614,9 +608,10 @@ body {
 .icon-dropdown-panel.show {
     display: block;
 }
+/* 修改为三列 */
 .icon-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 20px;
 }
 .icon-column {
@@ -677,7 +672,7 @@ body {
     background: #143157;
 }
 
-/* 分类管理弹窗中的卡片无下边框 */
+/* 分类管理弹窗中的新增分类区域（已被独立模态框替代，保留基础样式） */
 #categoryManageModal .card {
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
@@ -871,7 +866,7 @@ body {
 .sidebar.collapsed .badge {
     display: none;
 }
-/* 显示快捷键提示区域（本地版底部） */
+/* 显示快捷键提示区域 */
 .sidebar-footer {
     display: block !important;
 }
@@ -894,7 +889,6 @@ body {
     padding: 4px 6px;
     border-radius: 6px;
 }
-/* 折叠状态下显示灯泡图标 */
 .sidebar.collapsed .shortcut-hint .hint-text {
     display: none;
 }
@@ -911,18 +905,16 @@ body {
     cursor: pointer;
 }
 
-/* 我的书签标题可点击样式 */
+/* 可点击标题 */
 .sidebar-header .title {
     cursor: pointer;
 }
 
-.header-right {
-    gap: 8px !important;
+/* 突出显示“更多”图标选项 */
+.icon-option.more-option {
+    color: #e67e22;      /* 蓝色 */
 }
-
-.header-right .import-btn#exportDataBtn,
-.header-right .import-btn#importDataBtn,
-.header-right .import-btn#addBookmarkHeaderBtn,
-.header-right .import-btn#manageCategoriesBtn {
-    display: inline-flex !important;
+.icon-option.more-option:hover {
+    color: #d35400;
+    background: #eef2f6;
 }
