@@ -1,17 +1,18 @@
 // online.js - 在线版数据适配器
 
+// 全局登录状态标志
+window.isLoggedIn = false;
+
 class OnlineDataAdapter {
     async getAllData() {
         const res = await fetch('/list');
         if (res.status === 401) {
-            // 未登录，返回空数据
             return { bookmarks: [], categories: {} };
         }
         const data = await res.json();
         return { bookmarks: data.bookmarks, categories: data.categories };
     }
     async addBookmark(bookmark) {
-        // 注意：后端期望的字段略有不同，需转换
         const payload = {
             url: bookmark.url,
             category: bookmark.category,
@@ -19,7 +20,7 @@ class OnlineDataAdapter {
             description: bookmark.description,
             icon: bookmark.icon,
             tags: bookmark.tags,
-            status: 'private'   // 本地版概念映射为私密
+            status: 'private'
         };
         const res = await fetch('/add', {
             method: 'POST',
@@ -85,7 +86,6 @@ class OnlineDataAdapter {
     }
 }
 
-// 更新用户状态按钮
 async function updateUserStatusButton() {
     const btn = document.getElementById('userStatusBtn');
     if (!btn) return;
@@ -94,20 +94,46 @@ async function updateUserStatusButton() {
         if (res.ok) {
             const userData = await res.json();
             btn.innerHTML = '<i class="fas fa-sign-out-alt"></i> 退出登录';
-            // 可选：添加 title 显示用户名
             btn.title = `当前用户：${userData.username}`;
+            window.isLoggedIn = true;
         } else {
             btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 尚未登录';
             btn.title = '点击登录';
+            window.isLoggedIn = false;
         }
     } catch (e) {
+        // 静默处理
         btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 尚未登录';
         btn.title = '点击登录';
+        window.isLoggedIn = false;
+    }
+}
+
+// 安全的模态框切换函数
+function switchModal(closeModalId, openModalId) {
+    const closeModalEl = document.getElementById(closeModalId);
+    if (!closeModalEl) {
+        const openModal = new bootstrap.Modal(document.getElementById(openModalId));
+        openModal.show();
+        return;
+    }
+    const closeModal = bootstrap.Modal.getInstance(closeModalEl);
+    if (closeModal) {
+        closeModal.hide();
+        // 等待关闭动画完成后再打开新模态框
+        closeModalEl.addEventListener('hidden.bs.modal', function onHidden() {
+            closeModalEl.removeEventListener('hidden.bs.modal', onHidden);
+            const openModal = new bootstrap.Modal(document.getElementById(openModalId));
+            openModal.show();
+        }, { once: true });
+    } else {
+        const openModal = new bootstrap.Modal(document.getElementById(openModalId));
+        openModal.show();
     }
 }
 
 // 初始化应用
-document.addEventListener('DOMContentLoaded', async () => {  // 添加 async
+document.addEventListener('DOMContentLoaded', async () => {
     const adapter = new OnlineDataAdapter();
     const app = new BookmarkApp(adapter);
     window.bookmarkApp = app;
@@ -126,23 +152,20 @@ document.addEventListener('DOMContentLoaded', async () => {  // 添加 async
         }
     }
 
-    // 初始化用户状态
     await updateUserStatusButton();
 
-    // 用户状态按钮点击事件
     const userStatusBtn = document.getElementById('userStatusBtn');
     if (userStatusBtn) {
         userStatusBtn.addEventListener('click', async () => {
             const res = await fetch('/user');
             if (res.ok) {
-                // 已登录，登出
                 if (confirm('确定要退出登录吗？')) {
                     await fetch('/logout', { method: 'GET' });
+                    window.isLoggedIn = false;
                     await app.loadData();
                     await updateUserStatusButton();
                 }
             } else {
-                // 未登录，显示登录弹窗
                 const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
                 loginModal.show();
             }
@@ -154,9 +177,26 @@ document.addEventListener('DOMContentLoaded', async () => {  // 添加 async
     if (loginForm) {
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const username = document.getElementById('loginUsername').value;
+            const username = document.getElementById('loginUsername').value.trim();
             const password = document.getElementById('loginPassword').value;
             const errorDiv = document.getElementById('loginError');
+            if (errorDiv) errorDiv.classList.add('d-none');
+
+            if (!username || !password) {
+                if (errorDiv) {
+                    errorDiv.classList.remove('d-none');
+                    errorDiv.innerText = '用户名和密码不能为空';
+                }
+                return;
+            }
+
+            // 获取登录按钮（表单内的提交按钮或通过选择器）
+            const submitBtn = loginForm.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 登录中...';
+            }
+
             try {
                 const res = await fetch('/login', {
                     method: 'POST',
@@ -165,16 +205,175 @@ document.addEventListener('DOMContentLoaded', async () => {  // 添加 async
                 });
                 const data = await res.json();
                 if (data.success) {
-                    bootstrap.Modal.getInstance(document.getElementById('loginModal')).hide();
+                    window.isLoggedIn = true;
+                    // 关闭登录模态框
+                    const loginModal = bootstrap.Modal.getInstance(document.getElementById('loginModal'));
+                    if (loginModal) loginModal.hide();
                     await app.loadData();
                     await updateUserStatusButton();
                 } else {
-                    errorDiv.style.display = 'block';
-                    errorDiv.innerText = data.message || '登录失败';
+                    if (errorDiv) {
+                        errorDiv.classList.remove('d-none');
+                        errorDiv.innerText = data.message || '登录失败，请检查用户名或密码';
+                    }
                 }
             } catch (err) {
+                if (errorDiv) {
+                    errorDiv.classList.remove('d-none');
+                    errorDiv.innerText = '网络错误，请稍后重试';
+                }
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '登录';
+                }
+            }
+        });
+    }
+
+    // 切换注册模态框
+    const showRegisterBtn = document.getElementById('showRegisterBtn');
+    if (showRegisterBtn) {
+        showRegisterBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            switchModal('loginModal', 'registerModal');
+        });
+    }
+
+    const showLoginBtn = document.getElementById('showLoginBtn');
+    if (showLoginBtn) {
+        showLoginBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            switchModal('registerModal', 'loginModal');
+        });
+    }
+
+    // 注册表单提交
+    const registerForm = document.getElementById('registerForm');
+    if (registerForm) {
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('regUsername').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const confirmPassword = document.getElementById('regConfirmPassword').value;
+            const errorDiv = document.getElementById('registerError');
+            const verificationCode = document.getElementById('regVerificationCode').value.trim();
+            errorDiv.style.display = 'none';
+
+            // 前端校验
+            if (!username) {
+                errorDiv.innerText = '用户名不能为空';
                 errorDiv.style.display = 'block';
-                errorDiv.innerText = '网络错误';
+                return;
+            }
+            if (username.length < 3 || username.length > 80) {
+                errorDiv.innerText = '用户名长度应为3-80个字符';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            if (!email) {
+                errorDiv.innerText = '邮箱不能为空';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            // 简单邮箱正则
+            const emailRegex = /^[^\s@]+@([^\s@.,]+\.)+[^\s@.,]{2,}$/;
+            if (!emailRegex.test(email)) {
+                errorDiv.innerText = '邮箱格式不正确';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            if (password.length < 4) {
+                errorDiv.innerText = '密码长度至少为4位';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            if (password !== confirmPassword) {
+                errorDiv.innerText = '两次输入的密码不一致';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            try {
+                const res = await fetch('/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ username, email, password, verification_code: verificationCode })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    // 注册成功，关闭注册模态框，打开登录模态框
+                    const registerModal = bootstrap.Modal.getInstance(document.getElementById('registerModal'));
+                    registerModal.hide();
+                    const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
+                    loginModal.show();
+                    // 预填用户名，清空密码
+                    document.getElementById('loginUsername').value = username;
+                    document.getElementById('loginPassword').value = '';
+                    // 清空注册表单
+                    document.getElementById('regUsername').value = '';
+                    document.getElementById('regEmail').value = '';
+                    document.getElementById('regPassword').value = '';
+                    document.getElementById('regConfirmPassword').value = '';
+                } else {
+                    errorDiv.innerText = data.message || '注册失败';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (err) {
+                errorDiv.innerText = '网络错误，请稍后重试';
+                errorDiv.style.display = 'block';
+            }
+        });
+    }
+
+    // 获取验证码按钮
+    const sendCodeBtn = document.getElementById('sendCodeBtn');
+    if (sendCodeBtn) {
+        let countdown = 0;
+        sendCodeBtn.addEventListener('click', async () => {
+            if (countdown > 0) {
+                return; // 倒计时中不可点击
+            }
+            const email = document.getElementById('regEmail').value.trim();
+            if (!email) {
+                alert('请先填写邮箱');
+                return;
+            }
+            // 简单邮箱格式校验
+            const emailRegex = /^[^\s@]+@([^\s@.,]+\.)+[^\s@.,]{2,}$/;
+            if (!emailRegex.test(email)) {
+                alert('邮箱格式不正确');
+                return;
+            }
+            try {
+                const res = await fetch('/send_verification', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert('验证码已发送，请查收邮件');
+                    // 开始倒计时 60 秒
+                    countdown = 60;
+                    sendCodeBtn.disabled = true;
+                    sendCodeBtn.innerText = `${countdown}秒后重试`;
+                    const timer = setInterval(() => {
+                        countdown--;
+                        if (countdown <= 0) {
+                            clearInterval(timer);
+                            sendCodeBtn.disabled = false;
+                            sendCodeBtn.innerText = '获取验证码';
+                        } else {
+                            sendCodeBtn.innerText = `${countdown}秒后重试`;
+                        }
+                    }, 1000);
+                } else {
+                    alert(data.message || '发送失败');
+                }
+            } catch (err) {
+                alert('网络错误，请稍后重试');
             }
         });
     }

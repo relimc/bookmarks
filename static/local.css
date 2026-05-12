@@ -14,3 +14,9 @@
 .header-right .import-btn {
     display: inline-flex !important;
 }
+
+/* 强制书签弹窗底部按钮右对齐 */
+#bookmarkModal .modal-footer {
+    display: flex;
+    justify-content: flex-end !important;
+}

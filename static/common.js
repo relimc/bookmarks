@@ -189,6 +189,7 @@ function renderCategoryTree() {
 
 // 卡片渲染（依赖 renderSingleBookmarkCard 全局，后面定义）
 function renderSingleBookmarkCard(b, lineconsToFA = {}) {
+    // 图标处理
     let iconHtml = '';
     if (b.icon && (b.icon.startsWith('http') || b.icon.startsWith('data:') || b.icon.startsWith('/static/'))) {
         iconHtml = `<img src="${escapeHtml(b.icon)}" alt="icon" data-url="${escapeHtml(b.url)}" onerror="fallbackIcon(this, '${escapeHtml(b.url)}')">`;
@@ -200,12 +201,31 @@ function renderSingleBookmarkCard(b, lineconsToFA = {}) {
     const desc = escapeHtml(b.description || '');
     const fullUrl = escapeHtml(b.url);
     const shortUrl = shortenUrl(b.url);
+
+    // 标签渲染
+    // 标签处理：最多显示3个，超出显示 +N
     let tagsHtml = '';
     if (b.tags && b.tags.length) {
-        tagsHtml = '<div class="card-tags">' + b.tags.map(tag => `<span class="tag" onclick="event.stopPropagation(); window.bookmarkApp?.searchByTag('${escapeHtml(tag)}')">${escapeHtml(tag)}</span>`).join('') + '</div>';
+        const maxDisplay = 3;
+        const visibleTags = b.tags.slice(0, maxDisplay);
+        const remainingTags = b.tags.slice(maxDisplay);
+        tagsHtml = '<div class="card-tags">';
+        visibleTags.forEach(tag => {
+            tagsHtml += `<span class="tag" onclick="event.stopPropagation(); window.bookmarkApp?.searchByTag('${escapeHtml(tag)}')">${escapeHtml(tag)}</span>`;
+        });
+        if (remainingTags.length > 0) {
+            const remainingJson = encodeURIComponent(JSON.stringify(remainingTags));
+            tagsHtml += `<span class="tag tag-more" data-remaining="${remainingJson}">+${remainingTags.length}</span>`;
+        }
+        tagsHtml += '</div>';
     }
+
+    // 根据登录状态选择编辑按钮图标
+    const isLoggedIn = window.isLoggedIn !== false; // 默认为 true（已登录或本地版）
+    const editIcon = isLoggedIn ? '✏️' : 'ℹ️';
+
     return `<div class="card" onclick="window.open('${fullUrl}', '_blank'); window.bookmarkApp?.incrementClick(${b.id})">
-                <button class="edit-btn" onclick="event.stopPropagation(); window.bookmarkApp?.openEditModal(${b.id})">✏️</button>
+                <button class="edit-btn" onclick="event.stopPropagation(); window.bookmarkApp?.openEditModal(${b.id})">${editIcon}</button>
                 <div class="card-body">
                     <div class="card-icon" onclick="event.stopPropagation(); window.bookmarkApp?.changeIcon(${b.id})">${iconHtml}</div>
                     <div class="card-content">
@@ -331,6 +351,108 @@ class BookmarkApp {
         this.initNewCategoryIconSelector();
         // 分类列表搜索初始化
         this.initCategorySearch();
+        // 初始化 tooltip
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
+        // 为 .tag-more 添加悬浮显示剩余标签的功能
+        this.initTagMoreTooltip();
+    }
+
+    initTagMoreTooltip() {
+        let tooltip = null;
+        let hideTimeout = null;
+        const self = this;
+
+        function getTooltipContainer() {
+            if (tooltip) return tooltip;
+            const el = document.createElement('div');
+            el.id = 'tag-more-tooltip';
+            el.className = 'tag-more-tooltip';
+            el.style.cssText = `
+                position: absolute;
+                background-color: #fff;
+                border: 1px solid #ccc;
+                border-radius: 8px;
+                padding: 8px 12px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 10000;
+                max-width: 200px;
+                display: none;
+            `;
+            document.body.appendChild(el);
+            tooltip = el;
+
+            // 鼠标进入浮层时取消隐藏定时器
+            tooltip.addEventListener('mouseenter', () => {
+                if (hideTimeout) clearTimeout(hideTimeout);
+            });
+            // 鼠标离开浮层时延迟隐藏
+            tooltip.addEventListener('mouseleave', () => {
+                hideTimeout = setTimeout(() => {
+                    tooltip.style.display = 'none';
+                }, 100);
+            });
+            return tooltip;
+        }
+
+        function showTooltip(target, remainingTags) {
+            const container = getTooltipContainer();
+            container.innerHTML = '';
+            remainingTags.forEach(tag => {
+                const tagSpan = document.createElement('span');
+                tagSpan.className = 'tag tooltip-tag';
+                tagSpan.textContent = tag;
+                tagSpan.style.cssText = `
+                    cursor: pointer;
+                    margin: 2px;
+                    display: inline-block;
+                    background: #eef2f6;
+                    border-radius: 12px;
+                    padding: 2px 8px;
+                    font-size: 0.75rem;
+                `;
+                tagSpan.onclick = (e) => {
+                    e.stopPropagation();
+                    self.searchByTag(tag);
+                    container.style.display = 'none';
+                };
+                container.appendChild(tagSpan);
+            });
+            const rect = target.getBoundingClientRect();
+            container.style.left = rect.left + 'px';
+            container.style.top = (rect.bottom + window.scrollY + 5) + 'px';
+            container.style.display = 'block';
+        }
+
+        // 监听 .tag-more 的鼠标进入
+        document.body.addEventListener('mouseenter', (e) => {
+            const target = e.target.closest('.tag-more');
+            if (!target) return;
+            const remainingEncoded = target.getAttribute('data-remaining');
+            if (!remainingEncoded) return;
+            let remaining = [];
+            try {
+                remaining = JSON.parse(decodeURIComponent(remainingEncoded));
+            } catch (err) {
+                console.error('解析剩余标签失败', err);
+            }
+            if (!remaining.length) return;
+            if (hideTimeout) clearTimeout(hideTimeout);
+            showTooltip(target, remaining);
+        }, true);
+
+        // 监听鼠标离开 .tag-more 时延迟隐藏浮层，但允许移动到浮层上
+        document.body.addEventListener('mouseleave', (e) => {
+            const target = e.target.closest('.tag-more');
+            if (!target) return;
+            const related = e.relatedTarget;
+            const tooltipEl = getTooltipContainer();
+            if (!tooltipEl.contains(related)) {
+                hideTimeout = setTimeout(() => {
+                    tooltipEl.style.display = 'none';
+                }, 150);
+            }
+        }, true);
     }
 
     async loadData() {
@@ -363,7 +485,7 @@ class BookmarkApp {
             filtered = filtered.filter(b => b.category === category);
         }
         if (filtered.length === 0) {
-            container.innerHTML = '<div class="text-center p-5" style="color:#8fa3bc;">✨ 暂无书签，点击“新增”添加</div>';
+            container.innerHTML = '<div class="text-center p-5" style="color:#8fa3bc;">✨ 还没有书签，点击「新增书签」开始收藏吧！</div>';
             return;
         }
         let html = '<div class="row g-3">';
@@ -388,7 +510,7 @@ class BookmarkApp {
         });
         const container = document.getElementById('bookmarkGrid');
         if (!matched.length) {
-            container.innerHTML = '<div class="text-center p-5" style="color:#8fa3bc;">没有找到匹配的书签</div>';
+            container.innerHTML = '<div class="text-center p-5" style="color:#8fa3bc;">🔍 没有找到相关书签，试试其他关键词吧～</div>';
             return;
         }
         let html = '<div class="row g-3">';
@@ -411,28 +533,44 @@ class BookmarkApp {
     }
 
     openAddModal() {
-        // 清空表单，设置标题等
-        document.getElementById('modalTitle').innerText = '📋 新增书签';
-        document.getElementById('editingId').value = '';
+        const modalTitle = document.getElementById('modalTitle');
+        const editingId = document.getElementById('editingId');
         const urlInput = document.getElementById('urlInput');
+        const titleInput = document.getElementById('titleInput');
+        const descriptionInput = document.getElementById('descriptionInput');
+        const bookmarkTags = document.getElementById('bookmarkTags');
+        const categorySelect = document.getElementById('categorySelect');
+        const deleteBtn = document.getElementById('deleteBtn');
+        const submitBtn = document.getElementById('submitBtn');
+        const isPrivateCheckbox = document.getElementById('isPrivateCheckbox');
+
+        modalTitle.innerText = '📋 新增书签';
+        editingId.value = '';
         if (urlInput) {
             urlInput.value = '';
             urlInput.readOnly = false;
         }
-        document.getElementById('titleInput').value = '';
-        document.getElementById('descriptionInput').value = '';
-        document.getElementById('bookmarkTags').value = '';
+        titleInput.value = '';
+        descriptionInput.value = '';
+        if (bookmarkTags) bookmarkTags.value = '';
         this.updateCategorySelect();
-        document.getElementById('categorySelect').value = '';
-        document.getElementById('deleteBtn').style.display = 'none';
-        document.getElementById('clipboardHint').innerText = '';
+        if (categorySelect) categorySelect.value = '';
+        if (deleteBtn) deleteBtn.style.display = 'none';
+
+        // 设置私密复选框默认勾选（新增时默认私密）
+        if (isPrivateCheckbox) {
+            isPrivateCheckbox.checked = true;
+        }
+
         const modal = new bootstrap.Modal(document.getElementById('bookmarkModal'));
         modal.show();
+
         // 尝试读取剪贴板
         navigator.clipboard.readText().then(text => {
             if (text && urlInput) {
                 urlInput.value = text;
-                document.getElementById('clipboardHint').innerText = '✅ 已读取剪贴板';
+                const hint = document.getElementById('clipboardHint');
+                if (hint) hint.innerText = '✅ 已读取剪贴板';
                 this.fetchMetadata(text);
             }
         }).catch(() => {});
@@ -441,26 +579,101 @@ class BookmarkApp {
     openEditModal(id) {
         const item = window.allData.bookmarks.find(b => b.id === id);
         if (!item) return;
-        document.getElementById('modalTitle').innerText = '✏️ 编辑书签';
-        document.getElementById('editingId').value = id;
+
+        const isLoggedIn = window.isLoggedIn !== false;
+        const modalTitle = document.getElementById('modalTitle');
+        const editingId = document.getElementById('editingId');
         const urlInput = document.getElementById('urlInput');
+        const titleInput = document.getElementById('titleInput');
+        const descriptionInput = document.getElementById('descriptionInput');
+        const bookmarkTags = document.getElementById('bookmarkTags');
+        const categorySelect = document.getElementById('categorySelect');
+        const deleteBtn = document.getElementById('deleteBtn');
+        const submitBtn = document.getElementById('submitBtn');
+        const cancelBtn = document.querySelector('#bookmarkModal .btn-secondary');
+        const isPrivateCheckbox = document.getElementById('isPrivateCheckbox');
+
+        if (deleteBtn) deleteBtn.onclick = null;
+
+        modalTitle.innerText = isLoggedIn ? '✏️ 编辑书签' : 'ℹ️ 书签详情';
+        editingId.value = id;
         urlInput.value = item.url;
         urlInput.readOnly = true;
-        document.getElementById('titleInput').value = item.title || '';
-        document.getElementById('descriptionInput').value = item.description || '';
-        document.getElementById('bookmarkTags').value = (item.tags || []).join('/');
+        titleInput.value = item.title || '';
+        descriptionInput.value = item.description || '';
+        if (bookmarkTags) bookmarkTags.value = (item.tags || []).join('/');
         this.updateCategorySelect(item.category);
-        document.getElementById('categorySelect').value = item.category;
-        document.getElementById('deleteBtn').style.display = 'block';
-        document.getElementById('deleteBtn').onclick = () => this.handleDelete();
+        categorySelect.value = item.category;
+
+        // 设置私密复选框：根据书签状态（status === 'private' 为私密，其他如 'approved' 则公开）
+        if (isPrivateCheckbox) {
+            // 后端字段 status: 'private' 私密，'pending' 待审核，'approved' 已公开
+            const isPrivate = (item.status === 'private');
+            isPrivateCheckbox.checked = isPrivate;
+            // 如果是未登录只读模式，禁用复选框
+            if (!isLoggedIn) {
+                isPrivateCheckbox.disabled = true;
+            } else {
+                isPrivateCheckbox.disabled = false;
+            }
+        }
+
+        if (!isLoggedIn) {
+            titleInput.readOnly = true;
+            descriptionInput.readOnly = true;
+            if (bookmarkTags) bookmarkTags.readOnly = true;
+            categorySelect.disabled = true;
+            if (deleteBtn) deleteBtn.style.display = 'none';
+            if (submitBtn) submitBtn.style.display = 'none';
+            if (cancelBtn) cancelBtn.innerText = '关闭';
+            if (isPrivateCheckbox) isPrivateCheckbox.disabled = true;
+        } else {
+            titleInput.readOnly = false;
+            descriptionInput.readOnly = false;
+            if (bookmarkTags) bookmarkTags.readOnly = false;
+            categorySelect.disabled = false;
+            if (deleteBtn) deleteBtn.style.display = 'block';
+            if (submitBtn) submitBtn.style.display = 'block';
+            if (cancelBtn) cancelBtn.innerText = '取消';
+            if (deleteBtn) deleteBtn.onclick = () => this.handleDelete();
+            if (isPrivateCheckbox) isPrivateCheckbox.disabled = false;
+        }
+
         const modal = new bootstrap.Modal(document.getElementById('bookmarkModal'));
         modal.show();
     }
 
     async fetchMetadata(url) {
-        // 在线版会调用后端，本地版不做真实抓取，仅占位
         const hint = document.getElementById('clipboardHint');
-        hint.innerText = '✅ 已读取网址';
+        if (!hint) return;
+        hint.innerText = '正在获取网页信息...';
+        try {
+            const res = await fetch('/fetch-metadata', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url })
+            });
+            const data = await res.json();
+            if (data.success) {
+                const titleInput = document.getElementById('titleInput');
+                const descInput = document.getElementById('descriptionInput');
+                const tagsInput = document.getElementById('bookmarkTags');
+                if (titleInput) titleInput.value = data.title || '';
+                if (descInput) descInput.value = data.description || '';
+                // 后端已经完成随机，直接展示
+                if (tagsInput && data.keywords && data.keywords.length) {
+                    tagsInput.value = data.keywords.join('/');
+                }
+                window.lastFetchedIcon = data.icon || '';
+                hint.innerText = '✅ 信息获取完成';
+            } else {
+                console.warn('抓取失败:', data.message || '未知错误');
+                hint.innerText = '⚠️ 获取失败，请手动填写信息';
+            }
+        } catch (err) {
+            console.error('Fetch metadata error:', err);
+            hint.innerText = '⚠️ 网络错误，请手动填写信息';
+        }
     }
 
     async handleDelete() {
@@ -473,33 +686,71 @@ class BookmarkApp {
     }
 
     async handleSubmit() {
+        if (!window.isLoggedIn) {
+            this.showLoginRequired();
+            return;
+        }
+
         const url = document.getElementById('urlInput').value.trim();
         if (!url) { alert('网址不能为空'); return; }
-        const category = document.getElementById('categorySelect').value;
-        if (!category) { alert('请选择分类'); return; }
+
+        let category = document.getElementById('categorySelect').value;
+        if (!category) {
+            category = '未分类';
+        }
+
         const title = document.getElementById('titleInput').value.trim() || url;
         const description = document.getElementById('descriptionInput').value.trim() || '';
         const tagsRaw = document.getElementById('bookmarkTags').value.trim();
         const tags = tagsRaw ? tagsRaw.split('/').map(t => t.trim()).filter(t => t) : [];
+
+        // 获取私密复选框状态
+        const isPrivateCheckbox = document.getElementById('isPrivateCheckbox');
+        const isPrivate = isPrivateCheckbox ? isPrivateCheckbox.checked : true;
+        // 确定 status 字段: true->private, false->public(需要审核)
+        let status = isPrivate ? 'private' : 'public';
+
+        // 如果是公开书签，弹框确认
+        if (status === 'public') {
+            if (!confirm('公开书签需管理员审核后，才能发布。是否确定提交审核？')) {
+                return; // 用户取消，不保存
+            }
+            // 提交后后端会将状态改为 pending
+        }
+
         let icon = '';
         const editingIdVal = document.getElementById('editingId').value;
         if (editingIdVal) {
             const original = window.allData.bookmarks.find(b => b.id === parseInt(editingIdVal));
             icon = original ? original.icon : '';
         } else {
-            // 尝试从 origin 获取 favicon
             try { icon = new URL(url).origin + '/favicon.ico'; } catch { icon = ''; }
         }
-        const bookmark = { url, category, title, description, tags, icon, clickCount: 0 };
-        if (editingIdVal) {
-            bookmark.id = parseInt(editingIdVal);
-            await this.data.updateBookmark(bookmark.id, bookmark);
-        } else {
-            await this.data.addBookmark(bookmark);
+
+        const bookmark = { url, category, title, description, tags, icon, clickCount: 0, status };
+
+        const submitBtn = document.getElementById('submitBtn');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '保存中...';
+
+        try {
+            if (editingIdVal) {
+                bookmark.id = parseInt(editingIdVal);
+                await this.data.updateBookmark(bookmark.id, bookmark);
+            } else {
+                await this.data.addBookmark(bookmark);
+            }
+            const modal = bootstrap.Modal.getInstance(document.getElementById('bookmarkModal'));
+            modal.hide();
+            await this.loadData();
+        } catch (err) {
+            console.error(err);
+            alert('保存失败：' + err.message);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
         }
-        const modal = bootstrap.Modal.getInstance(document.getElementById('bookmarkModal'));
-        modal.hide();
-        await this.loadData();
     }
 
     updateCategorySelect(selected = '') {
@@ -671,72 +922,139 @@ class BookmarkApp {
         return { categories, bookmarks };
     }
 
-    // 模态框事件绑定
     bindModalEvents() {
+        // 新增书签
         const addBookmarkDropdown = document.getElementById('addBookmarkDropdownItem');
-        addBookmarkDropdown?.addEventListener('click', (e) => { e.preventDefault(); this.openAddModal(); });
+        if (addBookmarkDropdown) {
+            addBookmarkDropdown.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (!window.isLoggedIn) {
+                    this.showLoginRequired();
+                    return;
+                }
+                this.openAddModal();
+            });
+        }
+
+        // 导入书签
         const importBookmarksDropdown = document.getElementById('importBookmarksDropdownItem');
-        importBookmarksDropdown?.addEventListener('click', (e) => {
-            e.preventDefault();
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.html,.htm,.json';
-            input.onchange = async (e) => {
-                const file = e.target.files[0];
-                if (file) await this.importBookmarksFromFile(file);
-            };
-            input.click();
-        });
+        if (importBookmarksDropdown) {
+            importBookmarksDropdown.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (!window.isLoggedIn) {
+                    this.showLoginRequired();
+                    return;
+                }
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.html,.htm,.json';
+                input.onchange = async (e) => {
+                    const file = e.target.files[0];
+                    if (file) await this.importBookmarksFromFile(file);
+                };
+                input.click();
+            });
+        }
+
+        // 导出书签（增加登录检查）
         const exportBookmarksDropdown = document.getElementById('exportBookmarksDropdownItem');
-        exportBookmarksDropdown?.addEventListener('click', (e) => { e.preventDefault(); this.exportBookmarks(); });
+        if (exportBookmarksDropdown) {
+            exportBookmarksDropdown.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (!window.isLoggedIn) {
+                    this.showLoginRequired();
+                    return;
+                }
+                this.exportBookmarks();
+            });
+        }
+
+        // 新增分类
         const addCategoryDropdown = document.getElementById('addCategoryDropdownItem');
-        addCategoryDropdown?.addEventListener('click', (e) => {
-            e.preventDefault();
-            // 打开新增分类模态框，填充上级分类下拉框
-            const parentSelect = document.getElementById('newCategoryParent');
-            if (parentSelect) {
-                const cats = Object.keys(window.allData.categories || {}).sort();
-                let html = '<option value="">-- 无 --</option>';
-                cats.forEach(c => html += `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`);
-                parentSelect.innerHTML = html;
-            }
-            document.getElementById('newCategoryName').value = '';
-            document.getElementById('newCatSelectedIconValue').value = 'fas fa-folder';
-            document.getElementById('newCatSelectedIconPreview').innerHTML = '<i class="fas fa-folder"></i>';
-            document.getElementById('newCatSelectedIconText').innerText = '请选择图标';
-            document.getElementById('newCategoryPriority').value = '100';
-            const modal = new bootstrap.Modal(document.getElementById('newCategoryModal'));
-            modal.show();
-        });
+        if (addCategoryDropdown) {
+            addCategoryDropdown.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (!window.isLoggedIn) {
+                    this.showLoginRequired();
+                    return;
+                }
+                const parentSelect = document.getElementById('newCategoryParent');
+                if (parentSelect) {
+                    const cats = Object.keys(window.allData.categories || {}).sort();
+                    let html = '<option value="">-- 无 --</option>';
+                    cats.forEach(c => html += `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`);
+                    parentSelect.innerHTML = html;
+                }
+                document.getElementById('newCategoryName').value = '';
+                document.getElementById('newCatSelectedIconValue').value = 'fas fa-folder';
+                document.getElementById('newCatSelectedIconPreview').innerHTML = '<i class="fas fa-folder"></i>';
+                document.getElementById('newCatSelectedIconText').innerText = '请选择图标';
+                document.getElementById('newCategoryPriority').value = '100';
+                const modal = new bootstrap.Modal(document.getElementById('newCategoryModal'));
+                modal.show();
+            });
+        }
+
+        // 分类列表（增加登录检查）
         const listCategoriesDropdown = document.getElementById('listCategoriesDropdownItem');
-        listCategoriesDropdown?.addEventListener('click', async (e) => {
-            e.preventDefault();
-            await this.loadData();
-            await this.loadCategoryList();
-            const searchInput = document.getElementById('categorySearchInput');
-            if (searchInput) searchInput.value = '';
-            const modal = new bootstrap.Modal(document.getElementById('categoryManageModal'));
-            modal.show();
-        });
+        if (listCategoriesDropdown) {
+            listCategoriesDropdown.addEventListener('click', async (e) => {
+                e.preventDefault();
+                if (!window.isLoggedIn) {
+                    this.showLoginRequired();
+                    return;
+                }
+                await this.loadData();
+                await this.loadCategoryList();
+                const searchInput = document.getElementById('categorySearchInput');
+                if (searchInput) searchInput.value = '';
+                const modal = new bootstrap.Modal(document.getElementById('categoryManageModal'));
+                modal.show();
+            });
+        }
+
+        // 保存书签的提交按钮
         const submitBtn = document.getElementById('submitBtn');
-        submitBtn?.addEventListener('click', () => this.handleSubmit());
+        if (submitBtn) {
+            submitBtn.addEventListener('click', () => {
+                if (!window.isLoggedIn) {
+                    this.showLoginRequired();
+                    return;
+                }
+                this.handleSubmit();
+            });
+        }
+
+        // 新增分类模态框中的确认按钮
         const confirmNewCategoryBtn = document.getElementById('confirmNewCategoryBtn');
-        confirmNewCategoryBtn?.addEventListener('click', async () => {
-            const name = document.getElementById('newCategoryName').value.trim();
-            if (!name) { alert('请输入分类名称'); return; }
-            const icon = document.getElementById('newCatSelectedIconValue').value || 'fas fa-folder';
-            const parent = document.getElementById('newCategoryParent').value || null;
-            const priority = parseInt(document.getElementById('newCategoryPriority').value) || 100;
-            if (window.allData.categories[name]) { alert('分类已存在'); return; }
-            await this.data.addCategory({ name, icon, parent, priority });
-            const modal = bootstrap.Modal.getInstance(document.getElementById('newCategoryModal'));
-            modal.hide();
-            await this.loadData();
-            const manageModal = document.getElementById('categoryManageModal');
-            if (manageModal && manageModal.classList.contains('show')) {
-                this.loadCategoryList();
-            }
-        });
+        if (confirmNewCategoryBtn) {
+            confirmNewCategoryBtn.addEventListener('click', async () => {
+                if (!window.isLoggedIn) {
+                    this.showLoginRequired();
+                    return;
+                }
+                const name = document.getElementById('newCategoryName').value.trim();
+                if (!name) { alert('请输入分类名称'); return; }
+                const icon = document.getElementById('newCatSelectedIconValue').value || 'fas fa-folder';
+                const parent = document.getElementById('newCategoryParent').value || null;
+                const priority = parseInt(document.getElementById('newCategoryPriority').value) || 100;
+                if (window.allData.categories[name]) { alert('分类已存在'); return; }
+                await this.data.addCategory({ name, icon, parent, priority });
+                const modal = bootstrap.Modal.getInstance(document.getElementById('newCategoryModal'));
+                modal.hide();
+                await this.loadData();
+                const manageModal = document.getElementById('categoryManageModal');
+                if (manageModal && manageModal.classList.contains('show')) {
+                    this.loadCategoryList();
+                }
+            });
+        }
+    }
+
+    // 辅助方法：显示登录框（请确保该方法已添加到 BookmarkApp 类中）
+    showLoginRequired() {
+        const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
+        loginModal.show();
     }
 
     initNewCategoryIconSelector() {

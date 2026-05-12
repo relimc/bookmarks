@@ -4,3 +4,4 @@ data
 data.json
 static/favicons
 instance
+.env

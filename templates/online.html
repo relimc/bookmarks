@@ -40,26 +40,27 @@
     <div class="modal fade" id="loginModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">登录</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="modal-header border-bottom-0 pt-4 pb-0">
+                    <h5 class="modal-title w-100 text-center fs-3 fw-normal">欢迎回来</h5>
+                    <button type="button" class="btn-close position-absolute top-0 end-0 m-3" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
-                    <div id="loginError" class="alert alert-danger" style="display: none;"></div>
+                <div class="modal-body px-4 py-3">
+                    <div id="loginError" class="alert alert-danger small py-2" style="display: none;"></div>
                     <form id="loginForm">
                         <div class="mb-3">
-                            <label>用户名</label>
-                            <input type="text" id="loginUsername" class="form-control" required autofocus>
+                            <label class="form-label small text-muted">用户名</label>
+                            <input type="text" id="loginUsername" class="form-control form-control-lg rounded-3" placeholder="请输入用户名" required autofocus>
                         </div>
-                        <div class="mb-3">
-                            <label>密码</label>
-                            <input type="password" id="loginPassword" class="form-control" required>
+                        <div class="mb-4">
+                            <label class="form-label small text-muted">密码</label>
+                            <input type="password" id="loginPassword" class="form-control form-control-lg rounded-3" placeholder="请输入密码" required>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100">登录</button>
+                        <button type="submit" class="btn btn-primary w-100 py-2 rounded-3 fw-semibold">登录</button>
                     </form>
                 </div>
-                <div class="modal-footer">
-                    <span>没有账号？ <a href="#" id="showRegisterBtn">注册新账号</a></span>
+                <div class="modal-footer border-top-0 justify-content-center pb-4 pt-0">
+                    <span class="text-muted">没有账号？</span>
+                    <a href="#" id="showRegisterBtn" class="text-decoration-none fw-semibold">创建账户</a>
                 </div>
             </div>
         </div>
@@ -69,26 +70,42 @@
     <div class="modal fade" id="registerModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">注册</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="modal-header border-bottom-0 pt-4 pb-0">
+                    <h5 class="modal-title w-100 text-center fs-3 fw-normal">创建账户</h5>
+                    <button type="button" class="btn-close position-absolute top-0 end-0 m-3" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
-                    <div id="registerError" class="alert alert-danger" style="display: none;"></div>
+                <div class="modal-body px-4 py-3">
+                    <div id="registerError" class="alert alert-danger small py-2" style="display: none;"></div>
                     <form id="registerForm">
                         <div class="mb-3">
-                            <label>用户名</label>
-                            <input type="text" id="regUsername" class="form-control" required>
+                            <label class="form-label small text-muted">用户名</label>
+                            <input type="text" id="regUsername" class="form-control form-control-lg rounded-3" placeholder="请输入用户名" required autofocus>
                         </div>
                         <div class="mb-3">
-                            <label>密码</label>
-                            <input type="password" id="regPassword" class="form-control" required>
+                            <label class="form-label small text-muted">邮箱</label>
+                            <input type="email" id="regEmail" class="form-control form-control-lg rounded-3" placeholder="your@email.com" required>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100">注册</button>
+                        <div class="mb-3">
+                            <label class="form-label small text-muted">验证码</label>
+                            <div class="input-group">
+                                <input type="text" id="regVerificationCode" class="form-control form-control-lg rounded-3" placeholder="请输入验证码" required>
+                                <button class="btn btn-outline-primary" type="button" id="sendCodeBtn" style="min-width: 120px;">获取验证码</button>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small text-muted">密码</label>
+                            <input type="password" id="regPassword" class="form-control form-control-lg rounded-3" placeholder="至少4位" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label small text-muted">确认密码</label>
+                            <input type="password" id="regConfirmPassword" class="form-control form-control-lg rounded-3" placeholder="请再次输入密码" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 py-2 rounded-3 fw-semibold">注册</button>
                     </form>
                 </div>
-                <div class="modal-footer">
-                    <span>已有账号？ <a href="#" id="showLoginBtn">去登录</a></span>
+                <div class="modal-footer border-top-0 justify-content-center pb-4 pt-0">
+                    <span class="text-muted">已有账号？</span>
+                    <a href="#" id="showLoginBtn" class="text-decoration-none fw-semibold">去登录</a>
                 </div>
             </div>
         </div>
@@ -118,6 +135,14 @@
             </div>
         </div>
     </div>
+{% endblock %}
+
+{% block bookmark_footer_left %}
+<div class="form-check">
+    <input class="form-check-input" type="checkbox" id="isPrivateCheckbox" checked>
+    <label class="form-check-label" for="isPrivateCheckbox">私密</label>
+    <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" title="仅自己可见。取消勾选将变为公开书签。"></i>
+</div>
 {% endblock %}
 
 {% block scripts %}

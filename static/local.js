@@ -1,5 +1,6 @@
 // local.js - 本地版数据适配器（IndexedDB）
 
+window.isLoggedIn = true;
 let db = null;
 const DB_NAME = 'BookmarkDB';
 const DB_VERSION = 3;

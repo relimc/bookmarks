@@ -6,3 +6,5 @@ Flask-HTTPAuth
 fake-useragent
 flask-login
 flask-sqlalchemy
+flask-mail
+python-dotenv

@@ -45,7 +45,7 @@ pip install -r requirements.txt
 3. 运行开发服务器：
 
 ```bash
-python main.py
+python run.py
 ```
 
 ## Docker 部署（推荐）

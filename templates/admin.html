@@ -1,50 +1,214 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh">
 <head>
-    <title>审核公开书签</title>
-    <link rel="stylesheet" href="/static/bootstrap/bootstrap.min.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>审核公开书签 - 管理后台</title>
+    <!-- Bootstrap 5 CSS + 图标库 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            background: #f5f7fb;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        }
+        .admin-header {
+            background: linear-gradient(135deg, #1e2a3a 0%, #0f172a 100%);
+            color: white;
+            padding: 1.5rem 0;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .card-custom {
+            border: none;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.02);
+            overflow: hidden;
+        }
+        .table-hover tbody tr:hover {
+            background-color: rgba(13, 110, 253, 0.05);
+            transition: background 0.2s ease;
+        }
+        .btn-sm {
+            padding: 0.35rem 0.75rem;
+            font-weight: 500;
+            border-radius: 2rem;
+        }
+        .btn-success, .btn-danger {
+            transition: all 0.2s;
+        }
+        .btn-success:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(25, 135, 84, 0.2);
+        }
+        .btn-danger:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(220, 53, 69, 0.2);
+        }
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #6c757d;
+        }
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 2rem;
+            padding: 1rem;
+            color: #adb5bd;
+            font-size: 0.85rem;
+        }
+        @media (max-width: 768px) {
+            .table td, .table th {
+                white-space: nowrap;
+            }
+            .container {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+        }
+    </style>
 </head>
 <body>
-<div class="container mt-4">
-    <h2>待审核书签</h2>
-    <table class="table" id="pending-table">
-        <thead><tr><th>标题</th><th>URL</th><th>用户ID</th><th>操作</th></tr></thead>
-        <tbody></tbody>
-    </table>
-</div>
-<script>
-    fetch('/admin/pending')
-        .then(res => res.json())
-        .then(data => {
-            const tbody = document.querySelector('#pending-table tbody');
-            data.forEach(item => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${escapeHtml(item.title)}</td>
-                    <td><a href="${escapeHtml(item.url)}" target="_blank">${escapeHtml(item.url)}</a></td>
-                    <td>${item.user_id}</td>
-                    <td>
-                        <button class="btn btn-success btn-sm" onclick="approve(${item.id})">通过</button>
-                        <button class="btn btn-danger btn-sm" onclick="reject(${item.id})">拒绝</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
+    <div class="admin-header">
+        <div class="container">
+            <h2 class="fw-semibold mb-0">
+                <i class="fas fa-clipboard-list me-2"></i>公开书签审核
+            </h2>
+            <p class="text-white-50 mt-2 mb-0">审核用户提交的公开书签，通过后将对外展示</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card card-custom">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" id="pending-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th>标题</th>
+                                <th>URL</th>
+                                <th>用户ID</th>
+                                <th class="text-end">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pending-table-body">
+                            <tr class="empty-state-row">
+                                <td colspan="4" class="empty-state">
+                                    <i class="fas fa-hourglass-half"></i>
+                                    <div>加载中...</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="footer">
+            <i class="fas fa-shield-alt"></i> 仅管理员可见 · 审核通过后书签将出现在首页
+        </div>
+    </div>
+
+    <script>
+        // 安全转义函数
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
             });
-        });
-    function approve(id) {
-        fetch(`/admin/approve/${id}`, {method:'POST'}).then(() => location.reload());
-    }
-    function reject(id) {
-        fetch(`/admin/reject/${id}`, {method:'POST'}).then(() => location.reload());
-    }
-    function escapeHtml(str) {
-        return str.replace(/[&<>]/g, function(m) {
-            if (m === '&') return '&amp;';
-            if (m === '<') return '&lt;';
-            if (m === '>') return '&gt;';
-            return m;
-        });
-    }
-</script>
+        }
+
+        // 加载待审核列表
+        async function loadPending() {
+            const tbody = document.getElementById('pending-table-body');
+            try {
+                const res = await fetch('/admin/pending');
+                if (!res.ok) throw new Error('加载失败');
+                const data = await res.json();
+
+                if (!data.length) {
+                    tbody.innerHTML = `
+                        <tr class="empty-state-row">
+                            <td colspan="4" class="empty-state">
+                                <i class="fas fa-check-circle"></i>
+                                <div>暂无待审核书签</div>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                let html = '';
+                data.forEach(item => {
+                    html += `
+                        <tr>
+                            <td class="fw-medium">${escapeHtml(item.title)}</td>
+                            <td><a href="${escapeHtml(item.url)}" target="_blank" class="text-decoration-none text-primary">${escapeHtml(item.url.length > 60 ? item.url.substring(0, 60) + '…' : item.url)}</a></td>
+                            <td><span class="badge bg-secondary">ID: ${item.user_id}</span></td>
+                            <td class="text-end">
+                                <button class="btn btn-success btn-sm me-1" onclick="approve(${item.id})">
+                                    <i class="fas fa-check-circle me-1"></i>通过
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="reject(${item.id})">
+                                    <i class="fas fa-times-circle me-1"></i>拒绝
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                tbody.innerHTML = html;
+            } catch (err) {
+                console.error(err);
+                tbody.innerHTML = `
+                    <tr class="empty-state-row">
+                        <td colspan="4" class="empty-state">
+                            <i class="fas fa-exclamation-triangle text-danger"></i>
+                            <div>加载失败，请刷新页面重试</div>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // 通过审核
+        async function approve(id) {
+            if (!confirm('确定要通过该书签吗？它将对外公开显示。')) return;
+            try {
+                const res = await fetch(`/admin/approve/${id}`, { method: 'POST' });
+                if (res.ok) {
+                    loadPending(); // 重新加载列表
+                } else {
+                    alert('操作失败，请重试');
+                }
+            } catch (err) {
+                alert('网络错误');
+            }
+        }
+
+        // 拒绝审核（退回为私密）
+        async function reject(id) {
+            if (!confirm('确定要拒绝该书签吗？它将变为私密状态。')) return;
+            try {
+                const res = await fetch(`/admin/reject/${id}`, { method: 'POST' });
+                if (res.ok) {
+                    loadPending();
+                } else {
+                    alert('操作失败');
+                }
+            } catch (err) {
+                alert('网络错误');
+            }
+        }
+
+        // 页面启动加载
+        loadPending();
+    </script>
 </body>
 </html>

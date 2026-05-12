@@ -446,10 +446,11 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 8px;
     margin: 0 !important;
     line-height: 1.5;
+    padding-right: 32px;
 }
 .card-title {
     font-weight: bold;
@@ -466,9 +467,10 @@ body {
 }
 .card-tags {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 4px;
-    flex-shrink: 0;
+    max-width: 100%;
+    overflow-x: hidden;   /* 隐藏溢出，但不会有滚动条 */
 }
 .tag {
     background: #eef2f6;
@@ -481,9 +483,16 @@ body {
     user-select: none;
     white-space: nowrap;
     line-height: 1.5;
+    flex-shrink: 0;
+}
+.tag-more {
+    background: #eef2f6;
+    color: #1e3a6b;
+    cursor: default;
 }
 .tag:hover {
-    background: #d0e0f0;
+    background: #eef2f6;
+    color: #1e3a6b;
 }
 .edit-btn {
     position: absolute;
@@ -501,13 +510,16 @@ body {
     transition: opacity 0.1s;
     z-index: 10;
     line-height: 1;
+    opacity: 0;
+    transition: opacity 0.2s, background 0.2s;
+    background: transparent; /* 默认无背景 */
 }
 .card:hover .edit-btn {
     opacity: 1;
+    background: #f0f4fa;
 }
 .edit-btn:hover {
-    background: #eef2f6;
-    color: #1e3a6b;
+    background: #e2eaf5;
 }
 .card-toast {
     position: absolute;
@@ -917,4 +929,34 @@ body {
 .icon-option.more-option:hover {
     color: #d35400;
     background: #eef2f6;
+}
+/* 优化模态框样式 */
+.modal-content {
+    border-radius: 28px;
+    box-shadow: 0 20px 35px -8px rgba(0, 0, 0, 0.2);
+    border: none;
+}
+.modal-header .btn-close {
+    opacity: 0.6;
+}
+.modal-header .btn-close:hover {
+    opacity: 1;
+}
+.form-control:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+}
+
+
+.tag-more-tooltip .tooltip-tag {
+    background: #eef2f6;
+    border-radius: 12px;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    margin: 2px;
+    display: inline-block;
+}
+.tag-more-tooltip .tooltip-tag:hover {
+    background: #d0e0f0;
 }
