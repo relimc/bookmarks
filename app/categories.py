@@ -51,28 +51,38 @@ def add_category():
 @bp.route('/category/<string:name>', methods=['PUT'])
 @login_required
 def update_category(name):
-    req = request.get_json()
-    cat = Category.query.filter_by(user_id=current_user.id, name=name).first()
-    if not cat:
-        return jsonify({'success': False, 'message': '分类不存在'}), 404
+    try:
+        req = request.get_json()
+        cat = Category.query.filter_by(user_id=current_user.id, name=name).first()
+        if not cat:
+            return jsonify({'success': False, 'message': '分类不存在'}), 404
 
-    new_name = req.get('new_name', '').strip()
-    if new_name and new_name != name:
-        if Category.query.filter_by(user_id=current_user.id, name=new_name).first():
-            return jsonify({'success': False, 'message': '新分类名称已存在'}), 400
-        Bookmark.query.filter_by(user_id=current_user.id, category=name).update({'category': new_name})
-        cat.name = new_name
-        name = new_name
-    if 'icon' in req:
-        cat.icon = req['icon'].strip() or 'fas fa-folder'
-    if 'parent' in req:
-        cat.parent = req['parent'].strip() or None
-    if 'priority' in req:
-        cat.priority = req['priority']
-    if 'private' in req:
-        cat.private = bool(req['private'])
-    db.session.commit()
-    return jsonify({'success': True, 'data': {}})
+        new_name = req.get('new_name', '').strip() if req.get('new_name') else None
+        if new_name and new_name != name:
+            if Category.query.filter_by(user_id=current_user.id, name=new_name).first():
+                return jsonify({'success': False, 'message': '新分类名称已存在'}), 400
+            # 更新所有书签的 category 引用
+            Bookmark.query.filter_by(user_id=current_user.id, category=name).update({'category': new_name})
+            cat.name = new_name
+            name = new_name
+
+        if 'icon' in req:
+            icon = req['icon'].strip() if req['icon'] else 'fas fa-folder'
+            cat.icon = icon
+        if 'parent' in req:
+            parent = req['parent'].strip() if req['parent'] else None
+            cat.parent = parent
+        if 'priority' in req:
+            cat.priority = int(req['priority'])
+        if 'private' in req:
+            cat.private = bool(req['private'])
+
+        db.session.commit()
+        return jsonify({'success': True, 'data': {}})
+    except Exception as e:
+        db.session.rollback()
+        print(f"更新分类出错: {e}")  # 打印到控制台便于调试
+        return jsonify({'success': False, 'message': f'服务器内部错误: {str(e)}'}), 500
 
 @bp.route('/category/<string:name>', methods=['DELETE'])
 @login_required

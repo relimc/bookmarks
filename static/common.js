@@ -333,6 +333,10 @@ function bindCommonEvents(app) {
 
 // ---------- BookmarkApp 类 ----------
 class BookmarkApp {
+    // 存储书签弹窗的状态
+    _pendingBookmarkData = null;
+    _pendingBookmarkIsEdit = false;
+
     constructor(dataAdapter) {
         this.data = dataAdapter;
         this.activeCategoryKey = null;
@@ -356,6 +360,7 @@ class BookmarkApp {
         tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
         // 为 .tag-more 添加悬浮显示剩余标签的功能
         this.initTagMoreTooltip();
+        this.initEditCategoryIconSelector()
     }
 
     initTagMoreTooltip() {
@@ -533,113 +538,122 @@ class BookmarkApp {
     }
 
     openAddModal() {
-        const modalTitle = document.getElementById('modalTitle');
-        const editingId = document.getElementById('editingId');
-        const urlInput = document.getElementById('urlInput');
+        // 若未登录且在线版需要登录，则提示登录（此逻辑已在 bindModalEvents 中调用前检查，此处可保留）
+        if (!window.isLoggedIn && typeof this.showLoginRequired === 'function') {
+            this.showLoginRequired();
+            return;
+        }
+
+        const modal = new bootstrap.Modal(document.getElementById('bookmarkModal'));
         const titleInput = document.getElementById('titleInput');
-        const descriptionInput = document.getElementById('descriptionInput');
-        const bookmarkTags = document.getElementById('bookmarkTags');
-        const categorySelect = document.getElementById('categorySelect');
-        const deleteBtn = document.getElementById('deleteBtn');
-        const submitBtn = document.getElementById('submitBtn');
+        const descInput = document.getElementById('descriptionInput');
+        const tagsInput = document.getElementById('bookmarkTags');
+        const urlInput = document.getElementById('urlInput');
         const isPrivateCheckbox = document.getElementById('isPrivateCheckbox');
 
-        modalTitle.innerText = '📋 新增书签';
-        editingId.value = '';
+        // 重置表单
+        document.getElementById('modalTitle').innerText = '📋 新增书签';
+        document.getElementById('editingId').value = '';
         if (urlInput) {
             urlInput.value = '';
             urlInput.readOnly = false;
         }
-        titleInput.value = '';
-        descriptionInput.value = '';
-        if (bookmarkTags) bookmarkTags.value = '';
+        if (titleInput) titleInput.value = '';
+        if (descInput) descInput.value = '';
+        if (tagsInput) tagsInput.value = '';
+
+        // 重置分类下拉框并保存初始值
         this.updateCategorySelect();
-        if (categorySelect) categorySelect.value = '';
+        if (this.categorySelect) this.categorySelect.value = '';
+        this._prevCategoryValue = '';
+
+        // 删除按钮隐藏
+        const deleteBtn = document.getElementById('deleteBtn');
         if (deleteBtn) deleteBtn.style.display = 'none';
+        // 私密复选框默认勾选
+        if (isPrivateCheckbox) isPrivateCheckbox.checked = true;
 
-        // 设置私密复选框默认勾选（新增时默认私密）
-        if (isPrivateCheckbox) {
-            isPrivateCheckbox.checked = true;
-        }
+        const hint = document.getElementById('clipboardHint');
+        if (hint) hint.innerText = '';
+        window.lastFetchedIcon = '';
 
-        const modal = new bootstrap.Modal(document.getElementById('bookmarkModal'));
         modal.show();
 
         // 尝试读取剪贴板
         navigator.clipboard.readText().then(text => {
             if (text && urlInput) {
                 urlInput.value = text;
-                const hint = document.getElementById('clipboardHint');
-                if (hint) hint.innerText = '✅ 已读取剪贴板';
+                if (hint) hint.innerText = '✅ 已读取剪贴板，正在获取网页信息...';
                 this.fetchMetadata(text);
+            } else if (hint) {
+                hint.innerText = '⚠️ 剪贴板为空';
             }
-        }).catch(() => {});
+        }).catch(() => {
+            if (hint) hint.innerText = '⚠️ 无法读取剪贴板';
+        });
     }
 
     openEditModal(id) {
         const item = window.allData.bookmarks.find(b => b.id === id);
         if (!item) return;
-
         const isLoggedIn = window.isLoggedIn !== false;
-        const modalTitle = document.getElementById('modalTitle');
-        const editingId = document.getElementById('editingId');
-        const urlInput = document.getElementById('urlInput');
+        const modal = new bootstrap.Modal(document.getElementById('bookmarkModal'));
         const titleInput = document.getElementById('titleInput');
-        const descriptionInput = document.getElementById('descriptionInput');
-        const bookmarkTags = document.getElementById('bookmarkTags');
-        const categorySelect = document.getElementById('categorySelect');
+        const descInput = document.getElementById('descriptionInput');
+        const tagsInput = document.getElementById('bookmarkTags');
+        const urlInput = document.getElementById('urlInput');
+        const isPrivateCheckbox = document.getElementById('isPrivateCheckbox');
         const deleteBtn = document.getElementById('deleteBtn');
         const submitBtn = document.getElementById('submitBtn');
         const cancelBtn = document.querySelector('#bookmarkModal .btn-secondary');
-        const isPrivateCheckbox = document.getElementById('isPrivateCheckbox');
 
+        // 清空可能存在的旧删除事件
         if (deleteBtn) deleteBtn.onclick = null;
 
-        modalTitle.innerText = isLoggedIn ? '✏️ 编辑书签' : 'ℹ️ 书签详情';
-        editingId.value = id;
+        // 设置标题
+        document.getElementById('modalTitle').innerText = isLoggedIn ? '✏️ 编辑书签' : 'ℹ️ 书签详情';
+        document.getElementById('editingId').value = id;
         urlInput.value = item.url;
         urlInput.readOnly = true;
         titleInput.value = item.title || '';
-        descriptionInput.value = item.description || '';
-        if (bookmarkTags) bookmarkTags.value = (item.tags || []).join('/');
-        this.updateCategorySelect(item.category);
-        categorySelect.value = item.category;
+        descInput.value = item.description || '';
+        if (tagsInput) tagsInput.value = (item.tags || []).join('/');
 
-        // 设置私密复选框：根据书签状态（status === 'private' 为私密，其他如 'approved' 则公开）
+        // 更新分类下拉框并选中当前分类
+        this.updateCategorySelect(item.category);
+        if (this.categorySelect) {
+            this.categorySelect.value = item.category;
+            this._prevCategoryValue = item.category;
+        }
+
+        // 私密复选框状态
         if (isPrivateCheckbox) {
-            // 后端字段 status: 'private' 私密，'pending' 待审核，'approved' 已公开
-            const isPrivate = (item.status === 'private');
-            isPrivateCheckbox.checked = isPrivate;
-            // 如果是未登录只读模式，禁用复选框
-            if (!isLoggedIn) {
-                isPrivateCheckbox.disabled = true;
-            } else {
-                isPrivateCheckbox.disabled = false;
-            }
+            isPrivateCheckbox.checked = (item.status === 'private');
+            isPrivateCheckbox.disabled = !isLoggedIn;
         }
 
         if (!isLoggedIn) {
+            // 未登录只读模式
             titleInput.readOnly = true;
-            descriptionInput.readOnly = true;
-            if (bookmarkTags) bookmarkTags.readOnly = true;
-            categorySelect.disabled = true;
+            descInput.readOnly = true;
+            if (tagsInput) tagsInput.readOnly = true;
+            if (this.categorySelect) this.categorySelect.disabled = true;
             if (deleteBtn) deleteBtn.style.display = 'none';
             if (submitBtn) submitBtn.style.display = 'none';
             if (cancelBtn) cancelBtn.innerText = '关闭';
-            if (isPrivateCheckbox) isPrivateCheckbox.disabled = true;
         } else {
+            // 已登录可编辑
             titleInput.readOnly = false;
-            descriptionInput.readOnly = false;
-            if (bookmarkTags) bookmarkTags.readOnly = false;
-            categorySelect.disabled = false;
-            if (deleteBtn) deleteBtn.style.display = 'block';
+            descInput.readOnly = false;
+            if (tagsInput) tagsInput.readOnly = false;
+            if (this.categorySelect) this.categorySelect.disabled = false;
+            if (deleteBtn) {
+                deleteBtn.style.display = 'block';
+                deleteBtn.onclick = () => this.handleDelete();
+            }
             if (submitBtn) submitBtn.style.display = 'block';
             if (cancelBtn) cancelBtn.innerText = '取消';
-            if (deleteBtn) deleteBtn.onclick = () => this.handleDelete();
-            if (isPrivateCheckbox) isPrivateCheckbox.disabled = false;
         }
-
-        const modal = new bootstrap.Modal(document.getElementById('bookmarkModal'));
         modal.show();
     }
 
@@ -695,6 +709,7 @@ class BookmarkApp {
         if (!url) { alert('网址不能为空'); return; }
 
         let category = document.getElementById('categorySelect').value;
+
         if (!category) {
             category = '未分类';
         }
@@ -704,18 +719,15 @@ class BookmarkApp {
         const tagsRaw = document.getElementById('bookmarkTags').value.trim();
         const tags = tagsRaw ? tagsRaw.split('/').map(t => t.trim()).filter(t => t) : [];
 
-        // 获取私密复选框状态
+        // 私密复选框
         const isPrivateCheckbox = document.getElementById('isPrivateCheckbox');
         const isPrivate = isPrivateCheckbox ? isPrivateCheckbox.checked : true;
-        // 确定 status 字段: true->private, false->public(需要审核)
         let status = isPrivate ? 'private' : 'public';
 
-        // 如果是公开书签，弹框确认
         if (status === 'public') {
             if (!confirm('公开书签需管理员审核后，才能发布。是否确定提交审核？')) {
-                return; // 用户取消，不保存
+                return;
             }
-            // 提交后后端会将状态改为 pending
         }
 
         let icon = '';
@@ -754,14 +766,100 @@ class BookmarkApp {
     }
 
     updateCategorySelect(selected = '') {
-        const categorySelect = document.getElementById('categorySelect');
-        if (!categorySelect) return;
+        if (!this.categorySelect) {
+            this.categorySelect = document.getElementById('categorySelect');
+        }
         const cats = Object.keys(window.allData.categories || {}).sort();
         let html = '<option value="">-- 选择已有分类 --</option>';
         cats.forEach(c => {
             html += `<option value="${escapeHtml(c)}" ${c === selected ? 'selected' : ''}>${escapeHtml(c)}</option>`;
         });
-        categorySelect.innerHTML = html;
+        this.categorySelect.innerHTML = html;
+    }
+
+    openEditCategoryModal(categoryName) {
+        const cat = window.allData.categories[categoryName];
+        if (!cat) return;
+
+        // 关闭分类列表模态框（如果在打开状态）
+        const categoryManageModalEl = document.getElementById('categoryManageModal');
+        const categoryModal = bootstrap.Modal.getInstance(categoryManageModalEl);
+        if (categoryModal) categoryModal.hide();
+
+        // 记录原始分类名
+        document.getElementById('editCategoryOriginalName').value = categoryName;
+        document.getElementById('editCategoryName').value = cat.name;
+
+        // 设置图标选择器
+        const iconPreview = document.getElementById('editCatSelectedIconPreview');
+        const iconText = document.getElementById('editCatSelectedIconText');
+        const iconValue = document.getElementById('editCatSelectedIconValue');
+        if (cat.icon) {
+            if (cat.icon.startsWith('http') || cat.icon.startsWith('data:')) {
+                iconPreview.innerHTML = `<img src="${cat.icon}" style="max-width:20px; max-height:20px;">`;
+            } else {
+                iconPreview.innerHTML = `<i class="${cat.icon}"></i>`;
+            }
+            iconText.innerText = cat.icon;
+            iconValue.value = cat.icon;
+        } else {
+            iconPreview.innerHTML = '<i class="fas fa-folder"></i>';
+            iconText.innerText = 'fas fa-folder';
+            iconValue.value = 'fas fa-folder';
+        }
+
+        // 填充上级分类下拉框
+        const parentSelect = document.getElementById('editCategoryParent');
+        if (parentSelect) {
+            const allCats = Object.keys(window.allData.categories || {}).filter(c => c !== categoryName);
+            let html = '<option value="">-- 无 --</option>';
+            allCats.sort().forEach(c => {
+                html += `<option value="${escapeHtml(c)}" ${cat.parent === c ? 'selected' : ''}>${escapeHtml(c)}</option>`;
+            });
+            parentSelect.innerHTML = html;
+        }
+
+        // 优先级
+        const priorityInput = document.getElementById('editCategoryPriority');
+        if (priorityInput) priorityInput.value = cat.priority || 100;
+
+        // 显示模态框
+        const modal = new bootstrap.Modal(document.getElementById('editCategoryModal'));
+        modal.show();
+    }
+
+    openAddCategoryModal() {
+        // 确保移除此前的任何残留背板
+        this.removeModalBackdrop();
+        // 填充上级分类下拉框...
+        const parentSelect = document.getElementById('newCategoryParent');
+        if (parentSelect) {
+            const cats = Object.keys(window.allData.categories || {}).sort();
+            let html = '<option value="">-- 无 --</option>';
+            cats.forEach(c => html += `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`);
+            parentSelect.innerHTML = html;
+        }
+        // 重置表单...
+        const nameInput = document.getElementById('newCategoryName');
+        if (nameInput) nameInput.value = '';
+        const iconValue = document.getElementById('newCatSelectedIconValue');
+        if (iconValue) iconValue.value = 'fas fa-folder';
+        const iconPreview = document.getElementById('newCatSelectedIconPreview');
+        if (iconPreview) iconPreview.innerHTML = '<i class="fas fa-folder"></i>';
+        const iconText = document.getElementById('newCatSelectedIconText');
+        if (iconText) iconText.innerText = '请选择图标';
+        const priorityInput = document.getElementById('newCategoryPriority');
+        if (priorityInput) priorityInput.value = '100';
+        const modal = new bootstrap.Modal(document.getElementById('newCategoryModal'));
+        modal.show();
+    }
+
+    removeModalBackdrop() {
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        backdrops.forEach(backdrop => backdrop.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
     }
 
     // 分类管理相关
@@ -792,7 +890,7 @@ class BookmarkApp {
         document.querySelectorAll('.edit-category-btn').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 const name = btn.closest('tr').dataset.category;
-                await this.editCategory(name);
+                this.openEditCategoryModal(name);
             });
         });
         document.querySelectorAll('.delete-category-btn').forEach(btn => {
@@ -807,17 +905,22 @@ class BookmarkApp {
         const cat = window.allData.categories[name];
         const newName = prompt('新名称', name);
         if (newName && newName !== name) {
-            if (window.allData.categories[newName]) { alert('分类已存在'); return; }
-            // 更新所有书签的分类
+            if (window.allData.categories[newName]) {
+                alert('分类已存在');
+                return;
+            }
+            // 更新所有书签的分类引用
             for (let b of window.allData.bookmarks) {
                 if (b.category === name) {
                     b.category = newName;
-                    await this.data.updateBookmark(b.id, b);
+                    await this.data.updateBookmark(b.id, { category: newName });
                 }
             }
-            await this.data.deleteCategory(name);
-            cat.name = newName;
-            name = newName;
+            // 更新分类本身（调用 updateCategory 而不是 addCategory）
+            await this.data.updateCategory(name, { new_name: newName });
+            // 删除旧分类（如果后端 updateCategory 未自动处理重命名，则需要手动删除）
+            // 但根据后端实现，updateCategory 路由支持重命名，所以我们只需刷新数据
+            name = newName; // 更新变量以便后续修改其他属性
         }
         const newIcon = prompt('图标类名或URL', cat.icon);
         if (newIcon) cat.icon = newIcon;
@@ -825,8 +928,14 @@ class BookmarkApp {
         cat.parent = newParent || null;
         const newPriority = parseInt(prompt('优先级（数字越小越靠前）', cat.priority || 100));
         if (!isNaN(newPriority)) cat.priority = newPriority;
-        await this.data.addCategory(cat);
+        // 更新分类属性（此时名称可能已变）
+        await this.data.updateCategory(name, {
+            icon: cat.icon,
+            parent: cat.parent,
+            priority: cat.priority
+        });
         await this.loadData();
+        // 刷新分类列表弹窗
         const manageModal = document.getElementById('categoryManageModal');
         if (manageModal && manageModal.classList.contains('show')) {
             this.loadCategoryList();
@@ -1029,32 +1138,239 @@ class BookmarkApp {
         const confirmNewCategoryBtn = document.getElementById('confirmNewCategoryBtn');
         if (confirmNewCategoryBtn) {
             confirmNewCategoryBtn.addEventListener('click', async () => {
-                if (!window.isLoggedIn) {
-                    this.showLoginRequired();
-                    return;
-                }
                 const name = document.getElementById('newCategoryName').value.trim();
                 if (!name) { alert('请输入分类名称'); return; }
                 const icon = document.getElementById('newCatSelectedIconValue').value || 'fas fa-folder';
                 const parent = document.getElementById('newCategoryParent').value || null;
                 const priority = parseInt(document.getElementById('newCategoryPriority').value) || 100;
-                if (window.allData.categories[name]) { alert('分类已存在'); return; }
-                await this.data.addCategory({ name, icon, parent, priority });
-                const modal = bootstrap.Modal.getInstance(document.getElementById('newCategoryModal'));
-                modal.hide();
-                await this.loadData();
-                const manageModal = document.getElementById('categoryManageModal');
-                if (manageModal && manageModal.classList.contains('show')) {
-                    this.loadCategoryList();
+
+                if (window.allData.categories[name]) {
+                    alert('分类已存在');
+                    return;
+                }
+
+                try {
+                    await this.data.addCategory({ name, icon, parent, priority });
+                    await this.loadData();
+
+                    const newCategoryModalEl = document.getElementById('newCategoryModal');
+                    const newCategoryModal = bootstrap.Modal.getInstance(newCategoryModalEl);
+
+                    if (this._pendingBookmarkData) {
+                        this._pendingBookmarkData.category = name;
+                        if (newCategoryModal) {
+                            newCategoryModal.hide();
+                            newCategoryModalEl.addEventListener('hidden.bs.modal', async () => {
+                                await this.restoreBookmarkModal();
+                            }, { once: true });
+                        } else {
+                            await this.restoreBookmarkModal();
+                        }
+                    } else {
+                        if (newCategoryModal) newCategoryModal.hide();
+                        // 如果分类列表弹窗打开，刷新它
+                        const manageModal = document.getElementById('categoryManageModal');
+                        if (manageModal && manageModal.classList.contains('show')) {
+                            this.loadCategoryList();
+                        }
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert('添加分类失败：' + err.message);
                 }
             });
         }
+
+        const quickAddCategoryBtn = document.getElementById('quickAddCategoryBtn');
+        if (quickAddCategoryBtn) {
+            quickAddCategoryBtn.addEventListener('click', () => {
+                this.saveBookmarkModalState();
+                const bookmarkModalEl = document.getElementById('bookmarkModal');
+                const bookmarkModal = bootstrap.Modal.getInstance(bookmarkModalEl);
+                if (bookmarkModal) {
+                    bookmarkModal.hide();
+                    // 等待书签弹窗完全关闭后再打开新增分类弹窗
+                    bookmarkModalEl.addEventListener('hidden.bs.modal', () => {
+                        this.openAddCategoryModal();
+                    }, { once: true });
+                } else {
+                    this.openAddCategoryModal();
+                }
+            });
+        }
+
+        const confirmEditCategoryBtn = document.getElementById('confirmEditCategoryBtn');
+        if (confirmEditCategoryBtn) {
+            confirmEditCategoryBtn.addEventListener('click', async () => {
+                const originalName = document.getElementById('editCategoryOriginalName').value;
+                const newName = document.getElementById('editCategoryName').value.trim();
+                if (!newName) { alert('分类名称不能为空'); return; }
+                const icon = document.getElementById('editCatSelectedIconValue').value || 'fas fa-folder';
+                const parent = document.getElementById('editCategoryParent').value || null;
+                const priority = parseInt(document.getElementById('editCategoryPriority').value) || 100;
+
+                try {
+                    await this.data.updateCategory(originalName, {
+                        new_name: newName !== originalName ? newName : undefined,
+                        icon,
+                        parent,
+                        priority
+                    });
+                    await this.loadData();
+                    const editModal = bootstrap.Modal.getInstance(document.getElementById('editCategoryModal'));
+                    editModal.hide();
+
+                    // 重新打开分类列表并刷新
+                    await this.loadCategoryList();
+                    const categoryManageModal = new bootstrap.Modal(document.getElementById('categoryManageModal'));
+                    categoryManageModal.show();
+                } catch (err) {
+                    console.error(err);
+                    alert('更新失败：' + err.message);
+                }
+            });
+        }
+
+    }
+
+    // 保存书签弹窗当前状态（表单数据+编辑ID）
+    saveBookmarkModalState() {
+        this._pendingBookmarkData = {
+            editingId: document.getElementById('editingId').value,
+            url: document.getElementById('urlInput').value,
+            title: document.getElementById('titleInput').value,
+            description: document.getElementById('descriptionInput').value,
+            tags: document.getElementById('bookmarkTags').value,
+            category: document.getElementById('categorySelect').value,
+            isPrivate: document.getElementById('isPrivateCheckbox')?.checked,
+        };
+        this._pendingBookmarkIsEdit = !!document.getElementById('editingId').value;
+    }
+
+    // 恢复书签弹窗状态（并刷新分类下拉框）
+    async restoreBookmarkModal() {
+        this.removeModalBackdrop();
+
+        if (!this._pendingBookmarkData) return;
+        // 重新打开书签弹窗
+        const bookmarkModal = new bootstrap.Modal(document.getElementById('bookmarkModal'));
+        // 先设置表单值
+        document.getElementById('editingId').value = this._pendingBookmarkData.editingId;
+        document.getElementById('urlInput').value = this._pendingBookmarkData.url;
+        document.getElementById('titleInput').value = this._pendingBookmarkData.title;
+        document.getElementById('descriptionInput').value = this._pendingBookmarkData.description;
+        document.getElementById('bookmarkTags').value = this._pendingBookmarkData.tags;
+        // 更新分类下拉框（此时新分类已存在）
+        await this.updateCategorySelect(this._pendingBookmarkData.category);
+        document.getElementById('categorySelect').value = this._pendingBookmarkData.category;
+        if (document.getElementById('isPrivateCheckbox')) {
+            document.getElementById('isPrivateCheckbox').checked = this._pendingBookmarkData.isPrivate;
+        }
+        // 设置标题和按钮显示状态
+        const isLoggedIn = window.isLoggedIn !== false;
+        const isEdit = !!this._pendingBookmarkData.editingId;
+        if (isEdit) {
+            document.getElementById('modalTitle').innerText = isLoggedIn ? '✏️ 编辑书签' : 'ℹ️ 书签详情';
+        } else {
+            document.getElementById('modalTitle').innerText = '📋 新增书签';
+        }
+        const deleteBtn = document.getElementById('deleteBtn');
+        const submitBtn = document.getElementById('submitBtn');
+        const cancelBtn = document.querySelector('#bookmarkModal .btn-secondary');
+        if (isLoggedIn && isEdit) {
+            if (deleteBtn) deleteBtn.style.display = 'block';
+            if (submitBtn) submitBtn.style.display = 'block';
+            if (cancelBtn) cancelBtn.innerText = '取消';
+            if (deleteBtn) deleteBtn.onclick = () => this.handleDelete();
+        } else if (!isLoggedIn && isEdit) {
+            // 只读模式
+            // ... 已有逻辑
+        } else {
+            // 新增模式
+            if (deleteBtn) deleteBtn.style.display = 'none';
+            if (submitBtn) submitBtn.style.display = 'block';
+            if (cancelBtn) cancelBtn.innerText = '取消';
+        }
+        // 确保分类下拉框可用
+        if (this.categorySelect) this.categorySelect.disabled = false;
+        bookmarkModal.show();
+        // 清空暂存数据
+        this._pendingBookmarkData = null;
     }
 
     // 辅助方法：显示登录框（请确保该方法已添加到 BookmarkApp 类中）
     showLoginRequired() {
         const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
         loginModal.show();
+    }
+
+    // 初始化编辑分类弹窗中的图标选择器（与新增分类逻辑一致，仅ID前缀不同）
+    initEditCategoryIconSelector() {
+        const display = document.getElementById('editCatSelectedIconDisplay');
+        const panel = document.getElementById('editCatIconDropdownPanel');
+        if (!display || !panel) return;
+        const caret = display.querySelector('.caret');
+        const preview = document.getElementById('editCatSelectedIconPreview');
+        const text = document.getElementById('editCatSelectedIconText');
+        const iconValue = document.getElementById('editCatSelectedIconValue');
+        const customInput = document.getElementById('editCatCustomIconInput');
+        const applyBtn = document.getElementById('editCatApplyCustomIcon');
+
+        // 显示/隐藏下拉面板
+        display.addEventListener('click', (e) => {
+            e.stopPropagation();
+            panel.classList.toggle('show');
+            if (caret) caret.classList.toggle('open', panel.classList.contains('show'));
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!display.contains(e.target) && !panel.contains(e.target)) {
+                panel.classList.remove('show');
+                if (caret) caret.classList.remove('open');
+            }
+        });
+
+        // 预设图标选项点击
+        panel.querySelectorAll('.icon-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                const value = opt.dataset.value;
+                const name = opt.dataset.name;
+                // 如果是更多链接，跳转不更新图标值
+                if (opt.dataset.link) {
+                    window.open(opt.dataset.link, '_blank');
+                    panel.classList.remove('show');
+                    if (caret) caret.classList.remove('open');
+                    return;
+                }
+                if (value) {
+                    preview.innerHTML = opt.querySelector('i').cloneNode(true).outerHTML;
+                    text.innerText = name || value;
+                    iconValue.value = value;
+                }
+                panel.classList.remove('show');
+                if (caret) caret.classList.remove('open');
+            });
+        });
+
+        // 自定义图标
+        if (applyBtn && customInput) {
+            applyBtn.addEventListener('click', () => {
+                const custom = customInput.value.trim();
+                if (!custom) return;
+                // 直接使用输入的值作为图标（支持类名或URL）
+                let icon = custom;
+                if (icon.startsWith('http') || icon.startsWith('data:')) {
+                    preview.innerHTML = `<img src="${icon}" style="max-width:20px; max-height:20px;">`;
+                } else {
+                    preview.innerHTML = `<i class="${icon}"></i>`;
+                }
+                text.innerText = icon;
+                iconValue.value = icon;
+                panel.classList.remove('show');
+                if (caret) caret.classList.remove('open');
+                customInput.value = '';
+            });
+        }
     }
 
     initNewCategoryIconSelector() {

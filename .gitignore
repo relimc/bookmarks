@@ -5,3 +5,4 @@ data.json
 static/favicons
 instance
 .env
+__pycache__
