@@ -947,7 +947,6 @@ body {
     box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
 }
 
-
 .tag-more-tooltip .tooltip-tag {
     background: #eef2f6;
     border-radius: 12px;
@@ -959,4 +958,8 @@ body {
 }
 .tag-more-tooltip .tooltip-tag:hover {
     background: #d0e0f0;
+}
+#loginModal .modal-footer {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
 }

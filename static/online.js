@@ -180,22 +180,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             const username = document.getElementById('loginUsername').value.trim();
             const password = document.getElementById('loginPassword').value;
             const errorDiv = document.getElementById('loginError');
-            if (errorDiv) errorDiv.classList.add('d-none');
+            if (errorDiv) {
+                errorDiv.style.display = 'none';
+                errorDiv.innerText = '';
+            }
 
             if (!username || !password) {
                 if (errorDiv) {
-                    errorDiv.classList.remove('d-none');
                     errorDiv.innerText = '用户名和密码不能为空';
+                    errorDiv.style.display = 'block';
                 }
                 return;
             }
 
-            // 获取登录按钮（表单内的提交按钮或通过选择器）
             const submitBtn = loginForm.querySelector('button[type="submit"]');
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 登录中...';
-            }
+            const originalHtml = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 登录中...';
 
             try {
                 const res = await fetch('/login', {
@@ -204,29 +205,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                     body: new URLSearchParams({ username, password })
                 });
                 const data = await res.json();
-                if (data.success) {
-                    window.isLoggedIn = true;
-                    // 关闭登录模态框
+                if (res.ok && data.success) {
                     const loginModal = bootstrap.Modal.getInstance(document.getElementById('loginModal'));
                     if (loginModal) loginModal.hide();
-                    await app.loadData();
-                    await updateUserStatusButton();
+                    if (window.bookmarkApp) await window.bookmarkApp.loadData();
+                    if (typeof updateUserStatusButton === 'function') await updateUserStatusButton();
                 } else {
                     if (errorDiv) {
-                        errorDiv.classList.remove('d-none');
                         errorDiv.innerText = data.message || '登录失败，请检查用户名或密码';
+                        errorDiv.style.display = 'block';
                     }
                 }
             } catch (err) {
+                console.error(err);
                 if (errorDiv) {
-                    errorDiv.classList.remove('d-none');
                     errorDiv.innerText = '网络错误，请稍后重试';
+                    errorDiv.style.display = 'block';
                 }
             } finally {
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = '登录';
-                }
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalHtml;
             }
         });
     }
@@ -284,8 +282,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 errorDiv.style.display = 'block';
                 return;
             }
-            if (password.length < 4) {
-                errorDiv.innerText = '密码长度至少为4位';
+            if (password.length < 8) {
+                errorDiv.innerText = '密码长度至少为8位';
                 errorDiv.style.display = 'block';
                 return;
             }
@@ -375,6 +373,131 @@ document.addEventListener('DOMContentLoaded', async () => {
             } catch (err) {
                 alert('网络错误，请稍后重试');
             }
+        });
+    }
+
+    // 忘记密码链接
+    const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+    if (forgotPasswordLink) {
+        forgotPasswordLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            const loginModal = bootstrap.Modal.getInstance(document.getElementById('loginModal'));
+            if (loginModal) loginModal.hide();
+            const resetModal = new bootstrap.Modal(document.getElementById('resetPasswordModal'));
+            resetModal.show();
+        });
+    }
+
+    // 获取重置验证码按钮
+    const sendResetCodeBtn = document.getElementById('sendResetCodeBtn');
+    if (sendResetCodeBtn) {
+        let countdown = 0;
+        sendResetCodeBtn.addEventListener('click', async () => {
+            if (countdown > 0) return;
+            const email = document.getElementById('resetEmail').value.trim();
+            if (!email) {
+                alert('请填写邮箱');
+                return;
+            }
+            const emailRegex = /^[^\s@]+@([^\s@.,]+\.)+[^\s@.,]{2,}$/;
+            if (!emailRegex.test(email)) {
+                alert('邮箱格式不正确');
+                return;
+            }
+            try {
+                const res = await fetch('/forgot-password', { // 注意蓝图前缀
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(data.message || '验证码已发送，请查收邮件');
+                    countdown = 60;
+                    sendResetCodeBtn.disabled = true;
+                    sendResetCodeBtn.innerText = `${countdown}秒后重试`;
+                    const timer = setInterval(() => {
+                        countdown--;
+                        if (countdown <= 0) {
+                            clearInterval(timer);
+                            sendResetCodeBtn.disabled = false;
+                            sendResetCodeBtn.innerText = '获取验证码';
+                        } else {
+                            sendResetCodeBtn.innerText = `${countdown}秒后重试`;
+                        }
+                    }, 1000);
+                } else {
+                    alert(data.message || '发送失败');
+                }
+            } catch (err) {
+                alert('网络错误');
+            }
+        });
+    }
+
+    // 重置密码表单提交
+    const resetForm = document.getElementById('resetForm');
+    if (resetForm) {
+        resetForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('resetEmail').value.trim();
+            const code = document.getElementById('resetCode').value.trim();
+            const newPassword = document.getElementById('resetNewPassword').value;
+            const confirmPassword = document.getElementById('resetConfirmPassword').value;
+            const errorDiv = document.getElementById('resetError');
+            errorDiv.style.display = 'none';
+
+            if (!email || !code || !newPassword || !confirmPassword) {
+                errorDiv.innerText = '请填写所有字段';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            if (newPassword.length < 8) {
+                errorDiv.innerText = '密码长度至少为8位';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            if (newPassword !== confirmPassword) {
+                errorDiv.innerText = '两次输入的密码不一致';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            try {
+                const res = await fetch('/reset-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, code, new_password: newPassword })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(data.message);
+                    const resetModal = bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal'));
+                    resetModal.hide();
+                    const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
+                    loginModal.show();
+                    // 清空表单
+                    resetForm.reset();
+                } else {
+                    errorDiv.innerText = data.message || '重置失败';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (err) {
+                errorDiv.innerText = '网络错误';
+                errorDiv.style.display = 'block';
+            }
+        });
+    }
+
+    // 重置弹窗中的“去登录”链接
+    const backToLoginLink = document.getElementById('backToLoginLink');
+    if (backToLoginLink) {
+        backToLoginLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            const resetModal = bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal'));
+            resetModal.hide();
+            const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
+            loginModal.show();
         });
     }
 

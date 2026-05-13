@@ -31,7 +31,7 @@ function getDomainFavicon(url) {
 
 // 搜索引擎配置（与之前相同）
 const searchEngines = [
-    { name: '本地搜索', iconClass: 'fas fa-search', type: 'local', url: '' },
+    { name: '搜索书签', iconClass: 'fas fa-search', type: 'local', url: '' },
     { name: '谷歌', iconClass: 'fab fa-google', type: 'web', url: 'https://www.google.com/search?q=' },
     { name: '百度', iconClass: 'fas fa-paw', type: 'web', url: 'https://www.baidu.com/s?wd=' },
     { name: '必应', iconClass: 'fab fa-microsoft', type: 'web', url: 'https://www.bing.com/search?q=' },
@@ -278,13 +278,13 @@ function initSearch() {
                 const iconClass = this.dataset.iconclass;
                 document.getElementById('selectedEngineIcon').innerHTML = `<i class="${iconClass}"></i>`;
                 currentEngine = searchEngines.find(e => e.name === name) || searchEngines[0];
-                searchInput.placeholder = type === 'local' ? '点击左侧图标切换搜索引擎，可本地搜索' : `请输入关键字跳转至${name}搜索`;
+                searchInput.placeholder = type === 'local' ? '点击左侧图标切换搜索引擎，默认搜索书签' : `请输入关键字跳转至${name}搜索`;
                 engineDropdown.classList.remove('show');
             });
         });
     }
 
-    searchInput.placeholder = '点击左侧图标切换搜索引擎，可本地搜索';
+    searchInput.placeholder = '点击左侧图标切换搜索引擎，默认搜索书签';
     document.getElementById('selectedEngineIcon').innerHTML = `<i class="${searchEngines[0].iconClass}"></i>`;
     engineSelector?.addEventListener('click', (e) => {
         e.stopPropagation();
