@@ -393,12 +393,13 @@ body {
 
 /* 卡片样式 */
 .card {
-    border: 1px solid var(--card-border);
+    border: 1px solid #eef2f6;  /* #eef2f6 #e6ecf2 */
     border-radius: 12px;
     transition: all 0.15s;
     cursor: pointer;
     margin-bottom: 20px;
     position: relative;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
 }
 .card:hover {
     box-shadow: 0 8px 20px rgba(0,20,50,0.08);
@@ -962,4 +963,16 @@ body {
 #loginModal .modal-footer {
     padding-left: 1rem !important;
     padding-right: 1rem !important;
+}
+.category-section {
+    margin-bottom: 2rem;
+}
+.category-section-title {
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: #1e2a3a;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
 }

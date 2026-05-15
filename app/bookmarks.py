@@ -17,12 +17,29 @@ bp = Blueprint('bookmarks', __name__)
 @bp.route('/list')
 def list_bookmarks():
     if current_user.is_authenticated:
+        # 登录用户：返回自己的所有书签和所有分类
         bookmarks = Bookmark.query.filter_by(user_id=current_user.id).all()
         categories = Category.query.filter_by(user_id=current_user.id).all()
     else:
+        # 未登录用户：只返回已审核通过的公开书签
         bookmarks = Bookmark.query.filter_by(status='approved').all()
-        categories = Category.query.all()
+        # 收集有公开书签的分类名称
+        categories_with_approved = set(b.category for b in bookmarks)
+        # 获取所有分类（用于查找父级）
+        all_categories = Category.query.all()
+        cat_dict = {c.name: c for c in all_categories}
+        needed_cats = set()
+        for cat_name in categories_with_approved:
+            needed_cats.add(cat_name)
+            # 递归添加父分类
+            parent = cat_dict.get(cat_name).parent if cat_name in cat_dict else None
+            while parent:
+                needed_cats.add(parent)
+                parent = cat_dict.get(parent).parent if parent in cat_dict else None
+        # 查询需要的分类
+        categories = [c for c in all_categories if c.name in needed_cats]
 
+    # 构建书签数据
     bookmarks_data = []
     for b in bookmarks:
         bookmarks_data.append({

@@ -6,3 +6,4 @@ static/favicons
 instance
 .env
 __pycache__
+app/__pycache__/

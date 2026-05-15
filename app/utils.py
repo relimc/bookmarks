@@ -4,7 +4,6 @@ import string
 import hashlib
 import requests
 from urllib.parse import urljoin, urlparse
-from bs4 import BeautifulSoup
 from flask_mail import Message
 from . import mail
 
@@ -80,3 +79,19 @@ def extract_icon_url(soup, base_url):
         base = f"{parsed.scheme}://{parsed.netloc}"
         candidates.append(f"{base}/favicon.ico")
     return candidates[0] if candidates else ''
+
+def send_review_result_email(user_email, bookmark_title, is_approved):
+    """发送审核结果通知邮件"""
+    subject = "【书签导航】书签审核结果通知"
+    status = "已通过" if is_approved else "已被拒绝"
+    if is_approved:
+        body = f"您好，您提交的书签《{bookmark_title}》已通过管理员审核，现在可以在网站首页看到啦。感谢您的分享！"
+    else:
+        body = f"您好，您提交的书签《{bookmark_title}》未通过审核。如有疑问，请联系管理员。"
+    msg = Message(subject, recipients=[user_email], body=body)
+    try:
+        mail.send(msg)
+        return True
+    except Exception as e:
+        print(f"发送审核邮件失败: {e}")
+        return False
