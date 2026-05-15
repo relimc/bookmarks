@@ -25,7 +25,7 @@ def create_app():
                 static_folder=static_dir)
 
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///bookmarks.db'
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///bookmarks.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     # 邮件配置从环境变量读取
