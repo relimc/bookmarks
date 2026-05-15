@@ -340,21 +340,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     const sendCodeBtn = document.getElementById('sendCodeBtn');
     if (sendCodeBtn) {
         let countdown = 0;
+        let canSend = true;
+
         sendCodeBtn.addEventListener('click', async () => {
-            if (countdown > 0) {
-                return; // 倒计时中不可点击
-            }
+            if (!canSend || countdown > 0) return;
             const email = document.getElementById('regEmail').value.trim();
             if (!email) {
                 alert('请先填写邮箱');
                 return;
             }
-            // 简单邮箱格式校验
             const emailRegex = /^[^\s@]+@([^\s@.,]+\.)+[^\s@.,]{2,}$/;
             if (!emailRegex.test(email)) {
                 alert('邮箱格式不正确');
                 return;
             }
+
+            // 立即禁用按钮，显示“发送中”，防止重复点击
+            canSend = false;
+            const originalText = sendCodeBtn.innerText;
+            sendCodeBtn.disabled = true;
+            sendCodeBtn.innerText = '发送中...';
+
             try {
                 const res = await fetch('/send_verification', {
                     method: 'POST',
@@ -363,15 +369,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
                 const data = await res.json();
                 if (data.success) {
-                    alert('验证码已发送，请查收邮件');
-                    // 开始倒计时 60 秒
+                    alert('验证码已发送，请注意查收');
+                    // 开始倒计时60秒
                     countdown = 60;
-                    sendCodeBtn.disabled = true;
                     sendCodeBtn.innerText = `${countdown}秒后重试`;
                     const timer = setInterval(() => {
                         countdown--;
                         if (countdown <= 0) {
                             clearInterval(timer);
+                            canSend = true;
                             sendCodeBtn.disabled = false;
                             sendCodeBtn.innerText = '获取验证码';
                         } else {
@@ -380,9 +386,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }, 1000);
                 } else {
                     alert(data.message || '发送失败');
+                    // 恢复按钮状态
+                    canSend = true;
+                    sendCodeBtn.disabled = false;
+                    sendCodeBtn.innerText = originalText;
                 }
             } catch (err) {
+                console.error(err);
                 alert('网络错误，请稍后重试');
+                canSend = true;
+                sendCodeBtn.disabled = false;
+                sendCodeBtn.innerText = originalText;
             }
         });
     }
@@ -399,12 +413,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // 获取重置验证码按钮
+    // 重置密码：发送验证码按钮
     const sendResetCodeBtn = document.getElementById('sendResetCodeBtn');
     if (sendResetCodeBtn) {
         let countdown = 0;
+        let canSend = true;
+
         sendResetCodeBtn.addEventListener('click', async () => {
-            if (countdown > 0) return;
+            if (!canSend || countdown > 0) return;
             const email = document.getElementById('resetEmail').value.trim();
             if (!email) {
                 alert('请填写邮箱');
@@ -415,22 +431,30 @@ document.addEventListener('DOMContentLoaded', async () => {
                 alert('邮箱格式不正确');
                 return;
             }
+
+            // 立即禁用按钮，显示“发送中...”
+            canSend = false;
+            const originalText = sendResetCodeBtn.innerText;
+            sendResetCodeBtn.disabled = true;
+            sendResetCodeBtn.innerText = '发送中...';
+
             try {
-                const res = await fetch('/forgot-password', { // 注意蓝图前缀
+                const res = await fetch('/forgot-password', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email })
                 });
                 const data = await res.json();
                 if (data.success) {
-                    alert(data.message || '验证码已发送，请查收邮件');
+                    alert(data.message || '验证码已发送，请注意查收');
+                    // 开始倒计时 60 秒
                     countdown = 60;
-                    sendResetCodeBtn.disabled = true;
                     sendResetCodeBtn.innerText = `${countdown}秒后重试`;
                     const timer = setInterval(() => {
                         countdown--;
                         if (countdown <= 0) {
                             clearInterval(timer);
+                            canSend = true;
                             sendResetCodeBtn.disabled = false;
                             sendResetCodeBtn.innerText = '获取验证码';
                         } else {
@@ -438,10 +462,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                         }
                     }, 1000);
                 } else {
-                    alert(data.message || '发送失败');
+                    alert(data.message || '发送失败，请稍后重试');
+                    // 恢复按钮
+                    canSend = true;
+                    sendResetCodeBtn.disabled = false;
+                    sendResetCodeBtn.innerText = originalText;
                 }
             } catch (err) {
-                alert('网络错误');
+                console.error(err);
+                alert('网络错误，请稍后重试');
+                canSend = true;
+                sendResetCodeBtn.disabled = false;
+                sendResetCodeBtn.innerText = originalText;
             }
         });
     }
