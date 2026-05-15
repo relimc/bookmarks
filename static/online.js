@@ -210,6 +210,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (loginModal) loginModal.hide();
                     if (window.bookmarkApp) await window.bookmarkApp.loadData();
                     if (typeof updateUserStatusButton === 'function') await updateUserStatusButton();
+
+                    window.isLoggedIn = true;
+                    bootstrap.Modal.getInstance(document.getElementById('loginModal')).hide();
+                    await window.bookmarkApp.loadData();
+                    // 强制刷新当前激活的分类视图，使卡片上的编辑按钮图标更新
+                    if (window.bookmarkApp.activeCategoryKey) {
+                        window.bookmarkApp.setActiveCategory(window.bookmarkApp.activeCategoryKey);
+                    } else {
+                        window.bookmarkApp.setActiveCategory('__recommend__');
+                    }
+
                 } else {
                     if (errorDiv) {
                         errorDiv.innerText = data.message || '登录失败，请检查用户名或密码';

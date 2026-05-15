@@ -103,11 +103,11 @@
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer d-flex justify-content-between align-items-center">
+                <div class="modal-footer d-flex">
                     {% block bookmark_footer_left %}{% endblock %}
                     <div class="d-flex gap-2">
                         <button type="button" class="btn btn-danger" id="deleteBtn" style="display: none;">删除</button>
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="cancelBtn">取消</button>
                         <button type="button" class="btn btn-primary" id="submitBtn">保存</button>
                     </div>
                 </div>

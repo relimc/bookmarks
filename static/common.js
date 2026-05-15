@@ -490,7 +490,7 @@ class BookmarkApp {
             filtered.sort((a, b) => (b.click_count || 0) - (a.click_count || 0));
             filtered = filtered.slice(0, 30);
             if (filtered.length === 0) {
-                container.innerHTML = '<div class="text-center p-5" style="color:#8fa3bc;">✨ 暂无推荐书签，点击“新增”添加</div>';
+                container.innerHTML = '<div class="text-center p-5" style="color:#8fa3bc;">✨ 暂无书签，使用Ctrl+Shift+V快捷键添加</div>';
                 return;
             }
             let html = '<div class="row g-3">';
@@ -536,7 +536,7 @@ class BookmarkApp {
 
         // 如果没有书签，显示空状态
         if (filtered.length === 0) {
-            container.innerHTML = '<div class="text-center p-5" style="color:#8fa3bc;">✨ 暂无书签，点击“新增”添加</div>';
+            container.innerHTML = '<div class="text-center p-5" style="color:#8fa3bc;">✨ 暂无书签，使用Ctrl+Shift+V快捷键添加</div>';
             return;
         }
 
@@ -721,6 +721,12 @@ class BookmarkApp {
         const deleteBtn = document.getElementById('deleteBtn');
         const submitBtn = document.getElementById('submitBtn');
         const cancelBtn = document.querySelector('#bookmarkModal .btn-secondary');
+        const modalFooter = document.querySelector('#bookmarkModal .modal-footer');
+        let privateContainer = document.getElementById('privateCheckboxContainer');
+        if (!privateContainer) {
+            privateContainer = document.querySelector('#bookmarkModal .modal-footer .form-check');
+        }
+        const rightButtonGroup = document.querySelector('#bookmarkModal .modal-footer .d-flex.gap-2');
 
         // 清空可能存在的旧删除事件
         if (deleteBtn) deleteBtn.onclick = null;
@@ -748,26 +754,20 @@ class BookmarkApp {
         }
 
         if (!isLoggedIn) {
-            // 未登录只读模式
-            titleInput.readOnly = true;
-            descInput.readOnly = true;
-            if (tagsInput) tagsInput.readOnly = true;
-            if (this.categorySelect) this.categorySelect.disabled = true;
+            // 隐藏私密容器
+            if (privateContainer) privateContainer.style.display = 'none';
+            // 让右侧按钮组靠右
+            if (rightButtonGroup) rightButtonGroup.classList.add('ms-auto');
+            if (cancelBtn) cancelBtn.innerText = '关闭';
             if (deleteBtn) deleteBtn.style.display = 'none';
             if (submitBtn) submitBtn.style.display = 'none';
-            if (cancelBtn) cancelBtn.innerText = '关闭';
         } else {
-            // 已登录可编辑
-            titleInput.readOnly = false;
-            descInput.readOnly = false;
-            if (tagsInput) tagsInput.readOnly = false;
-            if (this.categorySelect) this.categorySelect.disabled = false;
-            if (deleteBtn) {
-                deleteBtn.style.display = 'block';
-                deleteBtn.onclick = () => this.handleDelete();
-            }
-            if (submitBtn) submitBtn.style.display = 'block';
+            if (privateContainer) privateContainer.style.display = '';
+            if (rightButtonGroup) rightButtonGroup.classList.remove('ms-auto');
             if (cancelBtn) cancelBtn.innerText = '取消';
+            const isEdit = !!document.getElementById('editingId').value;
+            if (deleteBtn) deleteBtn.style.display = isEdit ? 'block' : 'none';
+            if (submitBtn) submitBtn.style.display = 'block';
         }
         modal.show();
     }
