@@ -188,6 +188,9 @@
         <label class="form-check-label" for="isPrivateCheckbox">私密</label>
         <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" title="仅自己可见。取消勾选将变为公开书签。"></i>
     </div>
+    <div id="sharedByContainer" style="display: none; font-size: 0.9rem; color: #6c757d;">
+        <i class="fas fa-user-friends"></i> 共享人：<span id="sharedByUsername"></span>
+    </div>
 {% endblock %}
 
 {% block scripts %}

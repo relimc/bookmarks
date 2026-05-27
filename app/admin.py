@@ -2,13 +2,14 @@ from flask import Blueprint, jsonify, render_template
 from flask_login import login_required, current_user
 from . import db
 from .models import Bookmark, User
+from .utils import is_admin_user
 
 bp = Blueprint('admin', __name__, url_prefix='/admin')
 
 @bp.route('/pending')
 @login_required
 def admin_pending():
-    if current_user.username != 'admin':
+    if not is_admin_user():
         return jsonify({'error': 'Forbidden'}), 403
     pending = Bookmark.query.filter_by(status='pending').all()
     return jsonify([{
@@ -23,7 +24,7 @@ def admin_pending():
 @bp.route('/approve/<int:id>', methods=['POST'])
 @login_required
 def admin_approve(id):
-    if current_user.username != 'admin':
+    if not is_admin_user():
         return jsonify({'error': 'Forbidden'}), 403
     b = Bookmark.query.get(id)
     if not b:
@@ -43,7 +44,7 @@ def admin_approve(id):
 @bp.route('/reject/<int:id>', methods=['POST'])
 @login_required
 def admin_reject(id):
-    if current_user.username != 'admin':
+    if not is_admin_user():
         return jsonify({'error': 'Forbidden'}), 403
     b = Bookmark.query.get(id)
     if not b:
@@ -63,6 +64,6 @@ def admin_reject(id):
 @bp.route('')
 @login_required
 def admin_page():
-    if current_user.username != 'admin':
+    if not is_admin_user():
         return 'Forbidden', 403
     return render_template('admin.html')

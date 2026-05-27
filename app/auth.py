@@ -97,7 +97,12 @@ def logout():
 @bp.route('/user')
 @login_required
 def get_current_user():
-    return jsonify({'username': current_user.username})
+    from .utils import is_admin_user  # 确保导入正确的判断函数
+    return jsonify({
+        'id': current_user.id,
+        'username': current_user.username,
+        'is_admin': is_admin_user()
+    })
 
 
 @bp.route('/forgot-password', methods=['POST'])

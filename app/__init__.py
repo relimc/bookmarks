@@ -28,6 +28,11 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///bookmarks.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+    # 管理员列表配置（支持逗号分隔多个用户名）
+    admin_users_str = os.environ.get('ADMIN_USERS', 'admin')
+    admin_users = [u.strip() for u in admin_users_str.split(',') if u.strip()]
+    app.config['ADMIN_USERS'] = admin_users
+
     # 邮件配置从环境变量读取
     app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'localhost')
     app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 1025))

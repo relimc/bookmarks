@@ -3,7 +3,7 @@ import requests
 from flask import Blueprint, request, jsonify, current_app
 from flask_login import login_required, current_user
 from bs4 import BeautifulSoup
-from .utils import download_icon, get_headers, extract_icon_url
+from .utils import download_icon, get_headers, extract_icon_url, is_admin_user
 import random
 import base64
 import os
@@ -51,7 +51,9 @@ def list_bookmarks():
             'icon': b.icon,
             'tags': b.tags.split(',') if b.tags else [],
             'click_count': b.click_count,
-            'status': b.status
+            'status': b.status,
+            'user_id': b.user_id,  # 新增
+            'username': b.user.username  # 新增（需确保查询时 join 或 eager load，或单独查询）
         })
 
     categories_data = {}
@@ -86,7 +88,10 @@ def add_bookmark():
     status = req.get('status', 'private')
 
     if status == 'public':
-        status = 'pending'
+        if is_admin_user():
+            status = 'approved'  # 管理员自动通过
+        else:
+            status = 'pending'
 
     if category and not Category.query.filter_by(user_id=current_user.id, name=category).first() and category_icon:
         new_cat = Category(
@@ -152,7 +157,14 @@ def edit_bookmark(item_id):
         bookmark.tags = ','.join(tags) if tags else ''
     if 'status' in req:
         status = req['status']
-        bookmark.status = 'pending' if status == 'public' else 'private'
+        if status == 'public':
+            if is_admin_user():
+                status = 'approved'
+            else:
+                status = 'pending'
+        else:
+            status = 'private'
+        bookmark.status = status  # 这行是必需的！
 
     db.session.commit()
     return jsonify({'success': True, 'data': {}})
@@ -320,7 +332,9 @@ def recommend():
         'icon': b.icon,
         'tags': b.tags.split(',') if b.tags else [],
         'click_count': b.click_count,
-        'status': b.status
+        'status': b.status,
+        'user_id': b.user_id,         # 新增
+        'username': b.user.username   # 新增（需确保查询时 join 或 eager load，或单独查询）
     } for b in bookmarks])
 
 @bp.route('/fetch-metadata', methods=['POST'])

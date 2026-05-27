@@ -2,6 +2,7 @@
 
 // 全局登录状态标志
 window.isLoggedIn = false;
+window.isOnline = true;
 
 class OnlineDataAdapter {
     async getAllData() {
@@ -93,19 +94,25 @@ async function updateUserStatusButton() {
         const res = await fetch('/user');
         if (res.ok) {
             const userData = await res.json();
+            window.currentUserId = userData.id;
+            window.isAdmin = userData.is_admin === true;
+            window.isLoggedIn = true;   // 关键：设置登录标志
             btn.innerHTML = '<i class="fas fa-sign-out-alt"></i> 退出登录';
             btn.title = `当前用户：${userData.username}`;
-            window.isLoggedIn = true;
         } else {
+            window.currentUserId = null;
+            window.isAdmin = false;
+            window.isLoggedIn = false;  // 未登录
             btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 尚未登录';
             btn.title = '点击登录';
-            window.isLoggedIn = false;
         }
     } catch (e) {
-        // 静默处理
+        console.error(e);
+        window.currentUserId = null;
+        window.isAdmin = false;
+        window.isLoggedIn = false;
         btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 尚未登录';
         btn.title = '点击登录';
-        window.isLoggedIn = false;
     }
 }
 
@@ -134,6 +141,8 @@ function switchModal(closeModalId, openModalId) {
 
 // 初始化应用
 document.addEventListener('DOMContentLoaded', async () => {
+    await updateUserStatusButton();
+
     const adapter = new OnlineDataAdapter();
     const app = new BookmarkApp(adapter);
     window.bookmarkApp = app;

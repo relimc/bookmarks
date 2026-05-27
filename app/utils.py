@@ -6,6 +6,8 @@ import requests
 from urllib.parse import urljoin, urlparse
 from flask_mail import Message
 from . import mail
+from flask import current_app
+from flask_login import current_user
 
 def download_icon(icon_url):
     if not icon_url:
@@ -95,3 +97,11 @@ def send_review_result_email(user_email, bookmark_title, is_approved):
     except Exception as e:
         print(f"发送审核邮件失败: {e}")
         return False
+
+def is_admin_user(user=None):
+    if user is None:
+        user = current_user
+    if not user.is_authenticated:
+        return False
+    admin_list = current_app.config.get('ADMIN_USERS', [])
+    return user.username in admin_list

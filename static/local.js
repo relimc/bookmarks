@@ -4,6 +4,9 @@ window.isLoggedIn = true;
 let db = null;
 const DB_NAME = 'BookmarkDB';
 const DB_VERSION = 3;
+window.isAdmin = false
+window.isOnline = false;          // 标记为本地版
+window.currentUserId = null;      // 本地版无用户ID
 
 function openDB() {
     return new Promise((resolve, reject) => {

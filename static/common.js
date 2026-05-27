@@ -712,6 +712,34 @@ class BookmarkApp {
         const item = window.allData.bookmarks.find(b => b.id === id);
         if (!item) return;
         const isLoggedIn = window.isLoggedIn !== false;
+        const isOwner = (item.user_id === currentUserId); // 需要获取当前登录用户的ID
+
+
+        const isOnline = window.isOnline === true;
+        let showSharedBy = false;
+        let sharedByUsername = '';
+
+        if (isOnline) {
+            // 仅在线版判断是否显示共享人
+            const currentId = window.currentUserId;
+            const isOwner = (currentId && item.user_id === currentId);
+            if (!isOwner) {
+                showSharedBy = true;
+                sharedByUsername = item.username || '未知用户';
+            }
+        }
+
+        // 获取共享人容器
+        const sharedByContainer = document.getElementById('sharedByContainer');
+        const sharedBySpan = document.getElementById('sharedByUsername');
+
+        if (showSharedBy && sharedByContainer) {
+            sharedByContainer.style.display = '';
+            if (sharedBySpan) sharedBySpan.innerText = sharedByUsername;
+        } else if (sharedByContainer) {
+            sharedByContainer.style.display = 'none';
+        }
+
         const modal = new bootstrap.Modal(document.getElementById('bookmarkModal'));
         const titleInput = document.getElementById('titleInput');
         const descInput = document.getElementById('descriptionInput');
@@ -723,6 +751,8 @@ class BookmarkApp {
         const cancelBtn = document.querySelector('#bookmarkModal .btn-secondary');
         const modalFooter = document.querySelector('#bookmarkModal .modal-footer');
         let privateContainer = document.getElementById('privateCheckboxContainer');
+
+
         if (!privateContainer) {
             privateContainer = document.querySelector('#bookmarkModal .modal-footer .form-check');
         }
@@ -824,7 +854,6 @@ class BookmarkApp {
         if (!url) { alert('网址不能为空'); return; }
 
         let category = document.getElementById('categorySelect').value;
-
         if (!category) {
             category = '未分类';
         }
@@ -834,15 +863,18 @@ class BookmarkApp {
         const tagsRaw = document.getElementById('bookmarkTags').value.trim();
         const tags = tagsRaw ? tagsRaw.split('/').map(t => t.trim()).filter(t => t) : [];
 
-        // 私密复选框
         const isPrivateCheckbox = document.getElementById('isPrivateCheckbox');
         const isPrivate = isPrivateCheckbox ? isPrivateCheckbox.checked : true;
         let status = isPrivate ? 'private' : 'public';
 
+        // 公开书签的确认弹窗：仅对非管理员用户显示
         if (status === 'public') {
-            if (!confirm('公开书签需管理员审核后，才能发布。是否确定提交审核？')) {
-                return;
+            if (!window.isAdmin) {
+                if (!confirm('公开书签需管理员审核后，才能发布。是否确定提交审核？')) {
+                    return;
+                }
             }
+            // 管理员直接通过，无需弹窗
         }
 
         let icon = '';
