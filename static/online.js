@@ -21,7 +21,7 @@ class OnlineDataAdapter {
             description: bookmark.description,
             icon: bookmark.icon,
             tags: bookmark.tags,
-            status: 'private'
+            status: bookmark.status || 'private'   // 动态读取
         };
         const res = await fetch('/add', {
             method: 'POST',

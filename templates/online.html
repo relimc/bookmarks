@@ -183,13 +183,15 @@
 {% endblock %}
 
 {% block bookmark_footer_left %}
-    <div class="form-check me-auto" id="privateCheckboxContainer">
-        <input class="form-check-input" type="checkbox" id="isPrivateCheckbox" checked>
-        <label class="form-check-label" for="isPrivateCheckbox">私密</label>
-        <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" title="仅自己可见。取消勾选将变为公开书签。"></i>
-    </div>
-    <div id="sharedByContainer" style="display: none; font-size: 0.9rem; color: #6c757d;">
-        <i class="fas fa-user-friends"></i> 共享人：<span id="sharedByUsername"></span>
+    <div class="d-flex align-items-center gap-3">
+        <div class="form-check" id="privateCheckboxContainer">
+            <input class="form-check-input" type="checkbox" id="isPrivateCheckbox" checked>
+            <label class="form-check-label" for="isPrivateCheckbox">私密</label>
+            <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" title="仅自己可见。取消勾选将变为公开书签。"></i>
+        </div>
+        <div id="sharedByContainer" style="display: none; font-size: 0.9rem; color: #6c757d;">
+            <i class="fas fa-user-friends"></i> 共享人：<span id="sharedByUsername"></span>
+        </div>
     </div>
 {% endblock %}
 

@@ -16,6 +16,7 @@ bp = Blueprint('bookmarks', __name__)
 
 @bp.route('/list')
 def list_bookmarks():
+
     if current_user.is_authenticated:
         # 登录用户：返回自己的所有书签和所有分类
         bookmarks = Bookmark.query.filter_by(user_id=current_user.id).all()
@@ -38,7 +39,7 @@ def list_bookmarks():
                 parent = cat_dict.get(parent).parent if parent in cat_dict else None
         # 查询需要的分类
         categories = [c for c in all_categories if c.name in needed_cats]
-
+    print(f"Returning {len(bookmarks)} approved bookmarks for public")
     # 构建书签数据
     bookmarks_data = []
     for b in bookmarks:
@@ -72,6 +73,8 @@ def list_bookmarks():
 @login_required
 def add_bookmark():
     req = request.get_json()
+    print("Request JSON:", req)
+    print("Status from JSON:", req.get('status'))
     url = req.get('url', '').strip()
     if not url:
         return jsonify({'success': False, 'message': 'URL不能为空'}), 400
@@ -117,6 +120,7 @@ def add_bookmark():
         tags=','.join(tags) if tags else '',
         status=status
     )
+    print(f"User: {current_user.username}, is_admin: {is_admin_user()}, final status: {status}")
     db.session.add(new_bookmark)
     db.session.commit()
     return jsonify({'success': True, 'data': {}})

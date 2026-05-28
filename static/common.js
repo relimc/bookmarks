@@ -711,94 +711,82 @@ class BookmarkApp {
     openEditModal(id) {
         const item = window.allData.bookmarks.find(b => b.id === id);
         if (!item) return;
+
         const isLoggedIn = window.isLoggedIn !== false;
-        const isOwner = (item.user_id === currentUserId); // 需要获取当前登录用户的ID
+        const isOwner = (window.currentUserId && item.user_id === window.currentUserId);
 
+        // 获取共享人容器和私密容器
+        const sharedByContainer = document.getElementById('sharedByContainer');
+        const sharedBySpan = document.getElementById('sharedByUsername');
+        const privateContainer = document.getElementById('privateCheckboxContainer');
+        const isPrivateCheckbox = document.getElementById('isPrivateCheckbox');
 
-        const isOnline = window.isOnline === true;
-        let showSharedBy = false;
-        let sharedByUsername = '';
-
-        if (isOnline) {
-            // 仅在线版判断是否显示共享人
-            const currentId = window.currentUserId;
-            const isOwner = (currentId && item.user_id === currentId);
-            if (!isOwner) {
-                showSharedBy = true;
-                sharedByUsername = item.username || '未知用户';
+        // 控制显示：未登录或不是自己的书签 -> 显示共享人，隐藏私密
+        if (!isLoggedIn || !isOwner) {
+            if (sharedByContainer) {
+                sharedByContainer.style.display = '';
+                if (sharedBySpan) sharedBySpan.innerText = item.username || '匿名用户';
+            }
+            if (privateContainer) privateContainer.style.display = 'none';
+            if (isPrivateCheckbox) isPrivateCheckbox.disabled = true;
+        } else {
+            // 自己的书签：隐藏共享人，显示私密复选框
+            if (sharedByContainer) sharedByContainer.style.display = 'none';
+            if (privateContainer) privateContainer.style.display = '';
+            if (isPrivateCheckbox) {
+                isPrivateCheckbox.disabled = false;
+                isPrivateCheckbox.checked = (item.status === 'private');
             }
         }
 
-        // 获取共享人容器
-        const sharedByContainer = document.getElementById('sharedByContainer');
-        const sharedBySpan = document.getElementById('sharedByUsername');
-
-        if (showSharedBy && sharedByContainer) {
-            sharedByContainer.style.display = '';
-            if (sharedBySpan) sharedBySpan.innerText = sharedByUsername;
-        } else if (sharedByContainer) {
-            sharedByContainer.style.display = 'none';
-        }
-
-        const modal = new bootstrap.Modal(document.getElementById('bookmarkModal'));
+        // 填充表单数据
+        const modalTitle = document.getElementById('modalTitle');
+        const editingId = document.getElementById('editingId');
+        const urlInput = document.getElementById('urlInput');
         const titleInput = document.getElementById('titleInput');
         const descInput = document.getElementById('descriptionInput');
         const tagsInput = document.getElementById('bookmarkTags');
-        const urlInput = document.getElementById('urlInput');
-        const isPrivateCheckbox = document.getElementById('isPrivateCheckbox');
+        const categorySelect = document.getElementById('categorySelect');
         const deleteBtn = document.getElementById('deleteBtn');
         const submitBtn = document.getElementById('submitBtn');
         const cancelBtn = document.querySelector('#bookmarkModal .btn-secondary');
-        const modalFooter = document.querySelector('#bookmarkModal .modal-footer');
-        let privateContainer = document.getElementById('privateCheckboxContainer');
 
-
-        if (!privateContainer) {
-            privateContainer = document.querySelector('#bookmarkModal .modal-footer .form-check');
-        }
-        const rightButtonGroup = document.querySelector('#bookmarkModal .modal-footer .d-flex.gap-2');
-
-        // 清空可能存在的旧删除事件
-        if (deleteBtn) deleteBtn.onclick = null;
-
-        // 设置标题
-        document.getElementById('modalTitle').innerText = isLoggedIn ? '✏️ 编辑书签' : 'ℹ️ 书签详情';
-        document.getElementById('editingId').value = id;
+        modalTitle.innerText = isLoggedIn ? '✏️ 编辑书签' : 'ℹ️ 书签详情';
+        editingId.value = id;
         urlInput.value = item.url;
         urlInput.readOnly = true;
         titleInput.value = item.title || '';
         descInput.value = item.description || '';
         if (tagsInput) tagsInput.value = (item.tags || []).join('/');
-
-        // 更新分类下拉框并选中当前分类
         this.updateCategorySelect(item.category);
-        if (this.categorySelect) {
-            this.categorySelect.value = item.category;
-            this._prevCategoryValue = item.category;
-        }
-
-        // 私密复选框状态
-        if (isPrivateCheckbox) {
-            isPrivateCheckbox.checked = (item.status === 'private');
-            isPrivateCheckbox.disabled = !isLoggedIn;
-        }
+        categorySelect.value = item.category;
 
         if (!isLoggedIn) {
-            // 隐藏私密容器
-            if (privateContainer) privateContainer.style.display = 'none';
-            // 让右侧按钮组靠右
-            if (rightButtonGroup) rightButtonGroup.classList.add('ms-auto');
-            if (cancelBtn) cancelBtn.innerText = '关闭';
+            // 未登录：只读模式，隐藏删除/保存按钮，取消按钮变为“关闭”
+            titleInput.readOnly = true;
+            descInput.readOnly = true;
+            if (tagsInput) tagsInput.readOnly = true;
+            categorySelect.disabled = true;
             if (deleteBtn) deleteBtn.style.display = 'none';
             if (submitBtn) submitBtn.style.display = 'none';
+            if (cancelBtn) cancelBtn.innerText = '关闭';
+            if (isPrivateCheckbox) isPrivateCheckbox.disabled = true;
         } else {
-            if (privateContainer) privateContainer.style.display = '';
-            if (rightButtonGroup) rightButtonGroup.classList.remove('ms-auto');
-            if (cancelBtn) cancelBtn.innerText = '取消';
-            const isEdit = !!document.getElementById('editingId').value;
-            if (deleteBtn) deleteBtn.style.display = isEdit ? 'block' : 'none';
+            // 已登录：可编辑模式（但网址仍只读）
+            titleInput.readOnly = false;
+            descInput.readOnly = false;
+            if (tagsInput) tagsInput.readOnly = false;
+            categorySelect.disabled = false;
+            if (deleteBtn) {
+                deleteBtn.style.display = 'block';
+                deleteBtn.onclick = () => this.handleDelete();
+            }
             if (submitBtn) submitBtn.style.display = 'block';
+            if (cancelBtn) cancelBtn.innerText = '取消';
+            if (isPrivateCheckbox) isPrivateCheckbox.disabled = false;
         }
+
+        const modal = new bootstrap.Modal(document.getElementById('bookmarkModal'));
         modal.show();
     }
 
@@ -837,11 +825,23 @@ class BookmarkApp {
 
     async handleDelete() {
         const id = parseInt(document.getElementById('editingId').value);
+        console.log('handleDelete triggered');
+        console.log('Deleting id:', id);
         if (!id || !confirm('确定删除？')) return;
-        await this.data.deleteBookmark(id);
-        const modal = bootstrap.Modal.getInstance(document.getElementById('bookmarkModal'));
-        modal.hide();
-        await this.loadData();
+        const deleteBtn = document.getElementById('deleteBtn');
+        deleteBtn.disabled = true;
+        deleteBtn.textContent = '删除中...';
+        try {
+            await this.data.deleteBookmark(id);
+            const modal = bootstrap.Modal.getInstance(document.getElementById('bookmarkModal'));
+            modal.hide();
+            await this.loadData();
+        } catch (err) {
+            alert('删除失败：' + err.message);
+        } finally {
+            deleteBtn.disabled = false;
+            deleteBtn.textContent = '删除';
+        }
     }
 
     async handleSubmit() {
@@ -866,6 +866,8 @@ class BookmarkApp {
         const isPrivateCheckbox = document.getElementById('isPrivateCheckbox');
         const isPrivate = isPrivateCheckbox ? isPrivateCheckbox.checked : true;
         let status = isPrivate ? 'private' : 'public';
+        console.log('isPrivateCheckbox checked:', isPrivateCheckbox ? isPrivateCheckbox.checked : 'no element', 'status:', status);
+
 
         // 公开书签的确认弹窗：仅对非管理员用户显示
         if (status === 'public') {
@@ -892,6 +894,7 @@ class BookmarkApp {
         const originalText = submitBtn.innerHTML;
         submitBtn.disabled = true;
         submitBtn.innerHTML = '保存中...';
+        console.log('Sending bookmark:', JSON.stringify(bookmark));
 
         try {
             if (editingIdVal) {
@@ -1399,49 +1402,104 @@ class BookmarkApp {
         this.removeModalBackdrop();
 
         if (!this._pendingBookmarkData) return;
-        // 重新打开书签弹窗
-        const bookmarkModal = new bootstrap.Modal(document.getElementById('bookmarkModal'));
-        // 先设置表单值
+
+        // 1. 恢复表单值
         document.getElementById('editingId').value = this._pendingBookmarkData.editingId;
         document.getElementById('urlInput').value = this._pendingBookmarkData.url;
         document.getElementById('titleInput').value = this._pendingBookmarkData.title;
         document.getElementById('descriptionInput').value = this._pendingBookmarkData.description;
         document.getElementById('bookmarkTags').value = this._pendingBookmarkData.tags;
-        // 更新分类下拉框（此时新分类已存在）
         await this.updateCategorySelect(this._pendingBookmarkData.category);
         document.getElementById('categorySelect').value = this._pendingBookmarkData.category;
         if (document.getElementById('isPrivateCheckbox')) {
             document.getElementById('isPrivateCheckbox').checked = this._pendingBookmarkData.isPrivate;
         }
-        // 设置标题和按钮显示状态
+
+        // 2. 获取当前书签对象（用于共享人判断）
+        const currentId = parseInt(this._pendingBookmarkData.editingId);
+        const currentItem = window.allData.bookmarks.find(b => b.id === currentId);
+
         const isLoggedIn = window.isLoggedIn !== false;
-        const isEdit = !!this._pendingBookmarkData.editingId;
-        if (isEdit) {
-            document.getElementById('modalTitle').innerText = isLoggedIn ? '✏️ 编辑书签' : 'ℹ️ 书签详情';
+        const isOwner = (window.currentUserId && currentItem && currentItem.user_id === window.currentUserId);
+
+        // 3. 共享人与私密容器的控制
+        const sharedByContainer = document.getElementById('sharedByContainer');
+        const sharedBySpan = document.getElementById('sharedByUsername');
+        const privateContainer = document.getElementById('privateCheckboxContainer');
+        const isPrivateCheckbox = document.getElementById('isPrivateCheckbox');
+
+        if (!isLoggedIn || !isOwner) {
+            if (sharedByContainer) {
+                sharedByContainer.style.display = '';
+                if (sharedBySpan) sharedBySpan.innerText = currentItem ? (currentItem.username || '匿名用户') : '未知用户';
+            }
+            if (privateContainer) privateContainer.style.display = 'none';
+            if (isPrivateCheckbox) isPrivateCheckbox.disabled = true;
         } else {
-            document.getElementById('modalTitle').innerText = '📋 新增书签';
+            if (sharedByContainer) sharedByContainer.style.display = 'none';
+            if (privateContainer) privateContainer.style.display = '';
+            if (isPrivateCheckbox) {
+                isPrivateCheckbox.disabled = false;
+                // 状态已在上面设置，无需重复
+            }
         }
+
+        // 4. 设置标题及按钮状态
+        const isEdit = !!this._pendingBookmarkData.editingId;
+        const modalTitle = document.getElementById('modalTitle');
+        if (isEdit) {
+            modalTitle.innerText = isLoggedIn ? '✏️ 编辑书签' : 'ℹ️ 书签详情';
+        } else {
+            modalTitle.innerText = '📋 新增书签';
+        }
+
         const deleteBtn = document.getElementById('deleteBtn');
         const submitBtn = document.getElementById('submitBtn');
         const cancelBtn = document.querySelector('#bookmarkModal .btn-secondary');
-        if (isLoggedIn && isEdit) {
-            if (deleteBtn) deleteBtn.style.display = 'block';
-            if (submitBtn) submitBtn.style.display = 'block';
-            if (cancelBtn) cancelBtn.innerText = '取消';
-            if (deleteBtn) deleteBtn.onclick = () => this.handleDelete();
-        } else if (!isLoggedIn && isEdit) {
-            // 只读模式
-            // ... 已有逻辑
-        } else {
-            // 新增模式
+        const titleInput = document.getElementById('titleInput');
+        const descInput = document.getElementById('descriptionInput');
+        const tagsInput = document.getElementById('bookmarkTags');
+        const categorySelect = document.getElementById('categorySelect');
+
+        if (!isLoggedIn) {
+            // 未登录只读模式
+            titleInput.readOnly = true;
+            descInput.readOnly = true;
+            if (tagsInput) tagsInput.readOnly = true;
+            categorySelect.disabled = true;
             if (deleteBtn) deleteBtn.style.display = 'none';
-            if (submitBtn) submitBtn.style.display = 'block';
-            if (cancelBtn) cancelBtn.innerText = '取消';
+            if (submitBtn) submitBtn.style.display = 'none';
+            if (cancelBtn) cancelBtn.innerText = '关闭';
+            if (isPrivateCheckbox) isPrivateCheckbox.disabled = true;
+        } else {
+            // 已登录可编辑模式
+            titleInput.readOnly = false;
+            descInput.readOnly = false;
+            if (tagsInput) tagsInput.readOnly = false;
+            categorySelect.disabled = false;
+            if (isPrivateCheckbox) isPrivateCheckbox.disabled = false;
+
+            if (isEdit) {
+                if (deleteBtn) {
+                    deleteBtn.style.display = 'block';
+                    deleteBtn.onclick = () => this.handleDelete();
+                }
+                if (submitBtn) submitBtn.style.display = 'block';
+                if (cancelBtn) cancelBtn.innerText = '取消';
+            } else {
+                // 新增模式
+                if (deleteBtn) deleteBtn.style.display = 'none';
+                if (submitBtn) submitBtn.style.display = 'block';
+                if (cancelBtn) cancelBtn.innerText = '取消';
+            }
         }
-        // 确保分类下拉框可用
-        if (this.categorySelect) this.categorySelect.disabled = false;
+
+        // 确保分类下拉框同步（已登录启用，未登录禁用）
+        if (categorySelect) categorySelect.disabled = !isLoggedIn;
+
+        // 5. 显示弹窗并清空暂存数据
+        const bookmarkModal = new bootstrap.Modal(document.getElementById('bookmarkModal'));
         bookmarkModal.show();
-        // 清空暂存数据
         this._pendingBookmarkData = null;
     }
 
