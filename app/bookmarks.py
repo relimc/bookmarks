@@ -39,7 +39,6 @@ def list_bookmarks():
                 parent = cat_dict.get(parent).parent if parent in cat_dict else None
         # 查询需要的分类
         categories = [c for c in all_categories if c.name in needed_cats]
-    print(f"Returning {len(bookmarks)} approved bookmarks for public")
     # 构建书签数据
     bookmarks_data = []
     for b in bookmarks:
@@ -73,8 +72,6 @@ def list_bookmarks():
 @login_required
 def add_bookmark():
     req = request.get_json()
-    print("Request JSON:", req)
-    print("Status from JSON:", req.get('status'))
     url = req.get('url', '').strip()
     if not url:
         return jsonify({'success': False, 'message': 'URL不能为空'}), 400
@@ -120,9 +117,9 @@ def add_bookmark():
         tags=','.join(tags) if tags else '',
         status=status
     )
-    print(f"User: {current_user.username}, is_admin: {is_admin_user()}, final status: {status}")
     db.session.add(new_bookmark)
     db.session.commit()
+    current_app.logger.info(f"用户 {current_user.username} 新增书签: {url}, 分类: {category}, 状态: {status}")
     return jsonify({'success': True, 'data': {}})
 
 @bp.route('/edit/<int:item_id>', methods=['POST'])
@@ -171,6 +168,7 @@ def edit_bookmark(item_id):
         bookmark.status = status  # 这行是必需的！
 
     db.session.commit()
+    current_app.logger.info(f"用户 {current_user.username} 编辑书签 ID: {item_id}, 新分类: {new_category}")
     return jsonify({'success': True, 'data': {}})
 
 @bp.route('/delete/<int:item_id>', methods=['POST'])
@@ -189,6 +187,7 @@ def delete_bookmark(item_id):
             if cat_obj:
                 db.session.delete(cat_obj)
                 db.session.commit()
+    current_app.logger.info(f"用户 {current_user.username} 删除书签 ID: {item_id}")
     return jsonify({'success': True, 'data': {}})
 
 @bp.route('/import', methods=['POST'])
@@ -227,6 +226,7 @@ def import_bookmarks():
         )
         db.session.add(new_bm)
     db.session.commit()
+    current_app.logger.info(f"用户 {current_user.username} 导入书签: {len(bookmarks_data)} 条")
     return jsonify({'success': True, 'data': {}})
 
 def icon_to_base64(icon_value):
@@ -308,6 +308,7 @@ def export_bookmarks():
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '0'
+    current_app.logger.info(f"用户 {current_user.username} 导出书签")
     return response
 
 @bp.route('/increment_click/<int:item_id>', methods=['POST'])

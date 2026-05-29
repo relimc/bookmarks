@@ -1,6 +1,6 @@
 import re
 from datetime import datetime, timedelta
-from flask import Blueprint, request, jsonify, render_template, redirect, url_for
+from flask import Blueprint, request, jsonify, render_template, redirect, url_for, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from . import db, login_manager
 from .models import User, VerificationCode
@@ -23,30 +23,46 @@ def login():
     user = User.query.filter_by(username=username).first()
     if user and user.check_password(password):
         login_user(user)
+        current_app.logger.info(f"登录成功: {username} (ID: {user.id})")
         return jsonify({'success': True})
-    return jsonify({'success': False, 'message': '用户名或密码错误'}), 401
+    else:
+        current_app.logger.warning(f"登录失败: 用户名 {username} 密码错误或不存在")
+        return jsonify({'success': False, 'message': '用户名或密码错误'}), 401
 
 @bp.route('/register', methods=['POST'])
 def register():
+    # 获取表单数据
     username = request.form.get('username', '').strip()
     email = request.form.get('email', '').strip().lower()
     password = request.form.get('password', '')
     verification_code = request.form.get('verification_code', '').strip()
 
+    # 1. 基础字段非空校验
     if not username or not email or not password or not verification_code:
         return jsonify({'success': False, 'message': '所有字段都必须填写'}), 400
+
+    # 2. 用户名长度与格式校验
     if len(username) < 3 or len(username) > 80:
         return jsonify({'success': False, 'message': '用户名长度应为3-80个字符'}), 400
-    email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    if not re.match(email_regex, email):
+
+    # 3. 邮箱格式校验
+    import re
+    if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
         return jsonify({'success': False, 'message': '邮箱格式不正确'}), 400
+
+    # 4. 密码长度校验（至少8位）
     if len(password) < 8:
         return jsonify({'success': False, 'message': '密码长度至少为8位'}), 400
+
+    # 5. 检查用户名是否已存在
     if User.query.filter_by(username=username).first():
         return jsonify({'success': False, 'message': '用户名已存在'}), 400
+
+    # 6. 检查邮箱是否已被注册
     if User.query.filter_by(email=email).first():
         return jsonify({'success': False, 'message': '该邮箱已被注册'}), 400
 
+    # 7. 校验验证码
     vc = VerificationCode.query.filter_by(email=email).first()
     if not vc:
         return jsonify({'success': False, 'message': '请先获取验证码'}), 400
@@ -55,11 +71,18 @@ def register():
     if vc.code != verification_code:
         return jsonify({'success': False, 'message': '验证码错误'}), 400
 
+    # 8. 验证码验证通过，删除本次验证码记录（防止重复使用）
     db.session.delete(vc)
+
+    # 9. 创建用户
     user = User(username=username, email=email)
     user.set_password(password)
     db.session.add(user)
     db.session.commit()
+
+    # 10. 记录日志
+    current_app.logger.info(f"新用户注册成功: {username}, 邮箱: {email}")
+
     return jsonify({'success': True, 'message': '注册成功'})
 
 @bp.route('/send_verification', methods=['POST'])
@@ -68,30 +91,40 @@ def send_verification():
     email = data.get('email', '').strip().lower()
     if not email:
         return jsonify({'success': False, 'message': '邮箱不能为空'}), 400
-    email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    if not re.match(email_regex, email):
+
+    # 邮箱格式校验
+    import re
+    if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
         return jsonify({'success': False, 'message': '邮箱格式不正确'}), 400
 
+    # 频率限制：同一邮箱60秒内只能发送一次
     last_code = VerificationCode.query.filter_by(email=email).order_by(VerificationCode.created_at.desc()).first()
     if last_code and (datetime.utcnow() - last_code.created_at).total_seconds() < 60:
         return jsonify({'success': False, 'message': '发送过于频繁，请稍后再试'}), 429
 
+    # 生成验证码并存储
     code = generate_verification_code()
     expires_at = datetime.utcnow() + timedelta(minutes=10)
+    # 删除旧的验证码（避免数据膨胀）
     VerificationCode.query.filter_by(email=email).delete()
     vc = VerificationCode(email=email, code=code, created_at=datetime.utcnow(), expires_at=expires_at)
     db.session.add(vc)
     db.session.commit()
 
+    # 发送邮件
     if send_verification_email(email, code):
+        current_app.logger.info(f"发送验证码成功: {email} 验证码={code}")
         return jsonify({'success': True, 'message': '验证码已发送，请注意查收'})
     else:
+        current_app.logger.error(f"发送验证码失败: {email}")
         return jsonify({'success': False, 'message': '邮件发送失败，请稍后重试'}), 500
 
 @bp.route('/logout')
 @login_required
 def logout():
+    username = current_user.username
     logout_user()
+    current_app.logger.info(f"用户登出: {username}")
     return redirect(url_for('main.index'))
 
 @bp.route('/user')

@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, render_template
+from flask import Blueprint, jsonify, render_template, current_app
 from flask_login import login_required, current_user
 from . import db
 from .models import Bookmark, User
@@ -32,6 +32,7 @@ def admin_approve(id):
 
     b.status = 'approved'
     db.session.commit()
+    current_app.logger.info(f"管理员 {current_user.username} 通过了书签 ID: {id}, 标题: {b.title}, 用户ID: {b.user_id}")
 
     # 发送通知邮件
     user = User.query.get(b.user_id)

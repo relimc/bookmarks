@@ -5,6 +5,8 @@ from flask_login import LoginManager
 from flask_mail import Mail
 from datetime import timedelta
 from dotenv import load_dotenv
+import logging
+from logging.handlers import RotatingFileHandler
 
 # 加载 .env 文件
 load_dotenv()
@@ -60,5 +62,38 @@ def create_app():
     # 创建数据库表
     with app.app_context():
         db.create_all()
+
+    # ---------- 日志配置 ----------
+    if not app.debug:
+        # 确保日志目录存在
+        log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'logs')
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+
+        # 设置日志格式
+        formatter = logging.Formatter(
+            '%(asctime)s %(levelname)s [%(name)s] %(message)s [in %(pathname)s:%(lineno)d]'
+        )
+
+        # 文件处理器：单个文件最大10MB，保留10个备份
+        file_handler = RotatingFileHandler(
+            os.path.join(log_dir, 'bookmark.log'),
+            maxBytes=10485760,  # 10MB
+            backupCount=10
+        )
+        file_handler.setFormatter(formatter)
+        file_handler.setLevel(logging.INFO)
+
+        # 控制台处理器（可选，用于调试）
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
+        console_handler.setLevel(logging.INFO)
+
+        # 添加到 Flask 应用日志器
+        app.logger.addHandler(file_handler)
+        app.logger.addHandler(console_handler)
+        app.logger.setLevel(logging.INFO)
+
+        app.logger.info('Bookmark 应用启动')
 
     return app

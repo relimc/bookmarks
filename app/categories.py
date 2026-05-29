@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_login import login_required, current_user
 from . import db
 from .models import Category, Bookmark
@@ -42,6 +42,7 @@ def add_category():
         )
         db.session.add(new_cat)
         db.session.commit()
+        current_app.logger.info(f"用户 {current_user.username} 新增分类: {name}, 图标: {icon}")
         return jsonify({'success': True, 'data': {}})
     except Exception as e:
         print(f"添加分类出错: {e}")
@@ -78,6 +79,7 @@ def update_category(name):
             cat.private = bool(req['private'])
 
         db.session.commit()
+        current_app.logger.info(f"用户 {current_user.username} 更新分类: {name} -> {new_name}")
         return jsonify({'success': True, 'data': {}})
     except Exception as e:
         db.session.rollback()
@@ -96,4 +98,5 @@ def delete_category(name):
         return jsonify({'success': False, 'message': '该分类下还有子分类或书签，无法删除'}), 400
     db.session.delete(cat)
     db.session.commit()
+    current_app.logger.info(f"用户 {current_user.username} 删除分类: {name}")
     return jsonify({'success': True, 'data': {}})
