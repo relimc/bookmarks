@@ -270,6 +270,7 @@ body {
     z-index: 1000;
     min-width: 180px;
     margin-top: 5px;
+    white-space: nowrap;
 }
 .engine-dropdown.show {
     display: block;
@@ -859,13 +860,11 @@ body {
     display: none;
 }
 .title-wrapper {
-    position: relative;
-    display: inline-block;
+    display: flex;
+    align-items: center;  /* 垂直居中对齐 */
+    gap: 8px;
 }
 .badge {
-    position: absolute;
-    top: 5px;
-    right: -48px;
     font-size: 0.6rem;
     font-weight: normal;
     background: #4a627a;
@@ -875,9 +874,8 @@ body {
     line-height: 1.2;
     white-space: nowrap;
     cursor: pointer;
-}
-.sidebar.collapsed .badge {
-    display: none;
+    position: static;
+    transform: translateY(-2px);  /* 向上移动2像素，可根据需要调整 */
 }
 /* 显示快捷键提示区域 */
 .sidebar-footer {
@@ -975,4 +973,54 @@ body {
     padding-bottom: 0.5rem;
     display: flex;
     align-items: center;
+}
+
+/* 语言切换器样式 */
+.language-switcher {
+    position: relative;
+}
+.lang-btn {
+    background: none;
+    border: 1px solid #e0e8f0;
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    color: #5f7d9c;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+.lang-btn:hover {
+    background: #eef2f6;
+    color: #1e3a6b;
+}
+.lang-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: white;
+    border: 1px solid #e0e8f0;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    display: none;
+    z-index: 1000;
+    min-width: 120px;
+    margin-top: 4px;
+}
+.lang-dropdown.show {
+    display: block;
+}
+.lang-option {
+    display: block;
+    padding: 8px 16px;
+    color: #5f7d9c;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: background 0.1s;
+}
+.lang-option:hover {
+    background: #eef2f6;
+    color: #1e3a6b;
 }

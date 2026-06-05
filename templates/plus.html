@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+<title>{% block title %}{% endblock %}</title>
+
+{% block styles %}
+<link rel="stylesheet" href="/static/plus.css">
+{% endblock %}
+
+{% block header_right %}
+    <button class="import-btn" id="userStatusBtn">
+        <i class="fas fa-sign-in-alt"></i> <span data-i18n="login">尚未登录</span>
+    </button>
+    <div class="dropdown">
+        <button class="import-btn dropdown-toggle" type="button" id="manageBookmarkDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-bookmark"></i> <span data-i18n="manage_bookmarks">管理书签</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="manageBookmarkDropdown">
+            <li><a class="dropdown-item" href="#" id="addBookmarkDropdownItem">➕ <span data-i18n="add_bookmark">新增书签</span></a></li>
+            <li><a class="dropdown-item" href="#" id="importBookmarksDropdownItem">📥 <span data-i18n="import_bookmarks">导入书签</span></a></li>
+            <li><a class="dropdown-item" href="#" id="exportBookmarksDropdownItem">📤 <span data-i18n="export_bookmarks">导出书签</span></a></li>
+        </ul>
+    </div>
+    <div class="dropdown">
+        <button class="import-btn dropdown-toggle" type="button" id="manageCategoriesDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-folder"></i> <span data-i18n="manage_categories">管理分类</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="manageCategoriesDropdown">
+            <li><a class="dropdown-item" href="#" id="addCategoryDropdownItem">➕ <span data-i18n="add_category">新增分类</span></a></li>
+            <li><a class="dropdown-item" href="#" id="listCategoriesDropdownItem">📋 <span data-i18n="category_list">分类列表</span></a></li>
+        </ul>
+    </div>
+    <a href="https://github.com/relimc/bookmarks" target="_blank" class="github-link">
+        <i class="fab fa-github"></i> GitHub
+    </a>
+{% endblock %}
+
+{% block bookmark_footer_left %}
+    <div class="d-flex align-items-center gap-3">
+        <div class="form-check" id="privateCheckboxContainer">
+            <input class="form-check-input" type="checkbox" id="isPrivateCheckbox" checked>
+            <label class="form-check-label" for="isPrivateCheckbox" data-i18n="private_label">私密</label>
+            <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" id="privateTooltip"></i>
+        </div>
+        <div id="sharedByContainer" style="display: none; font-size: 0.9rem; color: #6c757d;">
+            <i class="fas fa-user-friends"></i> <span data-i18n="shared_by">共享人</span>：<span id="sharedByUsername"></span>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_modals %}
+    <!-- 登录模态框 -->
+    <div class="modal fade" id="loginModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-bottom-0 pt-4 pb-0">
+                    <h5 class="modal-title w-100 text-center fs-3 fw-normal" data-i18n="welcome_back">欢迎回来</h5>
+                    <button type="button" class="btn-close position-absolute top-0 end-0 m-3" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body px-4 py-3">
+                    <div id="loginError" class="alert alert-danger small py-2" style="display: none;"></div>
+                    <form id="loginForm" novalidate>
+                        <div class="mb-3">
+                            <label class="form-label small text-muted" data-i18n="username">用户名</label>
+                            <input type="text" id="loginUsername" class="form-control form-control-lg rounded-3" data-i18n="username_placeholder" placeholder="" autofocus>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label small text-muted" data-i18n="password">密码</label>
+                            <input type="password" id="loginPassword" class="form-control form-control-lg rounded-3" data-i18n="password_placeholder" placeholder="">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 py-2 rounded-3 fw-semibold" data-i18n="login">登录</button>
+                    </form>
+                </div>
+                <div class="modal-footer border-top-0 pb-4 pt-0 d-flex justify-content-between">
+                    <div><a href="#" id="forgotPasswordLink" class="text-decoration-none small" data-i18n="forgot_password">忘记密码？</a></div>
+                    <div><span class="text-muted small" data-i18n="no_account">没有账号？</span> <a href="#" id="showRegisterBtn" class="text-decoration-none small" data-i18n="register">创建账户</a></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 注册模态框 -->
+    <div class="modal fade" id="registerModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-bottom-0 pt-4 pb-0">
+                    <h5 class="modal-title w-100 text-center fs-3 fw-normal" data-i18n="create_account">创建账户</h5>
+                    <button type="button" class="btn-close position-absolute top-0 end-0 m-3" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body px-4 py-3">
+                    <div id="registerError" class="alert alert-danger small py-2" style="display: none;"></div>
+                    <form id="registerForm">
+                        <div class="mb-3">
+                            <label class="form-label small text-muted" data-i18n="username">用户名</label>
+                            <input type="text" id="regUsername" class="form-control form-control-lg rounded-3" data-i18n="username_placeholder" placeholder="" autofocus>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small text-muted" data-i18n="email">邮箱</label>
+                            <input type="email" id="regEmail" class="form-control form-control-lg rounded-3" data-i18n="email_placeholder" placeholder="">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small text-muted" data-i18n="verification_code">验证码</label>
+                            <div class="d-flex gap-2">
+                                <input type="text" id="regVerificationCode" class="form-control form-control-lg rounded-3" data-i18n="verification_code_placeholder" placeholder="" >
+                                <button class="btn btn-outline-primary" type="button" id="sendCodeBtn" style="min-width: 120px; flex-shrink: 0;" data-i18n="get_code">获取验证码</button>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small text-muted" data-i18n="password">密码</label>
+                            <input type="password" id="regPassword" class="form-control form-control-lg rounded-3" data-i18n="password_placeholder" placeholder="">
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label small text-muted" data-i18n="confirm_password">确认密码</label>
+                            <input type="password" id="regConfirmPassword" class="form-control form-control-lg rounded-3" data-i18n="confirm_password_placeholder" placeholder="">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 py-2 rounded-3 fw-semibold" data-i18n="register">注册</button>
+                    </form>
+                </div>
+                <div class="modal-footer border-top-0 justify-content-center pb-4 pt-0">
+                    <span class="text-muted small" data-i18n="has_account">已有账号？</span>
+                    <a href="#" id="showLoginBtn" class="text-decoration-none small" data-i18n="login">去登录</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 重置密码模态框 -->
+    <div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-bottom-0 pt-4 pb-0">
+                    <h5 class="modal-title w-100 text-center fs-3 fw-normal" data-i18n="forgot_password">忘记密码？</h5>
+                    <button type="button" class="btn-close position-absolute top-0 end-0 m-3" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body px-4 py-3">
+                    <div id="resetError" class="alert alert-danger small py-2" style="display: none;"></div>
+                    <form id="resetForm">
+                        <div class="mb-3">
+                            <label class="form-label small text-muted" data-i18n="email">邮箱</label>
+                            <input type="email" id="resetEmail" class="form-control form-control-lg rounded-3" data-i18n="email_placeholder_reset" placeholder="">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small text-muted" data-i18n="verification_code">验证码</label>
+                            <div class="d-flex gap-2">
+                                <input type="text" id="resetCode" class="form-control form-control-lg rounded-3" data-i18n="verification_code_placeholder" placeholder="">
+                                <button class="btn btn-outline-primary" type="button" id="sendResetCodeBtn" style="min-width: 120px; flex-shrink: 0;" data-i18n="get_code">获取验证码</button>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small text-muted" data-i18n="new_password">新密码</label>
+                            <input type="password" id="resetNewPassword" class="form-control form-control-lg rounded-3" data-i18n="new_password_placeholder" placeholder="">
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label small text-muted" data-i18n="confirm_password">确认新密码</label>
+                            <input type="password" id="resetConfirmPassword" class="form-control form-control-lg rounded-3" data-i18n="confirm_password_placeholder" placeholder="">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 py-2 rounded-3 fw-semibold" data-i18n="reset_password">重置密码</button>
+                    </form>
+                </div>
+                <div class="modal-footer border-top-0 justify-content-center pb-4 pt-0">
+                    <span class="text-muted small" data-i18n="remember_password">想起密码了？</span>
+                    <a href="#" id="backToLoginLink" class="text-decoration-none small" data-i18n="back_to_login">去登录</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 增强版提示模态框 -->
+    <div class="modal fade" id="enhancedNoticeModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" data-i18n="enhanced_title">🚀 关于增强版</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong data-i18n="enhanced_desc">数据存储在服务器，支持多设备同步与高级功能。</strong></p>
+                    <ul class="mb-3">
+                        <li><strong data-i18n="advantages_title">✅ 优点：</strong> <span data-i18n="enhanced_features">私密书签；共享书签；云端存储；跨设备访问；支持导入浏览器书签；自动抓取网页图标/描述</span></li>
+                        <li><strong data-i18n="disadvantages_title">❌ 注意：</strong> <span data-i18n="enhanced_note">需注册登录、依赖网络；公开书签需管理员审核后展示。</span></li>
+                    </ul>
+                    <p class="mb-2" data-i18n="enhanced_offline_tip">如果你更看重离线与隐私，可体验纯本地版本：</p>
+                    <a href="/" class="btn btn-outline-secondary btn-sm" data-i18n="goto_local">📁 前往本地版</a>
+                    <p class="text-muted small mt-3" data-i18n="enhanced_tip">💡 提示：点击左上角「我的书签」或「增强版」徽章可再次查看本说明。</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="close">知道了，继续使用</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/plus.js"></script>
+{% endblock %}

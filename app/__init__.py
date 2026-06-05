@@ -1,9 +1,11 @@
 import os
 from flask import Flask
+from flask_babel import Babel
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_mail import Mail
 from datetime import timedelta
+from flask import Flask, session, request
 from dotenv import load_dotenv
 import logging
 from logging.handlers import RotatingFileHandler
@@ -14,6 +16,7 @@ load_dotenv()
 db = SQLAlchemy()
 login_manager = LoginManager()
 mail = Mail()
+babel = Babel()
 
 
 def create_app():
@@ -44,12 +47,27 @@ def create_app():
     app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
     app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', app.config['MAIL_USERNAME'])
 
+    # 多语言配置
+    app.config['LANGUAGES'] = {
+        'zh': '中文',
+        'en': 'English'
+    }
+    app.config['BABEL_DEFAULT_LOCALE'] = 'zh'
+
+    # 定义语言选择函数
+    def get_locale():
+        from flask import session, request
+        lang = session.get('lang')
+        if lang and lang in app.config['LANGUAGES']:
+            return lang
+        return request.accept_languages.best_match(app.config['LANGUAGES'].keys())
 
     # 初始化扩展
     db.init_app(app)
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'  # 注意蓝图名称
     mail.init_app(app)
+    babel.init_app(app, locale_selector=get_locale)
 
     # 注册蓝图（注意：目前蓝图使用了 url_prefix，确保与之前一致）
     from . import auth, bookmarks, categories, admin, main

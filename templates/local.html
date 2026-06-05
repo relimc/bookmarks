@@ -1,35 +1,42 @@
 {% extends "base.html" %}
 
-{% block title %}我的书签 · 本地版{% endblock %}
+{% block title %}{{ _('my_bookmarks') }} · {{ _('local_version') }}{% endblock %}
 
 {% block styles %}
 <link rel="stylesheet" href="/static/local.css">
 {% endblock %}
 
 {% block header_right %}
-    <!-- 管理书签下拉菜单 -->
     <div class="dropdown">
         <button class="import-btn dropdown-toggle" type="button" id="manageBookmarkDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="fas fa-bookmark"></i> 管理书签
+            <i class="fas fa-bookmark"></i> <span data-i18n="manage_bookmarks">管理书签</span>
         </button>
         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="manageBookmarkDropdown">
-            <li><a class="dropdown-item" href="#" id="addBookmarkDropdownItem">➕ 新增书签</a></li>
-            <li><a class="dropdown-item" href="#" id="importBookmarksDropdownItem">📥 导入书签</a></li>
-            <li><a class="dropdown-item" href="#" id="exportBookmarksDropdownItem">📤 导出书签</a></li>
+            <li><a class="dropdown-item" href="#" id="addBookmarkDropdownItem">➕ <span data-i18n="add_bookmark">新增书签</span></a></li>
+            <li><a class="dropdown-item" href="#" id="importBookmarksDropdownItem">📥 <span data-i18n="import_bookmarks">导入书签</span></a></li>
+            <li><a class="dropdown-item" href="#" id="exportBookmarksDropdownItem">📤 <span data-i18n="export_bookmarks">导出书签</span></a></li>
         </ul>
     </div>
     <div class="dropdown">
         <button class="import-btn dropdown-toggle" type="button" id="manageCategoriesDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="fas fa-folder"></i> 管理分类
+            <i class="fas fa-folder"></i> <span data-i18n="manage_categories">管理分类</span>
         </button>
         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="manageCategoriesDropdown">
-            <li><a class="dropdown-item" href="#" id="addCategoryDropdownItem">➕ 新增分类</a></li>
-            <li><a class="dropdown-item" href="#" id="listCategoriesDropdownItem">📋 分类列表</a></li>
+            <li><a class="dropdown-item" href="#" id="addCategoryDropdownItem">➕ <span data-i18n="add_category">新增分类</span></a></li>
+            <li><a class="dropdown-item" href="#" id="listCategoriesDropdownItem">📋 <span data-i18n="category_list">分类列表</span></a></li>
         </ul>
     </div>
     <a href="https://github.com/relimc/bookmarks" target="_blank" class="github-link">
         <i class="fab fa-github"></i> GitHub
     </a>
+{% endblock %}
+
+{% block bookmark_footer_left %}
+    <div class="form-check" id="privateCheckboxContainer">
+        <input class="form-check-input" type="checkbox" id="isPrivateCheckbox" checked>
+        <label class="form-check-label" for="isPrivateCheckbox" data-i18n="private_label">私密</label>
+        <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-i18n="private_tip" title="仅自己可见。取消勾选将变为公开书签。"></i>
+    </div>
 {% endblock %}
 
 {% block extra_modals %}
@@ -38,23 +45,24 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">📌 关于本地版</h5>
+                    <h5 class="modal-title" data-i18n="local_title">📌 关于本地版</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <p><strong>数据存储在你的浏览器中</strong>，完全由你掌控，不上传任何服务器。</p>
+                    <p><strong data-i18n="local_desc">数据存储在您的浏览器中，完全由您掌控，不上传任何服务器。</strong></p>
                     <ul class="mb-3">
-                        <li>✅ <strong>优点</strong>：数据私有；无需登录；支持导入浏览器书签；支持自动抓取网页标题/描述/图标。</li>
-                        <li>❌ <strong>注意</strong>：更换设备或清除浏览器缓存会导致书签丢失；无法多端同步。</li>
+                        <li><strong data-i18n="advantages_title">✅ 优点：</strong> <span data-i18n="local_features">数据私有、无需登录、即开即用，支持自动抓取网页标题/描述/图标</span></li>
+                        <li><strong data-i18n="disadvantages_title">❌ 注意：</strong> <span data-i18n="local_note">更换设备或清除浏览器缓存会导致书签丢失；无法多端同步。</span></li>
                     </ul>
-                    <div class="alert alert-warning py-2 small">
-                        ⚠️ <strong>重要提醒</strong>：在更换设备或清理浏览器前，请务必使用右上角「管理书签 → 导出书签」备份数据。
+                    <div class="alert alert-warning py-2 small" data-i18n="local_warning">
+                        ⚠️ <strong>重要提醒：</strong> 在更换设备或清理浏览器前，请务必使用右上角「管理书签 → 导出书签」备份数据。
                     </div>
-                    <p class="mb-2">如需多端同步、私密审核等高级功能，推荐使用：<a href="/online" class="btn btn-primary btn-sm">✨ 前往增强版</a></p>
-                    <p class="text-muted small mt-3">💡 提示：点击左上角「我的书签」或「本地版」徽章可再次查看本说明。</p>
+                    <p class="mb-2" data-i18n="goto_enhanced_desc">如需多端同步、私密审核等高级功能，推荐使用：</p>
+                    <a href="/plus" class="btn btn-primary btn-sm" data-i18n="goto_enhanced">✨ 前往增强版</a>
+                    <p class="text-muted small mt-3" data-i18n="local_tip">💡 提示：点击左上角「我的书签」或「本地版」徽章可再次查看本说明。</p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">知道了，继续使用</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="close">知道了，继续使用</button>
                 </div>
             </div>
         </div>

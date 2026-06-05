@@ -1,4 +1,5 @@
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, current_app
+from flask import session, redirect, request, url_for
 
 bp = Blueprint('main', __name__)
 
@@ -8,14 +9,23 @@ def index():
         title_id='localTitle',
         title_text='我的书签',
         badge_id='localBadge',
-        badge_text='本地版'
+        badge_text='本地版',
+        badge_key='local_version'  # 新增
     )
 
-@bp.route('/online')
-def online():
-    return render_template('online.html',
+@bp.route('/plus')
+def plus():
+    return render_template('plus.html',
         title_id='enhancedTitle',
         title_text='我的书签',
         badge_id='enhancedBadge',
-        badge_text='增强版'
+        badge_text='增强版',
+        badge_key = 'enhanced_version'  # 新增
     )
+
+@bp.route('/lang/<lang>')
+def set_lang(lang):
+    """切换语言"""
+    if lang in current_app.config['LANGUAGES']:
+        session['lang'] = lang
+    return redirect(request.referrer or url_for('main.index'))

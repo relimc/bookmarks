@@ -1,5 +1,10 @@
 // common.js - 通用核心逻辑，包含 BookmarkApp 类及所有 UI 处理
 
+// 确保 i18n.js 已加载
+if (typeof t === 'undefined') {
+    console.error('i18n.js not loaded');
+}
+
 // ---------- 全局工具函数 ----------
 function escapeHtml(unsafe) {
     if (unsafe === null || unsafe === undefined) return '';
@@ -32,11 +37,13 @@ function getDomainFavicon(url) {
 // 搜索引擎配置（与之前相同）
 const searchEngines = [
     { name: '搜索书签', iconClass: 'fas fa-search', type: 'local', url: '' },
-    { name: '谷歌', iconClass: 'fab fa-google', type: 'web', url: 'https://www.google.com/search?q=' },
-    { name: '百度', iconClass: 'fas fa-paw', type: 'web', url: 'https://www.baidu.com/s?wd=' },
-    { name: '必应', iconClass: 'fab fa-microsoft', type: 'web', url: 'https://www.bing.com/search?q=' },
+    { name: 'Google', iconClass: 'fab fa-google', type: 'web', url: 'https://www.google.com/search?q=' },
+    { name: 'Baidu', iconClass: 'fas fa-paw', type: 'web', url: 'https://www.baidu.com/s?wd=' },
+    { name: 'Bing', iconClass: 'fab fa-microsoft', type: 'web', url: 'https://www.bing.com/search?q=' },
     { name: 'GitHub', iconClass: 'fab fa-github', type: 'web', url: 'https://github.com/search?q=' },
-    { name: 'Bilibili', iconClass: 'fab fa-bilibili', type: 'web', url: 'https://search.bilibili.com/all?keyword=' }
+    { name: 'Bilibili', iconClass: 'fab fa-bilibili', type: 'web', url: 'https://search.bilibili.com/all?keyword=' },
+    { name: 'YouTube', iconClass: 'fab fa-youtube', type: 'web', url: 'https://www.youtube.com/results?search_query=' },
+    { name: 'Yandex', iconClass: 'fab fa-yandex-international', type: 'web', url: 'https://yandex.com/search/?text=' }
 ];
 let currentEngine = searchEngines[0];
 
@@ -121,12 +128,13 @@ function renderCategoryTree() {
         return html;
     }
 
+    // 在 renderCategoryTree 函数中，构建 HTML 时替换
     const allNodeHtml = `
         <div class="tree-node">
             <div class="tree-node-content ${window.activeCategoryKey === null ? 'active' : ''}" data-category="__all__">
                 <div class="node-inner">
                     <span class="node-icon"><i class="fas fa-home"></i></span>
-                    <span class="node-name">全部</span>
+                    <span class="node-name">${t('all')}</span>
                     <span class="expand-icon placeholder" style="visibility:hidden;">❯</span>
                 </div>
             </div>
@@ -137,7 +145,7 @@ function renderCategoryTree() {
             <div class="tree-node-content ${window.activeCategoryKey === '__recommend__' ? 'active' : ''}" data-category="__recommend__">
                 <div class="node-inner">
                     <span class="node-icon"><i class="fas fa-fire"></i></span>
-                    <span class="node-name">推荐</span>
+                    <span class="node-name">${t('recommend')}</span>
                     <span class="expand-icon placeholder" style="visibility:hidden;">❯</span>
                 </div>
             </div>
@@ -254,6 +262,35 @@ window.fallbackIcon = function(img, url) {
     }
 };
 
+function updateSearchPlaceholder() {
+    const searchInput = document.getElementById('searchInput');
+    if (!searchInput) return;
+
+    if (currentEngine && currentEngine.type === 'local') {
+        searchInput.placeholder = t('search_placeholder');
+    } else if (currentEngine) {
+        // 获取搜索引擎显示名称
+        let engineDisplayName = currentEngine.name;
+        if (currentEngine.name === '谷歌') engineDisplayName = 'Google';
+        else if (currentEngine.name === '百度') engineDisplayName = 'Baidu';
+        else if (currentEngine.name === '必应') engineDisplayName = 'Bing';
+        else if (currentEngine.name === 'GitHub') engineDisplayName = 'GitHub';
+        else if (currentEngine.name === 'Bilibili') engineDisplayName = 'Bilibili';
+        else if (currentEngine.name === 'YouTube') engineDisplayName = 'YouTube';
+        else if (currentEngine.name === 'Yandex') engineDisplayName = 'Yandex';
+
+        // 英文模式下不需要添加"搜索"后缀，中文需要
+        const currentLang = getCurrentLang();
+        if (currentLang === 'zh') {
+            searchInput.placeholder = `请输入关键字跳转至${engineDisplayName}搜索`;
+        } else {
+            searchInput.placeholder = `Enter keyword to search on ${engineDisplayName}`;
+        }
+    } else {
+        searchInput.placeholder = t('search_placeholder');
+    }
+}
+
 // ---------- 全局搜索初始化 ----------
 function initSearch() {
     const searchInput = document.getElementById('searchInput');
@@ -262,15 +299,37 @@ function initSearch() {
     const engineDropdown = document.getElementById('engineDropdown');
     if (!searchInput || !searchBtn) return;
 
+    // 渲染搜索引擎下拉菜单（支持多语言）
     function renderEngineDropdown() {
         if (!engineDropdown) return;
         let html = '';
         searchEngines.forEach(engine => {
+            let engineName = engine.name;
+            // 根据当前语言翻译引擎名称
+            if (engine.name === '搜索书签') {
+                engineName = t('search_bookmarks');
+            } else if (engine.name === '谷歌') {
+                engineName = 'Google';
+            } else if (engine.name === '百度') {
+                engineName = 'Baidu';
+            } else if (engine.name === '必应') {
+                engineName = 'Bing';
+            } else if (engine.name === 'GitHub') {
+                engineName = 'GitHub';
+            } else if (engine.name === 'Bilibili') {
+                engineName = 'Bilibili';
+            } else if (engine.name === 'YouTube') {
+                engineName = 'YouTube';
+            } else if (engine.name === 'Yandex') {
+                engineName = 'Yandex';
+            }
             html += `<div class="engine-option" data-url="${engine.url}" data-iconclass="${engine.iconClass}" data-name="${engine.name}" data-type="${engine.type}">
-                        <i class="${engine.iconClass} engine-icon-small"></i><span>${engine.name}</span>
+                        <i class="${engine.iconClass} engine-icon-small"></i><span>${engineName}</span>
                     </div>`;
         });
         engineDropdown.innerHTML = html;
+
+        // 重新绑定点击事件
         document.querySelectorAll('.engine-option').forEach(opt => {
             opt.addEventListener('click', function() {
                 const name = this.dataset.name;
@@ -278,21 +337,29 @@ function initSearch() {
                 const iconClass = this.dataset.iconclass;
                 document.getElementById('selectedEngineIcon').innerHTML = `<i class="${iconClass}"></i>`;
                 currentEngine = searchEngines.find(e => e.name === name) || searchEngines[0];
-                searchInput.placeholder = type === 'local' ? '点击左侧图标切换搜索引擎，默认搜索书签' : `请输入关键字跳转至${name}搜索`;
+                updateSearchPlaceholder();
                 engineDropdown.classList.remove('show');
             });
         });
     }
 
-    searchInput.placeholder = '点击左侧图标切换搜索引擎，默认搜索书签';
+    // 暴露到全局，供语言切换时调用
+    window.renderEngineDropdown = renderEngineDropdown;
+
+    // 设置初始 placeholder
+    currentEngine = searchEngines[0];
+    updateSearchPlaceholder();
     document.getElementById('selectedEngineIcon').innerHTML = `<i class="${searchEngines[0].iconClass}"></i>`;
+
     engineSelector?.addEventListener('click', (e) => {
         e.stopPropagation();
         engineDropdown?.classList.toggle('show');
     });
+
     document.addEventListener('click', (e) => {
         if (!engineSelector?.contains(e.target)) engineDropdown?.classList.remove('show');
     });
+
     function performSearch() {
         const query = searchInput.value.trim();
         if (currentEngine.type === 'local') {
@@ -301,26 +368,173 @@ function initSearch() {
             window.open(currentEngine.url + encodeURIComponent(query), '_blank');
         }
     }
+
     searchBtn.addEventListener('click', performSearch);
-    searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); performSearch(); } });
+    searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            performSearch();
+        }
+    });
+
+    // 初始化渲染
     renderEngineDropdown();
 }
 
-function bindCommonEvents(app) {
-    const collapseBtn = document.getElementById('collapseSidebarBtn');
-    const sidebar = document.getElementById('sidebar');
-    if (collapseBtn && sidebar) {
-        collapseBtn.addEventListener('click', () => {
-            sidebar.classList.toggle('collapsed');
-            const icon = collapseBtn.querySelector('i');
-            if (sidebar.classList.contains('collapsed')) icon.className = 'fas fa-chevron-right';
-            else icon.className = 'fas fa-bars';
-            if (sidebar.classList.contains('collapsed') && window.allDataExpanded) {
-                Object.keys(window.allDataExpanded).forEach(k => window.allDataExpanded[k] = false);
+// 语言切换功能
+function initLanguageSwitcher() {
+    const langBtn = document.getElementById('langSwitcherBtn');
+    const langDropdown = document.getElementById('langDropdown');
+    const currentLangText = document.getElementById('currentLangText');
+
+    if (!langBtn || !langDropdown) return;
+
+    // 更新当前语言显示
+    function updateLangDisplay() {
+        const langNames = { zh: '中文', en: 'English' };
+        if (currentLangText) currentLangText.innerText = langNames[currentLang] || '中文';
+    }
+
+    // 切换语言
+    function switchLanguage(lang) {
+        if (setLanguage(lang)) {
+            updateLangDisplay();
+            updatePageText();           // 更新所有 data-i18n 文本
+            updatePageTitle();          // 更新页面标题
+            updateSearchPlaceholder();  // 更新搜索框占位符
+
+            // 重新渲染搜索引擎下拉菜单（更新文字）
+            if (typeof window.renderEngineDropdown === 'function') {
+                window.renderEngineDropdown();
+            }
+
+            // 专门更新新增分类弹窗中的"请选择图标"
+            const selectIconText = document.getElementById('newCatSelectedIconText');
+            if (selectIconText) {
+                selectIconText.innerText = t('select_icon');
+            }
+
+            // 专门更新编辑分类弹窗中的"请选择图标"
+            const editSelectIconText = document.getElementById('editCatSelectedIconText');
+            if (editSelectIconText) {
+                editSelectIconText.innerText = t('select_icon');
+            }
+
+            // 重新初始化所有 Bootstrap Tooltip
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+                const tooltip = bootstrap.Tooltip.getInstance(el);
+                if (tooltip) {
+                    tooltip.dispose();
+                }
+                new bootstrap.Tooltip(el);
+            });
+
+            // 重新渲染分类树
+            if (typeof renderCategoryTree === 'function') {
                 renderCategoryTree();
             }
-        });
+
+            // 刷新书签网格
+            if (window.bookmarkApp && window.bookmarkApp.activeCategoryKey) {
+                window.bookmarkApp.refreshBookmarks(window.bookmarkApp.activeCategoryKey);
+            }
+
+            // 更新用户状态按钮（登录/退出登录文本）
+            if (typeof updateUserStatusButton === 'function') {
+                updateUserStatusButton();
+            }
+
+            // 如果书签弹窗是打开的，更新标题和按钮
+            const bookmarkModal = document.getElementById('bookmarkModal');
+            if (bookmarkModal && bookmarkModal.classList.contains('show')) {
+                const modalTitle = document.getElementById('modalTitle');
+                const isLoggedIn = window.isLoggedIn !== false;
+                const editingId = document.getElementById('editingId').value;
+                if (editingId) {
+                    modalTitle.innerText = isLoggedIn ? t('edit_bookmark_title') : t('bookmark_info_title');
+                } else {
+                    modalTitle.innerText = t('add_bookmark_title');
+                }
+                const cancelBtn = document.getElementById('cancelBtn');
+                const saveBtn = document.getElementById('submitBtn');
+                const deleteBtn = document.getElementById('deleteBtn');
+                if (cancelBtn) cancelBtn.innerText = t('cancel_btn');
+                if (saveBtn) saveBtn.innerText = t('save_btn');
+                if (deleteBtn && deleteBtn.style.display !== 'none') deleteBtn.innerText = t('delete_btn');
+            }
+
+            // 如果分类列表弹窗是打开的，更新关闭按钮
+            const categoryModal = document.getElementById('categoryManageModal');
+            if (categoryModal && categoryModal.classList.contains('show')) {
+                const closeBtn = categoryModal.querySelector('.modal-footer .btn-secondary');
+                if (closeBtn) closeBtn.innerText = t('close');
+            }
+
+            // 如果新增分类弹窗是打开的，更新按钮文字
+            const newCategoryModal = document.getElementById('newCategoryModal');
+            if (newCategoryModal && newCategoryModal.classList.contains('show')) {
+                const cancelBtn = newCategoryModal.querySelector('.modal-footer .btn-secondary');
+                const saveBtn = newCategoryModal.querySelector('.modal-footer .btn-primary');
+                if (cancelBtn) cancelBtn.innerText = t('cancel_btn');
+                if (saveBtn) saveBtn.innerText = t('save_btn');
+            }
+
+            // 如果编辑分类弹窗是打开的，更新按钮文字
+            const editCategoryModal = document.getElementById('editCategoryModal');
+            if (editCategoryModal && editCategoryModal.classList.contains('show')) {
+                const cancelBtn = editCategoryModal.querySelector('.modal-footer .btn-secondary');
+                const saveBtn = editCategoryModal.querySelector('.modal-footer .btn-primary');
+                if (cancelBtn) cancelBtn.innerText = t('cancel_btn');
+                if (saveBtn) saveBtn.innerText = t('save_btn');
+            }
+        }
+
+        console.log("强制更新后的文本:", document.getElementById('newCatSelectedIconText')?.innerText);
+        setTimeout(() => {
+            console.log("200ms 后的文本:", document.getElementById('newCatSelectedIconText')?.innerText);
+        }, 200);
+
     }
+
+    // 按钮点击显示/隐藏下拉菜单
+    langBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        langDropdown.classList.toggle('show');
+    });
+
+    // 点击选项切换语言
+    langDropdown.querySelectorAll('.lang-option').forEach(opt => {
+        opt.addEventListener('click', (e) => {
+            e.preventDefault();
+            const lang = opt.dataset.lang;
+            if (lang) switchLanguage(lang);
+            langDropdown.classList.remove('show');
+        });
+    });
+
+    // 点击其他地方关闭下拉菜单
+    document.addEventListener('click', () => {
+        langDropdown.classList.remove('show');
+    });
+
+    updateLangDisplay();
+    updatePageText();
+}
+
+function updatePrivateTooltip() {
+    const tooltipIcon = document.getElementById('privateTooltip');
+    if (tooltipIcon) {
+        const newTitle = t('private_tip');
+        tooltipIcon.setAttribute('title', newTitle);
+        const existingTooltip = bootstrap.Tooltip.getInstance(tooltipIcon);
+        if (existingTooltip) {
+            existingTooltip.dispose();
+        }
+        new bootstrap.Tooltip(tooltipIcon);
+    }
+}
+
+function bindCommonEvents(app) {
     const shortcutHint = document.querySelector('.shortcut-hint');
     shortcutHint?.addEventListener('click', () => app?.openAddModal());
     document.addEventListener('keydown', (e) => {
@@ -361,6 +575,7 @@ class BookmarkApp {
         // 为 .tag-more 添加悬浮显示剩余标签的功能
         this.initTagMoreTooltip();
         this.initEditCategoryIconSelector()
+        initLanguageSwitcher();
     }
 
     initTagMoreTooltip() {
@@ -751,7 +966,7 @@ class BookmarkApp {
         const submitBtn = document.getElementById('submitBtn');
         const cancelBtn = document.querySelector('#bookmarkModal .btn-secondary');
 
-        modalTitle.innerText = isLoggedIn ? '✏️ 编辑书签' : 'ℹ️ 书签详情';
+        modalTitle.innerText = isLoggedIn ? t('edit_bookmark_title') : t('bookmark_info_title');
         editingId.value = id;
         urlInput.value = item.url;
         urlInput.readOnly = true;
@@ -769,7 +984,7 @@ class BookmarkApp {
             categorySelect.disabled = true;
             if (deleteBtn) deleteBtn.style.display = 'none';
             if (submitBtn) submitBtn.style.display = 'none';
-            if (cancelBtn) cancelBtn.innerText = '关闭';
+            if (cancelBtn) cancelBtn.innerText = t('cancel_btn');
             if (isPrivateCheckbox) isPrivateCheckbox.disabled = true;
         } else {
             // 已登录：可编辑模式（但网址仍只读）
@@ -782,7 +997,7 @@ class BookmarkApp {
                 deleteBtn.onclick = () => this.handleDelete();
             }
             if (submitBtn) submitBtn.style.display = 'block';
-            if (cancelBtn) cancelBtn.innerText = '取消';
+            if (cancelBtn) cancelBtn.innerText = t('cancel_btn');
             if (isPrivateCheckbox) isPrivateCheckbox.disabled = false;
         }
 
@@ -793,7 +1008,10 @@ class BookmarkApp {
     async fetchMetadata(url) {
         const hint = document.getElementById('clipboardHint');
         if (!hint) return;
-        hint.innerText = '正在获取网页信息...';
+
+        // 开始获取
+        hint.innerText = t('fetching_metadata');
+
         try {
             const res = await fetch('/fetch-metadata', {
                 method: 'POST',
@@ -801,33 +1019,36 @@ class BookmarkApp {
                 body: JSON.stringify({ url })
             });
             const data = await res.json();
+
             if (data.success) {
                 const titleInput = document.getElementById('titleInput');
                 const descInput = document.getElementById('descriptionInput');
                 const tagsInput = document.getElementById('bookmarkTags');
+
                 if (titleInput) titleInput.value = data.title || '';
                 if (descInput) descInput.value = data.description || '';
-                // 后端已经完成随机，直接展示
+
+                // 处理关键词（后端返回数组，前端用 / 连接）
                 if (tagsInput && data.keywords && data.keywords.length) {
                     tagsInput.value = data.keywords.join('/');
                 }
+
                 window.lastFetchedIcon = data.icon || '';
-                hint.innerText = '✅ 信息获取完成';
+                hint.innerText = t('fetch_success');
             } else {
                 console.warn('抓取失败:', data.message || '未知错误');
-                hint.innerText = '⚠️ 获取失败，请手动填写信息';
+                hint.innerText = t('fetch_failed');
             }
         } catch (err) {
             console.error('Fetch metadata error:', err);
-            hint.innerText = '⚠️ 网络错误，请手动填写信息';
+            hint.innerText = t('fetch_error');
         }
     }
 
     async handleDelete() {
         const id = parseInt(document.getElementById('editingId').value);
-        console.log('handleDelete triggered');
-        console.log('Deleting id:', id);
-        if (!id || !confirm('确定删除？')) return;
+
+        if (!id || !confirm(t('confirm_delete'))) return;
         const deleteBtn = document.getElementById('deleteBtn');
         deleteBtn.disabled = true;
         deleteBtn.textContent = '删除中...';
@@ -920,11 +1141,26 @@ class BookmarkApp {
             this.categorySelect = document.getElementById('categorySelect');
         }
         const cats = Object.keys(window.allData.categories || {}).sort();
-        let html = '<option value="">-- 选择已有分类 --</option>';
+        let html = `<option value="">${t('select_category')}</option>`;
+
         cats.forEach(c => {
-            html += `<option value="${escapeHtml(c)}" ${c === selected ? 'selected' : ''}>${escapeHtml(c)}</option>`;
+            let displayName = c;
+            if (c === '未分类') {
+                displayName = t('uncategorized');
+            }
+            html += `<option value="${escapeHtml(c)}" ${c === selected ? 'selected' : ''}>${escapeHtml(displayName)}</option>`;
         });
+
         this.categorySelect.innerHTML = html;
+
+        // 绑定 change 事件（无需处理 __new__ 选项）
+        if (this._categoryChangeHandler) {
+            this.categorySelect.removeEventListener('change', this._categoryChangeHandler);
+        }
+        this._categoryChangeHandler = (e) => {
+            this._prevCategoryValue = e.target.value;
+        };
+        this.categorySelect.addEventListener('change', this._categoryChangeHandler);
     }
 
     openEditCategoryModal(categoryName) {
@@ -962,7 +1198,7 @@ class BookmarkApp {
         const parentSelect = document.getElementById('editCategoryParent');
         if (parentSelect) {
             const allCats = Object.keys(window.allData.categories || {}).filter(c => c !== categoryName);
-            let html = '<option value="">-- 无 --</option>';
+            let html = `<option value="">${t('no_parent')}</option>`;
             allCats.sort().forEach(c => {
                 html += `<option value="${escapeHtml(c)}" ${cat.parent === c ? 'selected' : ''}>${escapeHtml(c)}</option>`;
             });
@@ -985,7 +1221,7 @@ class BookmarkApp {
         const parentSelect = document.getElementById('newCategoryParent');
         if (parentSelect) {
             const cats = Object.keys(window.allData.categories || {}).sort();
-            let html = '<option value="">-- 无 --</option>';
+            let html = `<option value="">${t('no_parent')}</option>`;
             cats.forEach(c => html += `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`);
             parentSelect.innerHTML = html;
         }
@@ -997,7 +1233,7 @@ class BookmarkApp {
         const iconPreview = document.getElementById('newCatSelectedIconPreview');
         if (iconPreview) iconPreview.innerHTML = '<i class="fas fa-folder"></i>';
         const iconText = document.getElementById('newCatSelectedIconText');
-        if (iconText) iconText.innerText = '请选择图标';
+        if (iconText) iconText.innerText = t('select_icon');
         const priorityInput = document.getElementById('newCategoryPriority');
         if (priorityInput) priorityInput.value = '100';
         const modal = new bootstrap.Modal(document.getElementById('newCategoryModal'));
@@ -1240,14 +1476,14 @@ class BookmarkApp {
                 const parentSelect = document.getElementById('newCategoryParent');
                 if (parentSelect) {
                     const cats = Object.keys(window.allData.categories || {}).sort();
-                    let html = '<option value="">-- 无 --</option>';
+                    let html = `<option value="">${t('no_parent')}</option>`;
                     cats.forEach(c => html += `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`);
                     parentSelect.innerHTML = html;
                 }
                 document.getElementById('newCategoryName').value = '';
                 document.getElementById('newCatSelectedIconValue').value = 'fas fa-folder';
                 document.getElementById('newCatSelectedIconPreview').innerHTML = '<i class="fas fa-folder"></i>';
-                document.getElementById('newCatSelectedIconText').innerText = '请选择图标';
+                document.getElementById('newCatSelectedIconText').innerText = t('select_icon');
                 document.getElementById('newCategoryPriority').value = '100';
                 const modal = new bootstrap.Modal(document.getElementById('newCategoryModal'));
                 modal.show();

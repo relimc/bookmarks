@@ -172,6 +172,13 @@ class LocalDataAdapter {
     }
 }
 
+function updatePageTitle() {
+    const titleEl = document.getElementById('pageTitle');
+    if (titleEl) {
+         titleEl.innerText = t('title_local'); // 本地版
+    }
+}
+
 // 初始化应用
 document.addEventListener('DOMContentLoaded', async () => {
     await openDB();
@@ -194,5 +201,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         localTitle?.addEventListener('click', () => modal.show());
         localBadge?.addEventListener('click', () => modal.show());
     }
+
+    updatePageTitle();
 
 });
