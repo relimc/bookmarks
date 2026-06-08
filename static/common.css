@@ -894,12 +894,17 @@ body {
     border: 1px solid #3f5570;
     cursor: pointer;
 }
-.shortcut-hint kbd {
+
+kbd {
     background: #1e2b3c;
     color: #e6edf5;
-    padding: 4px 6px;
+    padding: 1px 6px;
     border-radius: 6px;
+    font-family: var(--bs-font-monospace);
+    font-size: 0.75rem;
+    display: inline-block;
 }
+
 .sidebar.collapsed .shortcut-hint .hint-text {
     display: none;
 }

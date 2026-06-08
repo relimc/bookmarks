@@ -74,6 +74,38 @@ function buildCategoryTreeFromObj(categoriesObj) {
     return roots;
 }
 
+function renderShortcutHint() {
+    const hintContainer = document.getElementById('shortcutHint');
+    if (!hintContainer) return;
+
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const ctrlKey = isMac ? '⌘' : t('ctrl_key');
+    const shiftKey = '⇧';
+    const vKey = 'V';
+
+    let hintText = t('add_bookmark_shortcut')
+        .replace('{{ctrl}}', ctrlKey)
+        .replace('{{shift}}', shiftKey)
+        .replace('{{v}}', vKey);
+
+    // 对于非Mac系统，使用文字样式
+    if (!isMac) {
+        hintContainer.innerHTML = `
+            <span class="hint-text">
+                <kbd>${t('ctrl_key')}</kbd>+<kbd>${t('shift_key')}</kbd>+<kbd>${t('v_key')}</kbd> ${t('add_bookmark')}
+            </span>
+            <span class="hint-icon"><i class="fas fa-lightbulb"></i></span>
+        `;
+    } else {
+        hintContainer.innerHTML = `
+            <span class="hint-text">
+                ${ctrlKey} ${shiftKey} ${vKey} ${t('add_bookmark')}
+            </span>
+            <span class="hint-icon"><i class="fas fa-lightbulb"></i></span>
+        `;
+    }
+}
+
 // 渲染分类树（依赖 window.allData.categories, window.activeCategoryKey, window.allDataExpanded）
 function renderCategoryTree() {
     const categoriesObj = window.allData?.categories || {};
@@ -402,6 +434,7 @@ function initLanguageSwitcher() {
             updatePageText();           // 更新所有 data-i18n 文本
             updatePageTitle();          // 更新页面标题
             updateSearchPlaceholder();  // 更新搜索框占位符
+            renderShortcutHint();  // 添加这行
 
             // 重新渲染搜索引擎下拉菜单（更新文字）
             if (typeof window.renderEngineDropdown === 'function') {
@@ -576,6 +609,7 @@ class BookmarkApp {
         this.initTagMoreTooltip();
         this.initEditCategoryIconSelector()
         initLanguageSwitcher();
+        renderShortcutHint();
     }
 
     initTagMoreTooltip() {
@@ -1628,7 +1662,7 @@ class BookmarkApp {
             description: document.getElementById('descriptionInput').value,
             tags: document.getElementById('bookmarkTags').value,
             category: document.getElementById('categorySelect').value,
-            isPrivate: document.getElementById('isPrivateCheckbox')?.checked,
+            isPrivate: document.getElementById('isPrivateCheckbox')?.checked || true
         };
         this._pendingBookmarkIsEdit = !!document.getElementById('editingId').value;
     }
@@ -1651,64 +1685,76 @@ class BookmarkApp {
             document.getElementById('isPrivateCheckbox').checked = this._pendingBookmarkData.isPrivate;
         }
 
-        // 2. 获取当前书签对象（用于共享人判断）
-        const currentId = parseInt(this._pendingBookmarkData.editingId);
-        const currentItem = window.allData.bookmarks.find(b => b.id === currentId);
-
         const isLoggedIn = window.isLoggedIn !== false;
-        const isOwner = (window.currentUserId && currentItem && currentItem.user_id === window.currentUserId);
+        const isEdit = !!this._pendingBookmarkData.editingId && this._pendingBookmarkData.editingId !== '';
 
-        // 3. 共享人与私密容器的控制
+        // 2. 获取共享人容器和私密容器
         const sharedByContainer = document.getElementById('sharedByContainer');
         const sharedBySpan = document.getElementById('sharedByUsername');
         const privateContainer = document.getElementById('privateCheckboxContainer');
         const isPrivateCheckbox = document.getElementById('isPrivateCheckbox');
 
-        if (!isLoggedIn || !isOwner) {
-            if (sharedByContainer) {
-                sharedByContainer.style.display = '';
-                if (sharedBySpan) sharedBySpan.innerText = currentItem ? (currentItem.username || '匿名用户') : '未知用户';
+        // 3. 根据是否为编辑模式控制显示
+        if (isEdit) {
+            // 编辑模式：查找书签对象判断归属
+            const currentId = parseInt(this._pendingBookmarkData.editingId);
+            const currentItem = window.allData.bookmarks.find(b => b.id === currentId);
+            const isOwner = (window.currentUserId && currentItem && currentItem.user_id === window.currentUserId);
+
+            if (!isLoggedIn || !isOwner) {
+                // 查看他人书签或未登录：显示共享人，隐藏私密
+                if (sharedByContainer) {
+                    sharedByContainer.style.display = '';
+                    if (sharedBySpan) sharedBySpan.innerText = currentItem ? (currentItem.username || t('anonymous_user')) : t('anonymous_user');
+                }
+                if (privateContainer) privateContainer.style.display = 'none';
+                if (isPrivateCheckbox) isPrivateCheckbox.disabled = true;
+            } else {
+                // 编辑自己的书签：隐藏共享人，显示私密
+                if (sharedByContainer) sharedByContainer.style.display = 'none';
+                if (privateContainer) privateContainer.style.display = '';
+                if (isPrivateCheckbox) {
+                    isPrivateCheckbox.disabled = false;
+                    isPrivateCheckbox.checked = this._pendingBookmarkData.isPrivate;
+                }
             }
-            if (privateContainer) privateContainer.style.display = 'none';
-            if (isPrivateCheckbox) isPrivateCheckbox.disabled = true;
         } else {
+            // 新增模式：不显示共享人，显示私密复选框
             if (sharedByContainer) sharedByContainer.style.display = 'none';
             if (privateContainer) privateContainer.style.display = '';
             if (isPrivateCheckbox) {
                 isPrivateCheckbox.disabled = false;
-                // 状态已在上面设置，无需重复
+                isPrivateCheckbox.checked = true;
             }
         }
 
-        // 4. 设置标题及按钮状态
-        const isEdit = !!this._pendingBookmarkData.editingId;
+        // 4. 设置标题
         const modalTitle = document.getElementById('modalTitle');
         if (isEdit) {
-            modalTitle.innerText = isLoggedIn ? '✏️ 编辑书签' : 'ℹ️ 书签详情';
+            modalTitle.innerText = isLoggedIn ? t('edit_bookmark_title') : t('bookmark_info_title');
         } else {
-            modalTitle.innerText = '📋 新增书签';
+            modalTitle.innerText = t('add_bookmark_title');
         }
 
-        const deleteBtn = document.getElementById('deleteBtn');
-        const submitBtn = document.getElementById('submitBtn');
-        const cancelBtn = document.querySelector('#bookmarkModal .btn-secondary');
+        // 5. 设置表单可编辑状态
         const titleInput = document.getElementById('titleInput');
         const descInput = document.getElementById('descriptionInput');
         const tagsInput = document.getElementById('bookmarkTags');
         const categorySelect = document.getElementById('categorySelect');
+        const deleteBtn = document.getElementById('deleteBtn');
+        const submitBtn = document.getElementById('submitBtn');
+        const cancelBtn = document.querySelector('#bookmarkModal .btn-secondary');
 
         if (!isLoggedIn) {
-            // 未登录只读模式
             titleInput.readOnly = true;
             descInput.readOnly = true;
             if (tagsInput) tagsInput.readOnly = true;
             categorySelect.disabled = true;
             if (deleteBtn) deleteBtn.style.display = 'none';
             if (submitBtn) submitBtn.style.display = 'none';
-            if (cancelBtn) cancelBtn.innerText = '关闭';
+            if (cancelBtn) cancelBtn.innerText = t('close');
             if (isPrivateCheckbox) isPrivateCheckbox.disabled = true;
         } else {
-            // 已登录可编辑模式
             titleInput.readOnly = false;
             descInput.readOnly = false;
             if (tagsInput) tagsInput.readOnly = false;
@@ -1721,19 +1767,17 @@ class BookmarkApp {
                     deleteBtn.onclick = () => this.handleDelete();
                 }
                 if (submitBtn) submitBtn.style.display = 'block';
-                if (cancelBtn) cancelBtn.innerText = '取消';
+                if (cancelBtn) cancelBtn.innerText = t('cancel_btn');
             } else {
-                // 新增模式
                 if (deleteBtn) deleteBtn.style.display = 'none';
                 if (submitBtn) submitBtn.style.display = 'block';
-                if (cancelBtn) cancelBtn.innerText = '取消';
+                if (cancelBtn) cancelBtn.innerText = t('cancel_btn');
             }
         }
 
-        // 确保分类下拉框同步（已登录启用，未登录禁用）
         if (categorySelect) categorySelect.disabled = !isLoggedIn;
 
-        // 5. 显示弹窗并清空暂存数据
+        // 6. 显示弹窗并清空暂存数据
         const bookmarkModal = new bootstrap.Modal(document.getElementById('bookmarkModal'));
         bookmarkModal.show();
         this._pendingBookmarkData = null;
