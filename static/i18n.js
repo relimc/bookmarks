@@ -111,7 +111,7 @@ const i18n = {
         'cancel_btn': '取消',
         'save_btn': '保存',
         'close': '关闭',
-        'login': '尚未登录',
+        'login': '登录',
         'register': '注册',
         'reset_password': '重置密码',
         'confirm_edit': '保存',
@@ -122,7 +122,7 @@ const i18n = {
         'fetch_error': '⚠️ 网络错误，请手动填写信息',
 
         // 登录相关
-        'login': '尚未登录',
+        'login': '登录',
         'register': '注册',
         'logout': '退出登录',
         'username': '用户名',
