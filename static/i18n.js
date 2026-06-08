@@ -123,6 +123,7 @@ const i18n = {
 
         // 登录相关
         'login': '登录',
+        'not_logged_in': '尚未登录',
         'register': '注册',
         'logout': '退出登录',
         'username': '用户名',
@@ -277,7 +278,7 @@ const i18n = {
         'icon_tech': 'Tech',
         'icon_more': 'More',
         'select_icon': 'Select Icon',
-        'custom_icon_placeholder': 'Icon class or URL, e.g., fas fa-star or https://',
+        'custom_icon_placeholder': 'Icon class or URL, eg: fas fa-star or https://',
         'custom_btn': 'Custom',
         'no_parent': '-- None --',
         'select_category': '-- Select Category --',
@@ -290,7 +291,7 @@ const i18n = {
         'title_label': 'Title',
         'description_label': 'Description',
         'tags_label': 'Tags',
-        'tags_placeholder': 'Separate multiple tags with /, e.g., frontend/React/Vue',
+        'tags_placeholder': 'Separate multiple tags with /, eg: frontend/React/Vue',
         'category_label': 'Category',
         'select_category': '-- Select Category --',
         'quick_add_category': 'Add',
