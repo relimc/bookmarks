@@ -184,20 +184,20 @@ const i18n = {
         'enhanced_features': '私密书签；共享书签；云端存储；跨设备访问；支持导入浏览器书签；自动抓取网页图标/描述',
         'enhanced_note': '需注册登录、依赖网络；公开书签需管理员审核后展示。',
         'enhanced_offline_tip': '如果你更看重离线与隐私，可体验纯本地版本：',
-        'goto_local': '📁 前往本地版',
-        'enhanced_tip': '点击左上角「我的书签」或「增强版」徽章可再次查看本说明。',
+        'goto_local': '本地版',
+        'enhanced_tip': '💡 提示：点击左上角「我的书签」或「增强版」徽章可再次查看本说明。',
         'advantages_title': '✅ 优点：',
         'disadvantages_title': '❌ 注意：',
 
         // 本地版提示
         'local_title': '📌 关于本地版',
         'local_desc': '数据存储在您的浏览器中，完全由您掌控，不上传任何服务器。',
-        'local_features': '数据私有、无需登录、即开即用，支持自动抓取网页标题/描述/图标',
+        'local_features': '数据私有、无需登录、支持自动抓取网页标题/描述/图标、支持导入浏览器书签',
         'local_note': '更换设备或清除浏览器缓存会导致书签丢失；无法多端同步。',
         'local_warning': '⚠️ 在更换设备或清理浏览器前，请务必使用右上角「管理书签 → 导出书签」备份数据。',
-        'goto_enhanced_desc': '如需多端同步、私密审核等高级功能，推荐使用：',
-        'goto_enhanced': '✨ 前往增强版',
-        'local_tip': '点击左上角「我的书签」或「本地版」徽章可再次查看本说明。',
+        'goto_enhanced_desc': '如需多端同步、共享书签等高级功能，推荐使用：',
+        'goto_enhanced': '增强版',
+        'local_tip': '💡 提示：点击左上角「我的书签」或「本地版」徽章可再次查看本说明。',
 
         // 其他
         'shared_by': '共享人',
@@ -390,20 +390,20 @@ const i18n = {
         'enhanced_features': 'Private bookmarks; Shared bookmarks; Cloud storage; Cross-device access; Browser bookmark import; Auto-fetch metadata',
         'enhanced_note': 'Requires login and network; Public bookmarks need admin approval.',
         'enhanced_offline_tip': 'If you value offline and privacy more, you can try the pure local version:',
-        'goto_local': '📁 Go to Local Version',
-        'enhanced_tip': 'Click "My Bookmarks" or "Enhanced" badge to view this notice again.',
+        'goto_local': 'Local Version',
+        'enhanced_tip': '💡 Tip: Click "My Bookmarks" or "Plus" badge to view this notice again.',
         'advantages_title': '✅ Advantages:',
         'disadvantages_title': '❌ Notes:',
 
         // Local version modal
         'local_title': '📌 About Local Version',
         'local_desc': 'Data is stored in your browser, fully under your control, never uploaded to any server.',
-        'local_features': 'Private data, no login required, ready to use, supports auto-fetching metadata',
+        'local_features': 'Private data, no login required, supports auto-fetching metadata, supports browser bookmark import',
         'local_note': 'Switching devices or clearing browser cache will cause bookmark loss; no cross-device sync.',
         'local_warning': '⚠️ Before switching devices or clearing browser cache, please use "Manage Bookmarks → Export Bookmarks" to back up your data.',
-        'goto_enhanced_desc': 'For multi-device sync and private review, we recommend:',
-        'goto_enhanced': '✨ Go to Enhanced Version',
-        'local_tip': 'Click "My Bookmarks" or "Local" badge to view this notice again.',
+        'goto_enhanced_desc': 'For multi-device sync, shared bookmarks and other advanced features, we recommend:',
+        'goto_enhanced': 'Plus Version',
+        'local_tip': '💡 Tip: Click "My Bookmarks" or "Local" badge to view this notice again.',
 
         // Other
         'shared_by': 'Shared by',

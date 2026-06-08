@@ -426,5 +426,34 @@
 <script src="/static/i18n.js"></script>
 <script src="/static/common.js"></script>
 {% block scripts %}{% endblock %}
+<!-- 动态设置链接（放在这里） -->
+<script>
+    // 动态设置链接
+    function setEnvironmentLinks() {
+        const isLocalhost = window.location.hostname === 'localhost' ||
+                           window.location.hostname === '127.0.0.1';
+
+        const enhancedLink = document.getElementById('gotoEnhancedLink');
+        const localLink = document.getElementById('gotoLocalLink');
+
+        if (isLocalhost) {
+            // 本地开发：使用路径跳转
+            if (enhancedLink) enhancedLink.href = '/plus';
+            if (localLink) localLink.href = '/';
+        } else {
+            // 生产环境：使用域名跳转
+            const isLocalDomain = window.location.hostname === 'nav.toadlive.top';
+            if (enhancedLink) {
+                enhancedLink.href = isLocalDomain ? 'https://navplus.toadlive.top' : '/plus';
+            }
+            if (localLink) {
+                localLink.href = isLocalDomain ? '/' : 'https://nav.toadlive.top';
+            }
+        }
+    }
+
+    // 等待 DOM 加载完成后再执行
+    document.addEventListener('DOMContentLoaded', setEnvironmentLinks);
+</script>
 </body>
 </html>

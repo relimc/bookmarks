@@ -1029,3 +1029,8 @@ kbd {
     background: #eef2f6;
     color: #1e3a6b;
 }
+.modal-body .btn-sm {
+    white-space: nowrap;
+    display: inline-block;
+    vertical-align: baseline;
+}

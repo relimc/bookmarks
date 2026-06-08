@@ -178,8 +178,10 @@
                         <li><strong data-i18n="advantages_title">✅ 优点：</strong> <span data-i18n="enhanced_features">私密书签；共享书签；云端存储；跨设备访问；支持导入浏览器书签；自动抓取网页图标/描述</span></li>
                         <li><strong data-i18n="disadvantages_title">❌ 注意：</strong> <span data-i18n="enhanced_note">需注册登录、依赖网络；公开书签需管理员审核后展示。</span></li>
                     </ul>
-                    <p class="mb-2" data-i18n="enhanced_offline_tip">如果你更看重离线与隐私，可体验纯本地版本：</p>
-                    <a href="/" class="btn btn-outline-secondary btn-sm" data-i18n="goto_local">📁 前往本地版</a>
+                    <p class="mb-2">
+                        <span data-i18n="enhanced_offline_tip">如果你更看重离线与隐私，可体验纯本地版本：</span>
+                        <a id="gotoLocalLink" class="btn btn-primary btn-sm ms-2" data-i18n="goto_local">本地版</a>
+                    </p>
                     <p class="text-muted small mt-3" data-i18n="enhanced_tip">💡 提示：点击左上角「我的书签」或「增强版」徽章可再次查看本说明。</p>
                 </div>
                 <div class="modal-footer">
@@ -193,3 +195,12 @@
 {% block scripts %}
 <script src="/static/plus.js"></script>
 {% endblock %}
+
+<script>
+    const isLocalhost = window.location.hostname === 'localhost' ||
+                       window.location.hostname === '127.0.0.1';
+    const localLink = document.getElementById('gotoLocalLink');
+    if (localLink) {
+        localLink.href = isLocalhost ? '/' : 'https://nav.toadlive.top';
+    }
+</script>

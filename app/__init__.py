@@ -29,6 +29,10 @@ def create_app():
                 template_folder=template_dir,
                 static_folder=static_dir)
 
+    # 读取域名配置
+    app.config['LOCAL_DOMAIN'] = os.environ.get('LOCAL_DOMAIN', 'nav.toadlive.top')
+    app.config['PLUS_DOMAIN'] = os.environ.get('PLUS_DOMAIN', 'navplus.toadlive.top')
+
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///bookmarks.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
