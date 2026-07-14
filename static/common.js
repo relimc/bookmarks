@@ -739,7 +739,7 @@ class BookmarkApp {
             filtered.sort((a, b) => (b.click_count || 0) - (a.click_count || 0));
             filtered = filtered.slice(0, 30);
             if (filtered.length === 0) {
-                container.innerHTML = '<div class="text-center p-5" style="color:#8fa3bc;">✨ 暂无书签，使用Ctrl+Shift+V快捷键添加</div>';
+                container.innerHTML = '<div class="text-center p-5" style="color:#8fa3bc;">✨ 暂无推荐书签，点击“新增”添加</div>';
                 return;
             }
             let html = '<div class="row g-3">';
@@ -753,7 +753,6 @@ class BookmarkApp {
 
         // 单个分类视图（包括子分类）
         if (category && category !== '__all__') {
-            // 获取该分类及其所有子分类的名称列表
             const getChildrenNames = (catName) => {
                 const children = Object.values(window.allData.categories).filter(c => c.parent === catName);
                 let names = [catName];
@@ -777,7 +776,7 @@ class BookmarkApp {
             return;
         }
 
-        // 全部分类视图：按一级分类分组
+        // === 全部分类视图 ===
         // 获取所有一级分类（parent 为 null 或空字符串）
         const topCategories = Object.values(window.allData.categories)
             .filter(c => !c.parent || c.parent === '')
@@ -785,24 +784,16 @@ class BookmarkApp {
 
         // 如果没有书签，显示空状态
         if (filtered.length === 0) {
-            container.innerHTML = '<div class="text-center p-5" style="color:#8fa3bc;">✨ 暂无书签，使用Ctrl+Shift+V快捷键添加</div>';
+            container.innerHTML = '<div class="text-center p-5" style="color:#8fa3bc;">✨ 暂无书签，点击“新增”添加</div>';
             return;
         }
 
-        // 如果没有任何一级分类（理论上至少会有“未分类”），则直接平铺
-        if (topCategories.length === 0) {
-            let html = '<div class="row g-3">';
-            filtered.forEach(bookmark => {
-                html += `<div class="col-12 col-md-6 col-lg-4">${window.renderSingleBookmarkCard(bookmark)}</div>`;
-            });
-            html += '</div>';
-            container.innerHTML = html;
-            return;
-        }
+        // 获取所有分类名称到分类对象的映射
+        const categoryMap = window.allData.categories || {};
 
-        // 构建分组：每个一级分类下，显示该分类及其所有子分类的书签
+        // 辅助函数：获取分类及其所有子分类的名称列表
         const getChildrenNames = (catName) => {
-            const children = Object.values(window.allData.categories).filter(c => c.parent === catName);
+            const children = Object.values(categoryMap).filter(c => c.parent === catName);
             let names = [catName];
             children.forEach(child => {
                 names = names.concat(getChildrenNames(child.name));
@@ -811,10 +802,16 @@ class BookmarkApp {
         };
 
         let html = '';
+        let processedBookmarks = new Set(); // 记录已分组的书签ID，避免重复
+
+        // 遍历一级分类
         for (const topCat of topCategories) {
             const includeCategories = getChildrenNames(topCat.name);
             const groupBookmarks = filtered.filter(b => includeCategories.includes(b.category));
             if (groupBookmarks.length === 0) continue;
+
+            // 记录这些书签已被处理
+            groupBookmarks.forEach(b => processedBookmarks.add(b.id));
 
             // 分组标题
             const catIcon = topCat.icon && (topCat.icon.startsWith('http') || topCat.icon.startsWith('data:'))
@@ -837,25 +834,34 @@ class BookmarkApp {
             `;
         }
 
-        // 处理没有归属一级分类的书签（例如孤立分类？理论上不会，但保险）
-        const orphanBookmarks = filtered.filter(b => {
-            const cat = window.allData.categories[b.category];
-            return !cat || cat.parent;
-            // 若分类不存在或父级存在但父级不是顶层，则单独展示？实际上面已覆盖所有顶层及其子分类，孤儿不应存在。
-        });
+        // 处理未分组的书签（即不属于任何一级分类的书签）
+        const orphanBookmarks = filtered.filter(b => !processedBookmarks.has(b.id));
         if (orphanBookmarks.length > 0) {
+            // 将孤儿书签归入“未分类”分组
+            const uncategorizedName = '未分类';
+            // 检查是否存在“未分类”分类对象，获取其图标
+            let uncategorizedIcon = 'fas fa-folder';
+            if (categoryMap[uncategorizedName]) {
+                uncategorizedIcon = categoryMap[uncategorizedName].icon || 'fas fa-folder';
+            }
+            const catIcon = uncategorizedIcon.startsWith('http') || uncategorizedIcon.startsWith('data:')
+                ? `<img src="${escapeHtml(uncategorizedIcon)}" style="width: 20px; margin-right: 8px;">`
+                : `<i class="${escapeHtml(uncategorizedIcon)}" style="margin-right: 8px;"></i>`;
             html += `
                 <div class="category-section">
                     <div class="category-section-title">
-                        <i class="fas fa-question-circle" style="margin-right: 8px;"></i>
-                        <span>其他</span>
+                        ${catIcon}
+                        <span>${t('uncategorized')}</span>
                     </div>
                     <div class="row g-3">
             `;
             orphanBookmarks.forEach(bookmark => {
                 html += `<div class="col-12 col-md-6 col-lg-4">${window.renderSingleBookmarkCard(bookmark)}</div>`;
             });
-            html += `</div></div>`;
+            html += `
+                    </div>
+                </div>
+            `;
         }
 
         if (html === '') {
