@@ -58,8 +58,11 @@ def list_bookmarks():
 
     categories_data = {}
     for c in categories:
+        if c.name is None:
+            continue  # 跳过名称为空的分类，避免序列化问题
         categories_data[c.name] = {
             'name': c.name,
+            'name_en': c.name_en,
             'icon': c.icon,
             'parent': c.parent,
             'priority': c.priority,
@@ -198,10 +201,14 @@ def import_bookmarks():
     categories_data = req.get('categories', [])
     for cat in categories_data:
         name = cat.get('name')
+        if not name:
+            continue  # 跳过无效分类
+        # 检查是否已存在
         if not Category.query.filter_by(user_id=current_user.id, name=name).first():
             new_cat = Category(
                 user_id=current_user.id,
                 name=name,
+                name_en=cat.get('name_en', ''),   # 新增
                 icon=cat.get('icon', 'fas fa-folder'),
                 parent=cat.get('parent', ''),
                 priority=cat.get('priority', 100)
@@ -290,6 +297,7 @@ def export_bookmarks():
 
     categories_data = [{
         'name': c.name,
+        'name_en': c.name_en,
         'icon': c.icon,
         'parent': c.parent,
         'priority': c.priority,

@@ -68,7 +68,10 @@ class LocalDataAdapter {
         if (!db) await openDB();
         const tx = db.transaction(['bookmarks'], 'readwrite');
         const store = tx.objectStore('bookmarks');
-        if (!bookmark.id) bookmark.id = Date.now();
+        if (!bookmark.id) {
+            // 使用时间戳 + 随机数确保唯一
+            bookmark.id = Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+        }
         await store.add(bookmark);
         return bookmark.id;
     }
@@ -90,42 +93,95 @@ class LocalDataAdapter {
         const tx = db.transaction(['bookmarks'], 'readwrite');
         const store = tx.objectStore('bookmarks');
         await store.delete(id);
+        return { success: true };
     }
     async addCategory(cat) {
         if (!db) await openDB();
         const tx = db.transaction(['categories'], 'readwrite');
         const store = tx.objectStore('categories');
+
+        // 检查中文名是否已存在（如果提供了中文名）
+        if (cat.name) {
+            const existing = await new Promise((resolve) => {
+                const req = store.get(cat.name);
+                req.onsuccess = () => resolve(req.result);
+            });
+            if (existing) {
+                throw new Error('分类已存在');
+            }
+        }
+
+        // 检查英文名是否已存在（如果提供了英文名）
+        if (cat.name_en) {
+            const all = await new Promise((resolve) => {
+                const req = store.getAll();
+                req.onsuccess = () => resolve(req.result);
+            });
+            if (all.some(c => c.name_en === cat.name_en)) {
+                throw new Error('英文分类名已存在');
+            }
+        }
+
+        // 保存分类
         await store.put(cat);
+
+        // 返回成功标志
+        return { success: true };
     }
     async updateCategory(name, data) {
         if (!db) await openDB();
         const tx = db.transaction(['categories'], 'readwrite');
         const store = tx.objectStore('categories');
+
+        // 获取原有分类
         const existing = await new Promise((resolve, reject) => {
             const getReq = store.get(name);
             getReq.onsuccess = () => resolve(getReq.result);
             getReq.onerror = () => reject(getReq.error);
         });
         if (!existing) throw new Error('分类不存在');
-        const updated = { ...existing, ...data };
+
+        // 处理重命名
         if (data.new_name && data.new_name !== name) {
-            // 处理重命名
+            // 检查新名称是否已存在
+            const exists = await new Promise((resolve) => {
+                const req = store.get(data.new_name);
+                req.onsuccess = () => resolve(!!req.result);
+            });
+            if (exists) throw new Error('分类名已存在');
+            // 删除旧分类，用新名称存储
             await store.delete(name);
-            updated.name = data.new_name;
-            await store.put(updated);
-            // 更新所有书签中的分类名
-            const bookmarksTx = db.transaction(['bookmarks'], 'readwrite');
-            const bookmarkStore = bookmarksTx.objectStore('bookmarks');
-            const allBookmarks = await this._getAllBookmarks();
+            existing.name = data.new_name;
+        }
+        // 更新其他字段
+        if (data.new_name_en !== undefined) existing.name_en = data.new_name_en;
+        if (data.icon !== undefined) existing.icon = data.icon;
+        if (data.parent !== undefined) existing.parent = data.parent;
+        if (data.priority !== undefined) existing.priority = data.priority;
+        if (data.private !== undefined) existing.private = data.private;
+
+        // 保存
+        await store.put(existing);
+
+        // 如果重命名了，需要更新所有书签中的分类引用
+        if (data.new_name && data.new_name !== name) {
+            const bookmarkTx = db.transaction(['bookmarks'], 'readwrite');
+            const bookmarkStore = bookmarkTx.objectStore('bookmarks');
+            const allBookmarks = await new Promise((resolve, reject) => {
+                const req = bookmarkStore.getAll();
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
             for (let b of allBookmarks) {
                 if (b.category === name) {
                     b.category = data.new_name;
                     await bookmarkStore.put(b);
                 }
             }
-        } else {
-            await store.put(updated);
         }
+
+        // 返回成功结果
+        return { success: true };
     }
     async deleteCategory(name) {
         if (!db) await openDB();

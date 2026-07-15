@@ -33,7 +33,8 @@ class OnlineDataAdapter {
         return await res.json();
     }
     async updateBookmark(id, updates) {
-        const res = await fetch(`/edit/${id}`, {
+        const intId = parseInt(id);
+        const res = await fetch(`/edit/${intId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(updates)
@@ -42,7 +43,8 @@ class OnlineDataAdapter {
         return await res.json();
     }
     async deleteBookmark(id) {
-        const res = await fetch(`/delete/${id}`, { method: 'POST' });
+        const intId = parseInt(id);
+        const res = await fetch(`/delete/${intId}`, { method: 'POST' });
         if (!res.ok) throw new Error('删除失败');
         return await res.json();
     }
@@ -53,7 +55,7 @@ class OnlineDataAdapter {
             body: JSON.stringify(cat)
         });
         if (!res.ok) throw new Error('添加分类失败');
-        return await res.json();
+        return await res.json();  // 返回 { success: true, data: {} } 或错误信息
     }
     async updateCategory(name, data) {
         const res = await fetch(`/category/${encodeURIComponent(name)}`, {
@@ -70,7 +72,8 @@ class OnlineDataAdapter {
         return await res.json();
     }
     async incrementClick(id) {
-        await fetch(`/increment_click/${id}`, { method: 'POST' });
+        const intId = parseInt(id);
+        await fetch(`/increment_click/${intId}`, { method: 'POST' });
     }
     async exportData() {
         const res = await fetch('/export');

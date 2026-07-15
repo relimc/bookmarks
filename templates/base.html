@@ -188,7 +188,14 @@
                     <input type="hidden" id="editCategoryOriginalName" value="">
                     <div class="mb-3">
                         <label class="form-label" data-i18n="category_name">分类名称</label>
-                        <input type="text" class="form-control" id="editCategoryName" data-i18n="category_name_placeholder" placeholder="输入新名称">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <input type="text" class="form-control" id="editCategoryNameZh" placeholder="" data-i18n-placeholder="category_name_zh_placeholder">
+                            </div>
+                            <div class="col-6">
+                                <input type="text" class="form-control" id="editCategoryNameEn" placeholder="" data-i18n-placeholder="category_name_en_placeholder">
+                            </div>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label" data-i18n="category_icon">分类图标</label>
@@ -308,7 +315,14 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label" data-i18n="category_name">分类名称</label>
-                        <input type="text" class="form-control" id="newCategoryName" data-i18n="category_name_placeholder" placeholder="输入名称">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <input type="text" class="form-control" id="newCategoryNameZh" placeholder="" data-i18n-placeholder="category_name_zh_placeholder">
+                            </div>
+                            <div class="col-6">
+                                <input type="text" class="form-control" id="newCategoryNameEn" placeholder="" data-i18n-placeholder="category_name_en_placeholder">
+                            </div>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label" data-i18n="category_icon">分类图标</label>
@@ -416,6 +430,46 @@
             </div>
         </div>
     </div>
+
+    <!-- 批量新增书签模态框 -->
+    <div class="modal fade" id="batchAddModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" data-i18n="batch_add_title">📋 批量新增书签</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label" data-i18n="batch_urls_label">链接列表</label>
+                        <textarea class="form-control" id="batchUrlsInput" rows="8" data-i18n-placeholder="batch_urls_placeholder"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" data-i18n="category_label">分类</label>
+                        <div class="d-flex gap-2">
+                            <select class="form-select" id="batchCategorySelect">
+                                <option value="" data-i18n="select_category">-- 选择已有分类 --</option>
+                            </select>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="batchQuickAddCategoryBtn" style="flex-shrink: 0;">
+                                <i class="fas fa-plus"></i> <span data-i18n="quick_add_category">新增</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="batchProgressContainer" style="display: none;">
+                        <div class="progress">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" id="batchProgressBar" style="width: 0%"></div>
+                        </div>
+                        <p class="text-muted small mt-1" id="batchProgressText">0 / 0</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="cancel_btn">取消</button>
+                    <button type="button" class="btn btn-primary" id="batchSubmitBtn" data-i18n="batch_import">批量导入</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 {% endblock %}
 
 <!-- 版本特有模态框（如登录/注册、本地提示等） -->

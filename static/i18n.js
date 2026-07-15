@@ -75,6 +75,22 @@ const i18n = {
         'custom_btn': '自定义',
         'no_parent': '-- 无 --',
         'select_category': '-- 选择已有分类 --',
+        'category_name_zh': '分类名称（中文）',
+        'category_name_en': '分类名称（英文）',
+        'category_name_required_one': '请至少输入一种语言的分类名称',
+        'unnamed': '未命名',
+        'category_exists': '分类名已存在',
+        'category_add_success': '✅ 分类添加成功',
+        'category_add_failed': '❌ 分类添加失败',
+        'category_update_success': '✅ 分类更新成功',
+        'category_update_failed': '❌ 分类更新失败',
+        'category_name_required_one': '请至少输入一种语言的分类名称',
+        'category_name_zh_exists': '中文分类名已存在',
+        'category_name_en_exists': '英文分类名已存在',
+        'add_category_failed': '添加分类失败',
+        'edit_category_failed': '编辑分类失败',
+        'category_name_zh_placeholder': '中文名',
+        'category_name_en_placeholder': '英文名（可选）',
 
         // 书签弹窗
         'add_bookmark_title': '📋 新增书签',
@@ -95,9 +111,22 @@ const i18n = {
         'save_btn': '保存',
         'confirm_delete': '确定删除？',
         'title_placeholder': '自动抓取或手动输入',
+        'batch_add': '批量新增',
+        'batch_add_title': '📋 批量新增书签',
+        'batch_urls_label': '链接列表',
+        'batch_urls_hint': '支持换行、|、逗号、分号分隔',
+        'batch_import': '批量新增',
+        'batch_complete': '✅ 批量新增成功，共新增 {count} 个书签',
+        'batch_partial': '⚠️ 批量新增完成，成功 {success} 个，失败 {failed} 个',
+        'batch_empty': '请至少输入一个有效链接',
+        'batch_no_category': '请选择分类',
+        'batch_urls_placeholder': '每行一个链接',
+        'batch_processing': '正在新增...',
 
         // 提示消息
         'no_bookmarks': '✨ 还没有书签，点击「新增书签」开始收藏吧！',
+        'no_bookmarks_in_category': '✨ 这个分类下没有书签',
+        'no_recommend': '✨ 暂无推荐书签，点击“新增书签”添加',
         'no_match': '🔍 没有找到相关书签，试试其他关键词吧～',
         'save_success': '✅ 保存成功！',
         'delete_success': '✅ 删除成功！',
@@ -120,6 +149,10 @@ const i18n = {
         'fetch_success': '✅ 信息获取完成',
         'fetch_failed': '⚠️ 获取失败，请手动填写信息',
         'fetch_error': '⚠️ 网络错误，请手动填写信息',
+        'import_success': '✅ 导入成功',
+        'import_failed': '❌ 导入失败',
+        'invalid_json': '无效的 JSON 格式',
+        'invalid_html': '无法解析 HTML 文件',
 
         // 登录相关
         'login': '登录',
@@ -282,6 +315,22 @@ const i18n = {
         'custom_btn': 'Custom',
         'no_parent': '-- None --',
         'select_category': '-- Select Category --',
+        'category_name_zh': 'Category Name (Chinese)',
+        'category_name_en': 'Category Name (English)',
+        'category_name_required_one': 'Please enter category name in at least one language',
+        'unnamed': 'Unnamed',
+        'category_exists': 'Category name already exists',
+        'category_add_success': '✅ Category added successfully',
+        'category_add_failed': '❌ Failed to add category',
+        'category_update_success': '✅ Category updated successfully',
+        'category_update_failed': '❌ Failed to update category',
+        'category_name_required_one': 'Please enter category name in at least one language',
+        'category_name_zh_exists': 'Chinese category name already exists',
+        'category_name_en_exists': 'English category name already exists',
+        'add_category_failed': 'Add category failed',
+        'edit_category_failed': 'Edit category failed',
+        'category_name_zh_placeholder': 'Chinese name (optional)',
+        'category_name_en_placeholder': 'English name',
 
         // Bookmark modal
         'add_bookmark_title': '📋 Add Bookmark',
@@ -302,9 +351,22 @@ const i18n = {
         'save_btn': 'Save',
         'confirm_delete': 'Confirm delete?',
         'title_placeholder': 'Auto-fetch or manual input',
+        'batch_add': 'Batch Add',
+        'batch_add_title': '📋 Batch Add Bookmarks',
+        'batch_urls_label': 'URL List',
+        'batch_urls_hint': 'One per line, or separated by | , ;',
+        'batch_import': 'Batch Add',
+        'batch_processing': 'Adding...',
+        'batch_complete': '✅ Batch add successful, {count} bookmarks added',
+        'batch_partial': '⚠️ Batch add completed, {success} succeeded, {failed} failed',
+        'batch_empty': 'Please enter at least one valid URL',
+        'batch_no_category': 'Please select a category',
+        'batch_urls_placeholder': 'One link per line',
 
         // Messages
         'no_bookmarks': '✨ No bookmarks yet, click "Add Bookmark" to get started!',
+        'no_bookmarks_in_category': '✨ No bookmarks in this category',
+        'no_recommend': '✨ No recommended bookmarks yet, click "Add Bookmark" to create one',
         'no_match': '🔍 No matching bookmarks found, try different keywords.',
         'save_success': '✅ Saved successfully!',
         'delete_success': '✅ Deleted successfully!',
@@ -327,6 +389,10 @@ const i18n = {
         'fetch_success': '✅ Info fetched successfully',
         'fetch_failed': '⚠️ Failed to fetch, please fill in manually',
         'fetch_error': '⚠️ Network error, please fill in manually',
+        'import_success': '✅ Import successful',
+        'import_failed': '❌ Import failed',
+        'invalid_json': 'Invalid JSON format',
+        'invalid_html': 'Unable to parse HTML file',
 
         // Login/Register
         'login': 'Login',
@@ -531,6 +597,14 @@ function updatePageText() {
         // 处理其他元素
         else {
             el.innerText = translatedText;
+        }
+    });
+
+    // 处理 data-i18n-placeholder 属性（用于输入框占位符）
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        if (key) {
+            el.placeholder = t(key);
         }
     });
 

@@ -29,6 +29,8 @@ def create_app():
                 template_folder=template_dir,
                 static_folder=static_dir)
 
+    app.config['JSON_SORT_KEYS'] = False
+
     # 读取域名配置
     app.config['LOCAL_DOMAIN'] = os.environ.get('LOCAL_DOMAIN', 'nav.toadlive.top')
     app.config['PLUS_DOMAIN'] = os.environ.get('PLUS_DOMAIN', 'navplus.toadlive.top')
