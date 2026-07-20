@@ -313,28 +313,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ========== 登录表单 ==========
+    // 登录表单提交
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-
             const username = document.getElementById('loginUsername').value.trim();
             const password = document.getElementById('loginPassword').value;
             const errorDiv = document.getElementById('loginError');
-
-            // 隐藏之前的错误
-            errorDiv.classList.add('d-none');
+            errorDiv.style.display = 'none';
             errorDiv.innerText = '';
 
-            // 校验
-            if (!username) {
-                errorDiv.innerText = t('username_required');
-                errorDiv.classList.remove('d-none');
-                return;
-            }
-            if (!password) {
-                errorDiv.innerText = t('password_required');
-                errorDiv.classList.remove('d-none');
+            if (!username || !password) {
+                errorDiv.innerText = t('username_password_required');
+                errorDiv.style.display = 'block';
                 return;
             }
 
@@ -351,6 +343,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
                 const data = await res.json();
                 if (res.ok && data.success) {
+                    // 登录成功
                     window.isLoggedIn = true;
                     const loginModal = bootstrap.Modal.getInstance(document.getElementById('loginModal'));
                     loginModal.hide();
@@ -362,13 +355,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                     await updateUserStatusButton();
                 } else {
+                    // 登录失败：显示错误信息
                     errorDiv.innerText = data.message || t('login_failed');
-                    errorDiv.classList.remove('d-none');
+                    errorDiv.style.display = 'block';
+                    console.log('登录失败，返回数据:', data);
                 }
             } catch (err) {
                 console.error(err);
                 errorDiv.innerText = t('network_error');
-                errorDiv.classList.remove('d-none');
+                errorDiv.style.display = 'block';
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalHtml;

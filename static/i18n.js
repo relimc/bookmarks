@@ -211,6 +211,10 @@ const i18n = {
         'email_exists': '该邮箱已被注册',
         'code_error': '验证码错误',
         'code_expired': '验证码已过期，请重新获取',
+        'username_password_required': '用户名和密码不能为空',
+        'logging_in': '登录中...',
+        'login_failed': '用户名或密码错误',
+        'network_error': '网络错误，请稍后重试',
 
         // 增强版提示
         'enhanced_title': '🚀 关于增强版',
@@ -449,6 +453,10 @@ const i18n = {
         'email_exists': 'Email already registered',
         'code_error': 'Verification code error',
         'code_expired': 'Verification code expired, please get a new one',
+        'username_password_required': 'Username and password are required',
+        'logging_in': 'Logging in...',
+        'login_failed': 'Invalid username or password',
+        'network_error': 'Network error, please try again later',
 
 
         // Enhanced version modal
