@@ -989,7 +989,7 @@ class BookmarkApp {
     }
 
     openEditModal(id) {
-        const item = window.allData.bookmarks.find(b => b.id === id);
+        const item = window.allData.bookmarks.find(b => String(b.id) === String(id));
         if (!item) return;
 
         const isLoggedIn = window.isLoggedIn !== false;
@@ -2012,10 +2012,14 @@ class BookmarkApp {
 
     // 其他可能需要的方法（如点击卡片增加点击次数、修改图标等）
     async incrementClick(id) {
-        await this.data.incrementClick(id);
-        // 刷新当前视图（静默更新）
-        const current = this.activeCategoryKey;
-        this.refreshBookmarks(current);
+        const bookmark = window.allData.bookmarks.find(b => String(b.id) === String(id));
+        if (bookmark) {
+            bookmark.clickCount = (bookmark.clickCount || 0) + 1;
+            // 如果是在线版，调用 API；本地版直接更新 IndexedDB
+            await this.data.incrementClick?.(bookmark.id);
+            // 刷新界面
+            this.refreshBookmarks(this.activeCategoryKey);
+        }
     }
 
     async changeIcon(id) {
