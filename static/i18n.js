@@ -91,6 +91,7 @@ const i18n = {
         'edit_category_failed': '编辑分类失败',
         'category_name_zh_placeholder': '中文名',
         'category_name_en_placeholder': '英文名（可选）',
+        'no_uncategorized_bookmarks': '✨ 没有未分类的书签',
 
         // 书签弹窗
         'add_bookmark_title': '📋 新增书签',
@@ -335,6 +336,7 @@ const i18n = {
         'edit_category_failed': 'Edit category failed',
         'category_name_zh_placeholder': 'Chinese name (optional)',
         'category_name_en_placeholder': 'English name',
+        'no_uncategorized_bookmarks': '✨ No uncategorized bookmarks',
 
         // Bookmark modal
         'add_bookmark_title': '📋 Add Bookmark',

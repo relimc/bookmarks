@@ -373,13 +373,12 @@ def fetch_metadata():
         if meta_desc and meta_desc.get('content'):
             description = meta_desc['content'].strip()
 
-        # 提取关键词并清洗
+        # 提取关键词并清洗（随机选取10个）
         keywords_array = []
         meta_keywords = soup.find('meta', attrs={'name': 'keywords'})
         if meta_keywords and meta_keywords.get('content'):
             keywords_raw = meta_keywords['content'].strip()
             import re
-            # 只按中英文逗号、顿号、分号分割（不按空格）
             parts = re.split(r'[，,、;；]+', keywords_raw)
             seen = set()
             cleaned = []
@@ -390,16 +389,12 @@ def fetch_metadata():
                 lower_p = p.lower()
                 if lower_p not in seen:
                     seen.add(lower_p)
-                    cleaned.append(p)  # 保留原始大小写
-            # 随机选择3~5个，不足则全选
+                    cleaned.append(p)
             total = len(cleaned)
             if total == 0:
                 keywords_array = []
-            elif total <= 3:
-                keywords_array = cleaned
             else:
-                # 随机选取3到5个
-                count = random.randint(3, min(5, total))
+                count = min(10, total)
                 keywords_array = random.sample(cleaned, count)
 
         icon_url = extract_icon_url(soup, url)

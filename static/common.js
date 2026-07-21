@@ -36,7 +36,7 @@ function getDomainFavicon(url) {
 
 // 搜索引擎配置（与之前相同）
 const searchEngines = [
-    { name: '搜索书签', iconClass: 'fas fa-search', type: 'local', url: '' },
+    { name: '搜索书签', iconClass: 'fas fa-bookmark', type: 'local', url: '' },
     { name: 'Google', iconClass: 'fab fa-google', type: 'web', url: 'https://www.google.com/search?q=' },
     { name: 'Baidu', iconClass: 'fas fa-paw', type: 'web', url: 'https://www.baidu.com/s?wd=' },
     { name: 'Bing', iconClass: 'fab fa-microsoft', type: 'web', url: 'https://www.bing.com/search?q=' },
@@ -776,8 +776,21 @@ class BookmarkApp {
             </div>
         `;
 
+        const uncategorizedNodeHtml = `
+            <div class="tree-node">
+                <div class="tree-node-content ${window.activeCategoryKey === '__uncategorized__' ? 'active' : ''}" data-category="__uncategorized__">
+                    <div class="node-inner">
+                        <span class="node-icon"><i class="fas fa-folder-open"></i></span>
+                        <span class="node-name">${t('uncategorized')}</span>
+                        <span class="expand-icon placeholder" style="visibility:hidden;">❯</span>
+                    </div>
+                </div>
+            </div>
+        `;
+
         let treeHtml = allNodeHtml + recommendNodeHtml;
         for (let root of tree) treeHtml += renderNode(root);
+        treeHtml += uncategorizedNodeHtml;  // 未分类放在最后
         const container = document.getElementById('categoryTree');
         if (container) container.innerHTML = treeHtml;
 
@@ -834,6 +847,20 @@ class BookmarkApp {
         if (!container) return;
 
         let filtered = [...(window.allData.bookmarks || [])];
+
+        // 处理“未分类”虚拟节点
+        if (category === '__uncategorized__') {
+            const uncategorized = filtered.filter(b => b.category === '未分类');
+            if (uncategorized.length === 0) {
+                container.innerHTML = `<div class="text-center p-5" style="color:#8fa3bc;">${t('no_uncategorized_bookmarks')}</div>`;
+                return;
+            }
+            let html = '<div class="row g-3">';
+            uncategorized.forEach(b => html += `<div class="col-12 col-md-6 col-lg-4">${renderSingleBookmarkCard(b)}</div>`);
+            html += '</div>';
+            container.innerHTML = html;
+            return;
+        }
 
         // 推荐视图
         if (category === '__recommend__') {
@@ -2155,12 +2182,8 @@ class BookmarkApp {
     async batchSubmit() {
         const textarea = document.getElementById('batchUrlsInput');
         const select = document.getElementById('batchCategorySelect');
-        const category = select ? select.value : '';
-
-        if (!category) {
-            alert(t('batch_no_category'));
-            return;
-        }
+        let category = select ? select.value : '';
+        if (!category) category = '未分类';
 
         const rawText = textarea.value;
         const urls = rawText.split(/[\n\r,;；|，]+/).map(s => s.trim()).filter(s => s);
@@ -2169,7 +2192,6 @@ class BookmarkApp {
             return;
         }
 
-        // 去重
         const uniqueUrls = [];
         const seen = new Set();
         for (const url of urls) {
@@ -2179,7 +2201,6 @@ class BookmarkApp {
             }
         }
 
-        // 显示进度条
         const container = document.getElementById('batchProgressContainer');
         const progressBar = document.getElementById('batchProgressBar');
         const progressText = document.getElementById('batchProgressText');
@@ -2207,7 +2228,6 @@ class BookmarkApp {
                 icon: ''
             };
 
-            // 尝试抓取元数据（两个版本均可用）
             try {
                 const meta = await this.fetchMetadataForUrl(url);
                 if (meta) {
@@ -2215,14 +2235,13 @@ class BookmarkApp {
                     bookmarkData.description = meta.description || '';
                     bookmarkData.icon = meta.icon || '';
                     if (meta.keywords && meta.keywords.length) {
-                        bookmarkData.tags = meta.keywords.slice(0, 5);
+                        bookmarkData.tags = meta.keywords;
                     }
                 }
             } catch (err) {
                 console.warn(`抓取失败，使用默认值: ${url}`, err);
             }
 
-            // 保存书签
             try {
                 await this.data.addBookmark(bookmarkData);
                 successCount++;
@@ -2231,24 +2250,31 @@ class BookmarkApp {
                 failedCount++;
             }
 
-            // 更新进度
             const processed = i + 1;
             const percent = Math.min((processed / uniqueUrls.length) * 100, 100);
             progressBar.style.width = `${percent}%`;
             progressText.innerText = `${processed} / ${uniqueUrls.length}`;
 
-            // 适当延迟，避免触发反爬
             if (i < uniqueUrls.length - 1) {
                 await new Promise(r => setTimeout(r, 200));
             }
         }
 
-        // 完成
+        // 强制显示 100%
+        progressBar.style.width = '100%';
+        progressText.innerText = `${uniqueUrls.length} / ${uniqueUrls.length}`;
+
+        // 使用 requestAnimationFrame 等待 UI 渲染完成
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        // 再额外等待 50ms 确保浏览器完成绘制
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // 恢复按钮状态
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalHtml;
         container.style.display = 'none';
 
-        // 提示结果
+        // 显示结果（此时进度条已完整显示）
         if (failedCount === 0) {
             alert(t('batch_complete').replace('{count}', successCount));
         } else {
@@ -2263,7 +2289,6 @@ class BookmarkApp {
             this.refreshBookmarks(null);
         }
 
-        // 关闭批量新增弹窗
         const modal = bootstrap.Modal.getInstance(document.getElementById('batchAddModal'));
         if (modal) modal.hide();
     }
