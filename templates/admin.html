@@ -111,7 +111,7 @@
                                 <th>描述</th>
                                 <th>标签</th>
                                 <th>用户ID</th>
-                                <th class="text-end">操作</th>
+                                <th class="text-end" style="min-width: 150px;">操作</th>
                             </tr>
                         </thead>
                         <tbody id="pending-table-body">
@@ -184,7 +184,7 @@
                             <td class="description-cell" title="${escapeHtml(item.description)}">${escapeHtml(item.description)}</td>
                             <td>${renderTags(item.tags)}</td>
                             <td><span class="badge bg-secondary">ID: ${item.user_id}</span></td>
-                            <td class="text-end">
+                            <td class="text-end py-2" style="white-space: nowrap;">
                                 <button class="btn btn-success btn-sm me-1" onclick="approve(${item.id})">
                                     <i class="fas fa-check-circle me-1"></i>通过
                                 </button>

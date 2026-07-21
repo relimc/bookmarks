@@ -123,6 +123,7 @@ const i18n = {
         'batch_no_category': '请选择分类',
         'batch_urls_placeholder': '每行一个链接',
         'batch_processing': '正在新增...',
+        'public_confirm': '公开书签需管理员审核后，才能发布。是否确定提交审核？',
 
         // 提示消息
         'no_bookmarks': '✨ 还没有书签，点击「新增书签」开始收藏吧！',
@@ -368,6 +369,7 @@ const i18n = {
         'batch_empty': 'Please enter at least one valid URL',
         'batch_no_category': 'Please select a category',
         'batch_urls_placeholder': 'One link per line',
+        'public_confirm': 'Public bookmarks require admin approval before publishing. Are you sure to submit for review?',
 
         // Messages
         'no_bookmarks': '✨ No bookmarks yet, click "Add Bookmark" to get started!',

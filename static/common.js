@@ -696,7 +696,14 @@ class BookmarkApp {
     // ============================================================
     renderCategoryTree() {
         const categoriesObj = window.allData?.categories || {};
-        const tree = buildCategoryTreeFromObj(categoriesObj);
+        // 过滤掉用户创建的“未分类”分类，避免与虚拟节点重复
+        const filteredCategories = {};
+        for (const key in categoriesObj) {
+            if (key !== '未分类') {
+                filteredCategories[key] = categoriesObj[key];
+            }
+        }
+        const tree = buildCategoryTreeFromObj(filteredCategories);
 
         function applyExpanded(nodes) {
             for (let node of nodes) {
