@@ -14,62 +14,106 @@ from .models import Bookmark, Category
 
 bp = Blueprint('bookmarks', __name__)
 
+from flask import request
+from sqlalchemy.orm import joinedload
+
+
+from flask import request, jsonify
+from sqlalchemy.orm import joinedload
+
 @bp.route('/list')
 def list_bookmarks():
+    try:
+        include_shared = request.args.get('include_shared', 'false').lower() == 'true'
 
-    if current_user.is_authenticated:
-        # 登录用户：返回自己的所有书签和所有分类
-        bookmarks = Bookmark.query.filter_by(user_id=current_user.id).all()
-        categories = Category.query.filter_by(user_id=current_user.id).all()
-    else:
-        # 未登录用户：只返回已审核通过的公开书签
-        bookmarks = Bookmark.query.filter_by(status='approved').all()
-        # 收集有公开书签的分类名称
-        categories_with_approved = set(b.category for b in bookmarks)
-        # 获取所有分类（用于查找父级）
-        all_categories = Category.query.all()
-        cat_dict = {c.name: c for c in all_categories}
-        needed_cats = set()
-        for cat_name in categories_with_approved:
-            needed_cats.add(cat_name)
-            # 递归添加父分类
-            parent = cat_dict.get(cat_name).parent if cat_name in cat_dict else None
-            while parent:
-                needed_cats.add(parent)
-                parent = cat_dict.get(parent).parent if parent in cat_dict else None
-        # 查询需要的分类
-        categories = [c for c in all_categories if c.name in needed_cats]
-    # 构建书签数据
-    bookmarks_data = []
-    for b in bookmarks:
-        bookmarks_data.append({
-            'id': b.id,
-            'url': b.url,
-            'title': b.title,
-            'description': b.description,
-            'category': b.category,
-            'icon': b.icon,
-            'tags': b.tags.split(',') if b.tags else [],
-            'click_count': b.click_count,
-            'status': b.status,
-            'user_id': b.user_id,  # 新增
-            'username': b.user.username  # 新增（需确保查询时 join 或 eager load，或单独查询）
-        })
+        if current_user.is_authenticated:
+            # 自己的书签
+            own_bookmarks = Bookmark.query.filter_by(user_id=current_user.id).all()
 
-    categories_data = {}
-    for c in categories:
-        if c.name is None:
-            continue  # 跳过名称为空的分类，避免序列化问题
-        categories_data[c.name] = {
-            'name': c.name,
-            'name_en': c.name_en,
-            'icon': c.icon,
-            'parent': c.parent,
-            'priority': c.priority,
-            'private': False
-        }
+            if include_shared:
+                # 所有公开书签（已审核）但不包括自己的
+                shared_bookmarks = Bookmark.query.filter(
+                    Bookmark.status == 'approved',
+                    Bookmark.user_id != current_user.id
+                ).all()
+                all_bookmarks = own_bookmarks + shared_bookmarks
+            else:
+                all_bookmarks = own_bookmarks
 
-    return jsonify({'bookmarks': bookmarks_data, 'categories': categories_data})
+            categories = Category.query.filter_by(user_id=current_user.id).all()
+        else:
+            # 未登录用户：只返回公开书签
+            all_bookmarks = Bookmark.query.filter_by(status='approved').all()
+            categories = Category.query.all()
+
+        # 构建书签数据（包含 is_owner 和 username）
+        bookmarks_data = []
+        for b in all_bookmarks:
+            # 获取用户名，处理匿名用户情况
+            username = None
+            if b.user:
+                username = b.user.username
+            # is_owner 仅当已登录且是本人
+            is_owner = (current_user.is_authenticated and b.user_id == current_user.id)
+            bookmarks_data.append({
+                'id': b.id,
+                'url': b.url,
+                'title': b.title,
+                'description': b.description,
+                'category': b.category,
+                'icon': b.icon,
+                'tags': b.tags.split(',') if b.tags else [],
+                'click_count': b.click_count,
+                'status': b.status,
+                'user_id': b.user_id,
+                'username': username,
+                'is_owner': is_owner
+            })
+
+        categories_data = {}
+        for c in categories:
+            if c.name is None:
+                continue  # 跳过无效分类，避免序列化错误
+            categories_data[c.name] = {
+                'name': c.name,
+                'name_en': c.name_en,
+                'icon': c.icon,
+                'parent': c.parent,
+                'priority': c.priority,
+                'private': False
+            }
+
+        return jsonify({'bookmarks': bookmarks_data, 'categories': categories_data})
+    except Exception as e:
+        # 打印错误到控制台，方便调试
+        print(f"list_bookmarks 错误: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/convert/<int:bookmark_id>', methods=['POST'])
+@login_required
+def convert_bookmark(bookmark_id):
+    original = Bookmark.query.get(bookmark_id)
+    if not original:
+        return jsonify({'success': False, 'message': '书签不存在'}), 404
+    if original.user_id == current_user.id:
+        return jsonify({'success': False, 'message': '不能转换自己的书签'}), 400
+    # 复制
+    new_bookmark = Bookmark(
+        user_id=current_user.id,
+        url=original.url,
+        title=original.title,
+        description=original.description,
+        category=original.category,
+        icon=original.icon,
+        tags=original.tags,
+        status='private'  # 默认为私密
+    )
+    db.session.add(new_bookmark)
+    db.session.commit()
+    return jsonify({'success': True, 'data': {'id': new_bookmark.id}})
+
 
 @bp.route('/add', methods=['POST'])
 @login_required

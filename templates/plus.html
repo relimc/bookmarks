@@ -19,6 +19,11 @@
             <li><a class="dropdown-item" href="#" id="batchAddBookmarkItem">➕ <span data-i18n="batch_add">批量新增</span></a></li>
             <li><a class="dropdown-item" href="#" id="importBookmarksDropdownItem">📥 <span data-i18n="import_bookmarks">导入书签</span></a></li>
             <li><a class="dropdown-item" href="#" id="exportBookmarksDropdownItem">📤 <span data-i18n="export_bookmarks">导出书签</span></a></li>
+            <li>
+                <a class="dropdown-item" href="#" id="shareToggleItem">
+                    <span>🔗</span> <span id="shareToggleText" data-i18n="share_enable">获取共享</span>
+                </a>
+            </li>
         </ul>
     </div>
     <div class="dropdown">
@@ -45,6 +50,7 @@
         <div id="sharedByContainer" style="display: none; font-size: 0.9rem; color: #6c757d;">
             <i class="fas fa-user-friends"></i> <span data-i18n="shared_by">共享人</span>：<span id="sharedByUsername"></span>
         </div>
+        <button type="button" class="btn btn-sm btn-outline-primary" id="convertBtn" style="display: none;" data-i18n="convert_btn">转换</button>
     </div>
 {% endblock %}
 

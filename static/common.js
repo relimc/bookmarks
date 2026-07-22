@@ -106,7 +106,6 @@ function renderShortcutHint() {
     }
 }
 
-// 卡片渲染（依赖 renderSingleBookmarkCard 全局，后面定义）
 function renderSingleBookmarkCard(b, lineconsToFA = {}) {
     let iconHtml = '';
     if (b.icon && (b.icon.startsWith('http') || b.icon.startsWith('data:') || b.icon.startsWith('/static/'))) {
@@ -120,9 +119,7 @@ function renderSingleBookmarkCard(b, lineconsToFA = {}) {
     const fullUrl = escapeHtml(b.url);
     const shortUrl = shortenUrl(b.url);
 
-    // ============================================================
-    // 标签展示逻辑：最多显示 3 个，多余的用 +N 显示
-    // ============================================================
+    // 标签：最多显示3个，多余用 +N
     let tagsHtml = '';
     if (b.tags && b.tags.length) {
         const maxDisplay = 3;
@@ -133,15 +130,16 @@ function renderSingleBookmarkCard(b, lineconsToFA = {}) {
             tagsHtml += `<span class="tag" onclick="event.stopPropagation(); window.bookmarkApp?.searchByTag('${escapeHtml(tag)}')">${escapeHtml(tag)}</span>`;
         });
         if (remainingTags.length > 0) {
-            const remainingJson = JSON.stringify(remainingTags);
-            const safeRemaining = remainingJson.replace(/"/g, '&quot;');
-            tagsHtml += `<span class="tag tag-more" data-remaining='${safeRemaining}'>+${remainingTags.length}</span>`;
+            const remainingJson = JSON.stringify(remainingTags).replace(/"/g, '&quot;');
+            tagsHtml += `<span class="tag tag-more" data-remaining='${remainingJson}'>+${remainingTags.length}</span>`;
         }
         tagsHtml += '</div>';
     }
 
-    const isLoggedIn = window.isLoggedIn !== false;
-    const editIcon = isLoggedIn ? '✏️' : 'ℹ️';
+    // 判断是否为所有者（自己的书签）
+    const isOwner = b.is_owner === true;
+    const editIcon = isOwner ? '✏️' : 'ℹ️';
+    const clickAction = isOwner ? `openEditModal('${b.id}')` : `openEditModal('${b.id}')`; // 统一调用，内部处理
 
     return `<div class="card" onclick="window.open('${fullUrl}', '_blank'); window.bookmarkApp?.incrementClick('${b.id}')">
                 <button class="edit-btn" onclick="event.stopPropagation(); window.bookmarkApp?.openEditModal('${b.id}')">${editIcon}</button>
@@ -155,6 +153,7 @@ function renderSingleBookmarkCard(b, lineconsToFA = {}) {
                 <div class="card-toast">${shortUrl}</div>
             </div>`;
 }
+
 window.renderSingleBookmarkCard = renderSingleBookmarkCard;
 
 window.fallbackIcon = function(img, url) {
@@ -535,6 +534,7 @@ class BookmarkApp {
         this._pendingBookmarkIsEdit = false;
         window.bookmarkApp = this; // 全局引用
         this.init();
+        this.shareEnabled = localStorage.getItem('share_enabled') === 'true';
     }
 
     // ============================================================
@@ -563,6 +563,43 @@ class BookmarkApp {
         if (typeof initLanguageSwitcher === 'function') {
             initLanguageSwitcher();
         }
+        this.initShareToggle();
+    }
+
+    initShareToggle() {
+        const toggleItem = document.getElementById('shareToggleItem');
+        const toggleText = document.getElementById('shareToggleText');
+        if (!toggleItem || !toggleText) return;
+
+        // 更新显示文字
+        const updateText = () => {
+            toggleText.innerText = this.shareEnabled ? t('share_disable') : t('share_enable');
+        };
+        updateText();
+
+        toggleItem.addEventListener('click', async (e) => {
+            e.preventDefault();
+
+            if (!this.shareEnabled) {
+                // 当前关闭，准备开启：弹窗确认
+                if (!confirm(t('share_confirm'))) return;
+                this.shareEnabled = true;
+            } else {
+                // 当前开启，直接关闭（无需确认）
+                this.shareEnabled = false;
+            }
+
+            localStorage.setItem('share_enabled', String(this.shareEnabled));
+            updateText();
+
+            // 刷新数据
+            await this.loadData();
+            if (this.activeCategoryKey) {
+                this.refreshBookmarks(this.activeCategoryKey);
+            } else {
+                this.refreshBookmarks(null);
+            }
+        });
     }
 
     initTagMoreTooltip() {
@@ -668,11 +705,15 @@ class BookmarkApp {
     // 数据加载
     // ============================================================
     async loadData() {
-        const { bookmarks, categories } = await this.data.getAllData();
+        let url = '/list';
+        if (window.isOnline !== false) {
+            const includeShared = this.shareEnabled ? 'true' : 'false';
+            url = `/list?include_shared=${includeShared}`;
+        }
+        const { bookmarks, categories } = await this.data.getAllData(url);
         window.allData = { bookmarks, categories };
         if (!window.allDataExpanded) window.allDataExpanded = {};
         this.renderCategoryTree();
-        // 刷新当前视图
         this.setActiveCategory(this.activeCategoryKey || '__recommend__');
     }
 
@@ -1033,29 +1074,9 @@ class BookmarkApp {
         if (!item) return;
 
         const isLoggedIn = window.isLoggedIn !== false;
-        const isOwner = (window.currentUserId && item.user_id === window.currentUserId);
+        const isOwner = item.is_owner === true;
 
-        const sharedByContainer = document.getElementById('sharedByContainer');
-        const sharedBySpan = document.getElementById('sharedByUsername');
-        const privateContainer = document.getElementById('privateCheckboxContainer');
-        const isPrivateCheckbox = document.getElementById('isPrivateCheckbox');
-
-        if (!isLoggedIn || !isOwner) {
-            if (sharedByContainer) {
-                sharedByContainer.style.display = '';
-                if (sharedBySpan) sharedBySpan.innerText = item.username || t('anonymous_user');
-            }
-            if (privateContainer) privateContainer.style.display = 'none';
-            if (isPrivateCheckbox) isPrivateCheckbox.disabled = true;
-        } else {
-            if (sharedByContainer) sharedByContainer.style.display = 'none';
-            if (privateContainer) privateContainer.style.display = '';
-            if (isPrivateCheckbox) {
-                isPrivateCheckbox.disabled = false;
-                isPrivateCheckbox.checked = (item.status === 'private');
-            }
-        }
-
+        // DOM 元素
         const modalTitle = document.getElementById('modalTitle');
         const editingId = document.getElementById('editingId');
         const urlInput = document.getElementById('urlInput');
@@ -1066,8 +1087,18 @@ class BookmarkApp {
         const deleteBtn = document.getElementById('deleteBtn');
         const submitBtn = document.getElementById('submitBtn');
         const cancelBtn = document.querySelector('#bookmarkModal .btn-secondary');
+        const sharedByContainer = document.getElementById('sharedByContainer');
+        const sharedBySpan = document.getElementById('sharedByUsername');
+        const privateContainer = document.getElementById('privateCheckboxContainer');
+        const isPrivateCheckbox = document.getElementById('isPrivateCheckbox');
+        const convertBtn = document.getElementById('convertBtn');
 
-        modalTitle.innerText = isLoggedIn ? t('edit_bookmark_title') : t('bookmark_info_title');
+        // 清空旧绑定
+        if (convertBtn) convertBtn.onclick = null;
+        if (deleteBtn) deleteBtn.onclick = null;
+
+        // 填充数据
+        modalTitle.innerText = isOwner ? t('edit_bookmark_title') : t('bookmark_info_title');
         editingId.value = id;
         urlInput.value = item.url;
         urlInput.readOnly = true;
@@ -1077,7 +1108,33 @@ class BookmarkApp {
         this.updateCategorySelect(item.category);
         categorySelect.value = item.category;
 
-        if (!isLoggedIn) {
+        // ========== 控制共享人、私密、转换按钮 ==========
+        if (!isOwner) {
+            // 他人书签：显示共享人，隐藏私密
+            if (sharedByContainer) {
+                sharedByContainer.style.display = '';
+                if (sharedBySpan) sharedBySpan.innerText = item.username || t('anonymous_user');
+            }
+            if (privateContainer) privateContainer.style.display = 'none';
+            if (isPrivateCheckbox) isPrivateCheckbox.disabled = true;
+            // 转换按钮仅在已登录时显示
+            if (convertBtn) {
+                convertBtn.style.display = isLoggedIn ? 'inline-block' : 'none';
+            }
+        } else {
+            // 自己的书签：隐藏共享人，显示私密，隐藏转换按钮
+            if (sharedByContainer) sharedByContainer.style.display = 'none';
+            if (privateContainer) privateContainer.style.display = '';
+            if (isPrivateCheckbox) {
+                isPrivateCheckbox.disabled = false;
+                isPrivateCheckbox.checked = (item.status === 'private');
+            }
+            if (convertBtn) convertBtn.style.display = 'none';
+        }
+
+        // 设置表单可编辑性
+        if (!isLoggedIn || !isOwner) {
+            // 未登录或查看他人：只读
             titleInput.readOnly = true;
             descInput.readOnly = true;
             if (tagsInput) tagsInput.readOnly = true;
@@ -1087,6 +1144,7 @@ class BookmarkApp {
             if (cancelBtn) cancelBtn.innerText = t('close');
             if (isPrivateCheckbox) isPrivateCheckbox.disabled = true;
         } else {
+            // 自己的书签且已登录：可编辑
             titleInput.readOnly = false;
             descInput.readOnly = false;
             if (tagsInput) tagsInput.readOnly = false;
@@ -1098,6 +1156,36 @@ class BookmarkApp {
             if (submitBtn) submitBtn.style.display = 'block';
             if (cancelBtn) cancelBtn.innerText = t('cancel_btn');
             if (isPrivateCheckbox) isPrivateCheckbox.disabled = false;
+        }
+
+        // 转换按钮事件（仅在已登录时有效）
+        if (convertBtn) {
+            convertBtn.onclick = async () => {
+                if (!isLoggedIn) {
+                    this.showLoginRequired();
+                    return;
+                }
+                if (!confirm(t('convert_confirm'))) return;
+                try {
+                    const res = await fetch(`/convert/${item.id}`, { method: 'POST' });
+                    const data = await res.json();
+                    if (data.success) {
+                        alert(t('convert_success'));
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('bookmarkModal'));
+                        modal.hide();
+                        await this.loadData();
+                        if (this.activeCategoryKey) {
+                            this.refreshBookmarks(this.activeCategoryKey);
+                        } else {
+                            this.refreshBookmarks(null);
+                        }
+                    } else {
+                        alert(data.message || t('convert_failed'));
+                    }
+                } catch (err) {
+                    alert(t('network_error'));
+                }
+            };
         }
 
         const modal = new bootstrap.Modal(document.getElementById('bookmarkModal'));

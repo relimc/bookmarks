@@ -92,6 +92,7 @@ const i18n = {
         'category_name_zh_placeholder': '中文名',
         'category_name_en_placeholder': '英文名（可选）',
         'no_uncategorized_bookmarks': '✨ 没有未分类的书签',
+        'priority_tip': '数字越小，优先级越高，该分类在侧边栏的更上面',
 
         // 书签弹窗
         'add_bookmark_title': '📋 新增书签',
@@ -125,6 +126,14 @@ const i18n = {
         'batch_processing': '正在新增...',
         'public_confirm': '公开书签需管理员审核后，才能发布。是否确定提交审核？',
         'saving': '保存中...',
+        'share_switch_label': '共享',
+        'convert_btn': '收藏',
+        'convert_confirm': '确认收藏此书签？',
+        'convert_success': '收藏成功',
+        'convert_failed': '收藏失败',
+        'share_enable': '获取共享',
+        'share_disable': '关闭共享',
+        'share_confirm': '确认获取他人的共享书签？',
 
         // 提示消息
         'no_bookmarks': '✨ 还没有书签，点击「新增书签」开始收藏吧！',
@@ -339,6 +348,7 @@ const i18n = {
         'category_name_zh_placeholder': 'Chinese name (optional)',
         'category_name_en_placeholder': 'English name',
         'no_uncategorized_bookmarks': '✨ No uncategorized bookmarks',
+        'priority_tip': 'Smaller number means higher priority, this category appears higher in the sidebar',
 
         // Bookmark modal
         'add_bookmark_title': '📋 Add Bookmark',
@@ -372,6 +382,14 @@ const i18n = {
         'batch_urls_placeholder': 'One link per line',
         'public_confirm': 'Public bookmarks require admin approval before publishing. Are you sure to submit for review?',
         'saving': 'Saving...',
+        'share_switch_label': 'Shared',
+        'convert_btn': 'Save',
+        'convert_confirm': 'Confirm to save this bookmark?',
+        'convert_success': 'saved successfully',
+        'convert_failed': 'saved failed',
+        'share_enable': 'Get Shared',
+        'share_disable': 'Close Shared',
+        'share_confirm': 'Confirm to get shared bookmarks from others?',
 
         // Messages
         'no_bookmarks': '✨ No bookmarks yet, click "Add Bookmark" to get started!',

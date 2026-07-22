@@ -6,8 +6,8 @@ window.isOnline = true;
 let isUpdatingUserStatus = false;
 
 class OnlineDataAdapter {
-    async getAllData() {
-        const res = await fetch('/list');
+    async getAllData(url) {
+        const res = await fetch(url || '/list');
         if (res.status === 401) {
             return { bookmarks: [], categories: {} };
         }
