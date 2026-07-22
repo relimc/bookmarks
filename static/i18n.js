@@ -124,6 +124,7 @@ const i18n = {
         'batch_urls_placeholder': '每行一个链接',
         'batch_processing': '正在新增...',
         'public_confirm': '公开书签需管理员审核后，才能发布。是否确定提交审核？',
+        'saving': '保存中...',
 
         // 提示消息
         'no_bookmarks': '✨ 还没有书签，点击「新增书签」开始收藏吧！',
@@ -370,6 +371,7 @@ const i18n = {
         'batch_no_category': 'Please select a category',
         'batch_urls_placeholder': 'One link per line',
         'public_confirm': 'Public bookmarks require admin approval before publishing. Are you sure to submit for review?',
+        'saving': 'Saving...',
 
         // Messages
         'no_bookmarks': '✨ No bookmarks yet, click "Add Bookmark" to get started!',
@@ -609,6 +611,22 @@ function updatePageText() {
         // 处理其他元素
         else {
             el.innerText = translatedText;
+        }
+    });
+
+    // 处理 data-i18n-title
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        const key = el.getAttribute('data-i18n-title');
+        if (key) {
+            const translated = t(key);
+            el.setAttribute('title', translated);
+            el.setAttribute('data-bs-original-title', translated);
+            const tooltip = bootstrap.Tooltip.getInstance(el);
+            if (tooltip) {
+                tooltip.setContent({ '.tooltip-inner': translated });
+            } else {
+                new bootstrap.Tooltip(el);
+            }
         }
     });
 

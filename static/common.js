@@ -995,6 +995,12 @@ class BookmarkApp {
     // 书签模态框：新增/编辑
     // ============================================================
     openAddModal() {
+        // 检查登录状态
+        if (!window.isLoggedIn) {
+            this.showLoginRequired();
+            return;
+        }
+
         const modal = new bootstrap.Modal(document.getElementById('bookmarkModal'));
         document.getElementById('modalTitle').innerText = t('add_bookmark_title');
         document.getElementById('editingId').value = '';
@@ -2192,6 +2198,11 @@ class BookmarkApp {
         let category = select ? select.value : '';
         if (!category) category = '未分类';
 
+        // 读取私密复选框状态（本地版无该元素，默认为 true）
+        const privateCheckbox = document.getElementById('batchIsPrivateCheckbox');
+        const isPrivate = privateCheckbox ? privateCheckbox.checked : true;
+        const status = isPrivate ? 'private' : 'public';
+
         const rawText = textarea.value;
         const urls = rawText.split(/[\n\r,;；|，]+/).map(s => s.trim()).filter(s => s);
         if (urls.length === 0) {
@@ -2228,7 +2239,7 @@ class BookmarkApp {
             let bookmarkData = {
                 url: url,
                 category: category,
-                status: 'private',
+                status: status,   // 关键：添加 status 字段
                 title: url,
                 description: '',
                 tags: [],
