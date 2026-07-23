@@ -3,7 +3,7 @@ import requests
 from flask import Blueprint, request, jsonify, current_app
 from flask_login import login_required, current_user
 from bs4 import BeautifulSoup
-from .utils import download_icon, get_headers, extract_icon_url, is_admin_user
+from .utils import download_icon, get_headers, extract_icon_url, is_admin_user, map_icon_to_local
 import random
 import base64
 import os
@@ -61,7 +61,7 @@ def list_bookmarks():
                 'title': b.title,
                 'description': b.description,
                 'category': b.category,
-                'icon': b.icon,
+                'icon': map_icon_to_local(b.icon),   # 调用转换函数
                 'tags': b.tags.split(',') if b.tags else [],
                 'click_count': b.click_count,
                 'status': b.status,

@@ -2140,6 +2140,7 @@ class BookmarkApp {
 
     // 其他可能需要的方法（如点击卡片增加点击次数、修改图标等）
     async incrementClick(id) {
+        if (!window.isLoggedIn) return; // 未登录则忽略
         const bookmark = window.allData.bookmarks.find(b => String(b.id) === String(id));
         if (bookmark) {
             bookmark.clickCount = (bookmark.clickCount || 0) + 1;

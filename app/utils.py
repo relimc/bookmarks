@@ -45,6 +45,28 @@ def download_icon(icon_url):
         print(f"下载图标失败: {e}")
         return None
 
+
+def map_icon_to_local(icon_url):
+    """将图标 URL 映射到本地缓存路径（如果存在）"""
+    if not icon_url:
+        return icon_url
+    if icon_url.startswith('/static/favicons/'):
+        # 已经是本地路径，直接返回
+        return icon_url
+    # 计算 URL 的 MD5 哈希
+    file_hash = hashlib.md5(icon_url.encode('utf-8')).hexdigest()
+    # 获取静态目录路径
+    static_dir = os.path.join(current_app.root_path, 'static')
+    favicon_dir = os.path.join(static_dir, 'favicons')
+    # 遍历目录，查找以 file_hash 开头的文件（因为扩展名可能不同）
+    if os.path.exists(favicon_dir):
+        for filename in os.listdir(favicon_dir):
+            if filename.startswith(file_hash):
+                # 找到匹配的缓存文件
+                return f'/static/favicons/{filename}'
+    # 没有找到本地缓存，返回原始 URL
+    return icon_url
+
 def get_headers():
     user_agents = [
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
