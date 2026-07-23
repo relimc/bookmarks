@@ -122,14 +122,45 @@ def update_category(name):
 @bp.route('/category/<string:name>', methods=['DELETE'])
 @login_required
 def delete_category(name):
+    force = request.args.get('force', 'false').lower() == 'true'
     cat = Category.query.filter_by(user_id=current_user.id, name=name).first()
     if not cat:
         return jsonify({'success': False, 'message': '分类不存在'}), 404
+
     has_children = Category.query.filter_by(user_id=current_user.id, parent=name).count() > 0
     has_bookmarks = Bookmark.query.filter_by(user_id=current_user.id, category=name).count() > 0
-    if has_children or has_bookmarks:
-        return jsonify({'success': False, 'message': '该分类下还有子分类或书签，无法删除'}), 400
-    db.session.delete(cat)
-    db.session.commit()
-    current_app.logger.info(f"用户 {current_user.username} 删除分类: {name}")
-    return jsonify({'success': True, 'data': {}})
+
+    if not force:
+        if has_children or has_bookmarks:
+            return jsonify({
+                'success': False,
+                'message': '该分类下还有子分类或书签，无法删除',
+                'has_children': has_children,
+                'has_bookmarks': has_bookmarks
+            }), 400
+        db.session.delete(cat)
+        db.session.commit()
+        return jsonify({'success': True, 'data': {}})
+    else:
+        # 强制删除
+        try:
+            delete_category_recursive(name, current_user.id)
+            db.session.commit()
+            return jsonify({'success': True, 'data': {}})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': str(e)}), 500
+
+
+def delete_category_recursive(category_name, user_id):
+    """递归删除分类及其所有子分类，并删除所有相关书签"""
+    # 获取所有子分类名称
+    children = Category.query.filter_by(user_id=user_id, parent=category_name).all()
+    child_names = [c.name for c in children]
+    # 递归删除子分类
+    for child in children:
+        delete_category_recursive(child.name, user_id)
+    # 删除所有属于该分类的书签
+    Bookmark.query.filter_by(user_id=user_id, category=category_name).delete()
+    # 删除分类自身
+    Category.query.filter_by(user_id=user_id, name=category_name).delete()

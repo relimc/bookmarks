@@ -183,11 +183,57 @@ class LocalDataAdapter {
         // 返回成功结果
         return { success: true };
     }
-    async deleteCategory(name) {
+    async deleteCategory(name, force = false) {
         if (!db) await openDB();
-        const tx = db.transaction(['categories'], 'readwrite');
-        const store = tx.objectStore('categories');
-        await store.delete(name);
+        const tx = db.transaction(['categories', 'bookmarks'], 'readwrite');
+        const catStore = tx.objectStore('categories');
+        const bmStore = tx.objectStore('bookmarks');
+
+        // 获取所有分类
+        const allCats = await new Promise((resolve) => {
+            const req = catStore.getAll();
+            req.onsuccess = () => resolve(req.result);
+        });
+        // 检查是否有子分类
+        const hasChildren = allCats.some(c => c.parent === name);
+        const allBookmarks = await new Promise((resolve) => {
+            const req = bmStore.getAll();
+            req.onsuccess = () => resolve(req.result);
+        });
+        const hasBookmarks = allBookmarks.some(b => b.category === name);
+
+        if (!force) {
+            if (hasChildren || hasBookmarks) {
+                const err = new Error('该分类下还有子分类或书签，无法删除');
+                err.has_children = hasChildren;
+                err.has_bookmarks = hasBookmarks;
+                throw err;
+            }
+            await catStore.delete(name);
+            return { success: true };
+        } else {
+            // 强制删除：递归获取所有子分类名称
+            function getAllChildrenNames(catName) {
+                const children = allCats.filter(c => c.parent === catName);
+                let names = [catName];
+                children.forEach(child => {
+                    names = names.concat(getAllChildrenNames(child.name));
+                });
+                return names;
+            }
+            const allNames = getAllChildrenNames(name);
+            // 删除这些分类的书签
+            for (let b of allBookmarks) {
+                if (allNames.includes(b.category)) {
+                    await bmStore.delete(b.id);
+                }
+            }
+            // 删除分类本身及子分类
+            for (let n of allNames) {
+                await catStore.delete(n);
+            }
+            return { success: true };
+        }
     }
     async incrementClick(id) {
         if (!db) await openDB();

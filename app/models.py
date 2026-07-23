@@ -35,7 +35,7 @@ class Bookmark(db.Model):
     title = db.Column(db.String(500))
     description = db.Column(db.Text)
     category = db.Column(db.String(100), default='未分类')
-    icon = db.Column(db.String(500))
+    icon = db.Column(db.Text)
     tags = db.Column(db.String(200))
     click_count = db.Column(db.Integer, default=0)
     private = db.Column(db.Boolean, default=False)
@@ -47,7 +47,7 @@ class Category(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     name = db.Column(db.String(100), nullable=False)        # 中文分类名（必填）
     name_en = db.Column(db.String(100), nullable=True)      # 英文分类名（可选）
-    icon = db.Column(db.String(100), default='fas fa-folder')
+    icon = db.Column(db.Text, default='fas fa-folder')
     parent = db.Column(db.String(100))
     priority = db.Column(db.Integer, default=100)
     private = db.Column(db.Boolean, default=False)

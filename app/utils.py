@@ -1,7 +1,8 @@
 import os
 import random
 import string
-import hashlib
+import threading
+
 import requests
 from urllib.parse import urljoin, urlparse
 from flask_mail import Message
@@ -9,14 +10,34 @@ from . import mail
 from flask import current_app
 from flask_login import current_user
 
+import os
+import hashlib
+import requests
+from urllib.parse import urlparse
+import logging
+
+logger = logging.getLogger(__name__)
+
 def download_icon(icon_url):
     if not icon_url:
+        logger.info("download_icon: icon_url 为空，返回 None")
         return None
+
+    # 如果是 data: 协议，直接返回 None（无需下载）
+    if icon_url.startswith('data:') or icon_url.startswith('data:image'):
+        logger.info(f"download_icon: 跳过 data: 图标，返回 None")
+        return None
+
+    logger.info(f"download_icon: 尝试下载 {icon_url}")
+
     try:
         headers = {'User-Agent': 'Mozilla/5.0'}
         resp = requests.get(icon_url, headers=headers, timeout=5, stream=True)
         if resp.status_code != 200:
+            logger.warning(f"download_icon: 下载失败，HTTP 状态码 {resp.status_code}")
             return None
+
+        # 确定扩展名
         content_type = resp.headers.get('content-type', '').lower()
         if 'image/png' in content_type:
             ext = '.png'
@@ -31,41 +52,28 @@ def download_icon(icon_url):
             ext = os.path.splitext(parsed.path)[1]
             if not ext:
                 ext = '.ico'
+
         save_dir = os.path.join('static', 'favicons')
         os.makedirs(save_dir, exist_ok=True)
+
         file_hash = hashlib.md5(icon_url.encode('utf-8')).hexdigest()
         filename = f"{file_hash}{ext}"
         filepath = os.path.join(save_dir, filename)
-        if not os.path.exists(filepath):
-            with open(filepath, 'wb') as f:
-                for chunk in resp.iter_content(chunk_size=8192):
-                    f.write(chunk)
+
+        if os.path.exists(filepath):
+            logger.info(f"download_icon: 文件已存在，直接使用缓存: {filepath}")
+            return f"/static/favicons/{filename}"
+
+        with open(filepath, 'wb') as f:
+            for chunk in resp.iter_content(chunk_size=8192):
+                f.write(chunk)
+
+        logger.info(f"download_icon: 下载成功，保存至 {filepath}")
         return f"/static/favicons/{filename}"
+
     except Exception as e:
-        print(f"下载图标失败: {e}")
+        logger.error(f"download_icon: 下载失败 ({icon_url}): {e}")
         return None
-
-
-def map_icon_to_local(icon_url):
-    """将图标 URL 映射到本地缓存路径（如果存在）"""
-    if not icon_url:
-        return icon_url
-    if icon_url.startswith('/static/favicons/'):
-        # 已经是本地路径，直接返回
-        return icon_url
-    # 计算 URL 的 MD5 哈希
-    file_hash = hashlib.md5(icon_url.encode('utf-8')).hexdigest()
-    # 获取静态目录路径
-    static_dir = os.path.join(current_app.root_path, 'static')
-    favicon_dir = os.path.join(static_dir, 'favicons')
-    # 遍历目录，查找以 file_hash 开头的文件（因为扩展名可能不同）
-    if os.path.exists(favicon_dir):
-        for filename in os.listdir(favicon_dir):
-            if filename.startswith(file_hash):
-                # 找到匹配的缓存文件
-                return f'/static/favicons/{filename}'
-    # 没有找到本地缓存，返回原始 URL
-    return icon_url
 
 def get_headers():
     user_agents = [
@@ -93,16 +101,68 @@ def send_verification_email(email, code):
         return False
 
 def extract_icon_url(soup, base_url):
+    """
+    从 BeautifulSoup 对象中提取最佳图标 URL，按优先级：
+    1. 优先选择 type 为 image/svg+xml 或 image/png
+    2. 其次选择 sizes 包含 'any' 或数字较大的（如 64x64）
+    3. 最后选择第一个可用的图标
+    """
     candidates = []
     for link in soup.find_all('link', rel=lambda x: x and ('icon' in x.lower() or 'shortcut icon' in x.lower())):
         href = link.get('href')
-        if href:
-            candidates.append(urljoin(base_url, href))
+        if not href:
+            continue
+        # 解析属性
+        icon_type = link.get('type', '').lower()
+        sizes = link.get('sizes', '').lower()
+        href = urljoin(base_url, href)
+        candidates.append({
+            'href': href,
+            'type': icon_type,
+            'sizes': sizes,
+            'priority': 0
+        })
+
     if not candidates:
+        # 没有找到任何图标，返回默认 favicon.ico
         parsed = urlparse(base_url)
         base = f"{parsed.scheme}://{parsed.netloc}"
-        candidates.append(f"{base}/favicon.ico")
-    return candidates[0] if candidates else ''
+        return f"{base}/favicon.ico"
+
+    # 根据类型和尺寸分配优先级
+    def get_priority(c):
+        p = 0
+        # 优先 SVG
+        if 'svg' in c['type']:
+            p += 100
+        # 其次 PNG
+        elif 'png' in c['type']:
+            p += 80
+        # 再次 ICO
+        elif 'icon' in c['type'] or 'x-icon' in c['type']:
+            p += 60
+        # 其他类型
+        else:
+            p += 40
+        # 如果 sizes 包含 'any'，加分
+        if 'any' in c['sizes']:
+            p += 50
+        # 如果 sizes 包含数字，尝试解析尺寸
+        if 'x' in c['sizes'] and not c['sizes'].startswith('any'):
+            try:
+                w, h = c['sizes'].split('x')
+                size = int(w) * int(h)
+                # 尺寸越大，优先级越高（但避免过大，限制）
+                if size > 0:
+                    p += min(size // 100, 20)
+            except:
+                pass
+        return p
+
+    # 按优先级排序
+    candidates.sort(key=get_priority, reverse=True)
+    # 返回最高优先级的 URL
+    return candidates[0]['href']
 
 def send_review_result_email(user_email, bookmark_title, is_approved):
     """发送审核结果通知邮件"""

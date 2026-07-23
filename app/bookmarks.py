@@ -1,9 +1,11 @@
+import threading
 import time
+import hashlib
 import requests
 from flask import Blueprint, request, jsonify, current_app
 from flask_login import login_required, current_user
 from bs4 import BeautifulSoup
-from .utils import download_icon, get_headers, extract_icon_url, is_admin_user, map_icon_to_local
+from .utils import download_icon, get_headers, extract_icon_url, is_admin_user
 import random
 import base64
 import os
@@ -14,12 +16,103 @@ from .models import Bookmark, Category
 
 bp = Blueprint('bookmarks', __name__)
 
-from flask import request
-from sqlalchemy.orm import joinedload
 
+# 图标缓存
+_icon_cache = {}
+_cache_loaded = False
 
-from flask import request, jsonify
-from sqlalchemy.orm import joinedload
+def _load_icon_cache():
+    global _cache_loaded
+    if _cache_loaded:
+        return
+    favicon_dir = os.path.join(current_app.root_path, 'static', 'favicons')
+    if os.path.exists(favicon_dir):
+        for filename in os.listdir(favicon_dir):
+            if '.' in filename:
+                file_hash = filename.split('.')[0]
+                _icon_cache[file_hash] = filename
+    _cache_loaded = True
+    current_app.logger.info(f"图标缓存已加载，共 {len(_icon_cache)} 个文件")
+
+def _download_icon_async(icon_url, file_hash, app):
+    try:
+        with app.app_context():
+            local_path = download_icon(icon_url)
+            if local_path:
+                filename = os.path.basename(local_path)
+                _icon_cache[file_hash] = filename
+                current_app.logger.info(f"后台下载成功: {icon_url}")
+            else:
+                current_app.logger.info(f"后台下载失败: {icon_url}")
+    except Exception as e:
+        current_app.logger.error(f"后台下载异常: {icon_url}, {e}")
+
+def map_icon_to_local(icon_url):
+    if not icon_url:
+        return ''
+    if icon_url.startswith('data:'):
+        # 尝试将 Base64 保存为本地文件
+        try:
+            import base64
+            import re
+            # 解析 data:image/[type];base64,...
+            match = re.match(r'data:image/(?P<type>\w+);base64,(?P<data>.+)', icon_url)
+            if match:
+                ext = match.group('type')
+                data = match.group('data')
+                # 解码
+                image_data = base64.b64decode(data)
+                # 保存到 favicons 目录
+                file_hash = hashlib.md5(icon_url.encode('utf-8')).hexdigest()
+                filename = f"{file_hash}.{ext}"
+                save_dir = os.path.join(current_app.root_path, 'static', 'favicons')
+                os.makedirs(save_dir, exist_ok=True)
+                filepath = os.path.join(save_dir, filename)
+                with open(filepath, 'wb') as f:
+                    f.write(image_data)
+                # 更新缓存
+                _icon_cache[file_hash] = filename
+                return f'/static/favicons/{filename}'
+        except Exception as e:
+            current_app.logger.warning(f"Base64 图标保存失败: {e}")
+        # 如果保存失败，仍然返回原始 data URL
+        return icon_url
+
+    # 确保缓存已加载
+    _load_icon_cache()
+
+    if icon_url.startswith('/static/favicons/'):
+        static_dir = current_app.static_folder or os.path.join(current_app.root_path, 'static')
+        file_path = os.path.join(static_dir, 'favicons', os.path.basename(icon_url))
+        if os.path.exists(file_path):
+            return icon_url
+        return ''
+
+    file_hash = hashlib.md5(icon_url.encode('utf-8')).hexdigest()
+
+    # 检查缓存
+    cached = _icon_cache.get(file_hash)
+    if cached:
+        static_dir = current_app.static_folder or os.path.join(current_app.root_path, 'static')
+        file_path = os.path.join(static_dir, 'favicons', cached)
+        if os.path.exists(file_path):
+            return f'/static/favicons/{cached}'
+        else:
+            _icon_cache.pop(file_hash, None)
+
+    # 目录扫描
+    favicon_dir = os.path.join(current_app.root_path, 'static', 'favicons')
+    if os.path.exists(favicon_dir):
+        for filename in os.listdir(favicon_dir):
+            if filename.startswith(file_hash):
+                _icon_cache[file_hash] = filename
+                return f'/static/favicons/{filename}'
+
+    # 启动后台下载
+    app = current_app._get_current_object()
+    threading.Thread(target=_download_icon_async, args=(icon_url, file_hash, app), daemon=True).start()
+    return icon_url
+
 
 @bp.route('/list')
 def list_bookmarks():
@@ -119,6 +212,8 @@ def convert_bookmark(bookmark_id):
 @login_required
 def add_bookmark():
     req = request.get_json()
+    print(f"[DEBUG] 完整请求体: {req}")  # 打印整个请求
+
     url = req.get('url', '').strip()
     if not url:
         return jsonify({'success': False, 'message': 'URL不能为空'}), 400
@@ -130,34 +225,23 @@ def add_bookmark():
     parent_category = req.get('parent_category', '').strip()
     title = req.get('title', '').strip()
     description = req.get('description', '').strip()
-    icon = req.get('icon', '').strip()
+    raw_icon = req.get('icon', '').strip()
     tags = req.get('tags', [])
     status = req.get('status', 'private')
 
-    if status == 'public':
-        if is_admin_user():
-            status = 'approved'  # 管理员自动通过
-        else:
-            status = 'pending'
+    print(f"[DEBUG] raw_icon: '{raw_icon}'")
 
-    if category and not Category.query.filter_by(user_id=current_user.id, name=category).first() and category_icon:
-        new_cat = Category(
-            user_id=current_user.id,
-            name=category,
-            icon=category_icon,
-            parent=parent_category or None
-        )
-        db.session.add(new_cat)
-
-    if 'icon' in req:
-        icon = req['icon'].strip() if req['icon'] else ''
-        if icon and not icon.startswith('data:image'):
-            local_icon = download_icon(icon)
-            final_icon = local_icon or icon
+    final_icon = ''
+    if raw_icon:
+        if not raw_icon.startswith('data:image'):
+            local_icon = download_icon(raw_icon)
+            print(f"[DEBUG] local_icon: '{local_icon}'")
+            final_icon = local_icon or raw_icon
         else:
-            final_icon = icon if icon else ''
-    else:
-        final_icon = ''
+            final_icon = raw_icon
+        print(f"[DEBUG] final_icon: '{final_icon}'")
+
+    # 检查是否创建了分类（略）
 
     new_bookmark = Bookmark(
         user_id=current_user.id,
@@ -169,8 +253,12 @@ def add_bookmark():
         tags=','.join(tags) if tags else '',
         status=status
     )
+    print(f"[DEBUG] 创建 Bookmark 对象，icon 属性: '{new_bookmark.icon}'")
+
     db.session.add(new_bookmark)
     db.session.commit()
+    print(f"[DEBUG] 提交后，从数据库重新查询的 icon: '{Bookmark.query.get(new_bookmark.id).icon}'")
+
     current_app.logger.info(f"用户 {current_user.username} 新增书签: {url}, 分类: {category}, 状态: {status}")
     return jsonify({'success': True, 'data': {}})
 
@@ -253,28 +341,31 @@ def import_bookmarks():
     req = request.get_json()
     bookmarks_data = req.get('bookmarks', [])
     categories_data = req.get('categories', [])
+
+    # 导入分类
     for cat in categories_data:
         name = cat.get('name')
-        if not name:
-            continue  # 跳过无效分类
-        # 检查是否已存在
-        if not Category.query.filter_by(user_id=current_user.id, name=name).first():
+        if name and not Category.query.filter_by(user_id=current_user.id, name=name).first():
             new_cat = Category(
                 user_id=current_user.id,
                 name=name,
-                name_en=cat.get('name_en', ''),   # 新增
+                name_en=cat.get('name_en', ''),
                 icon=cat.get('icon', 'fas fa-folder'),
                 parent=cat.get('parent', ''),
                 priority=cat.get('priority', 100)
             )
             db.session.add(new_cat)
+
+    # 导入书签
     for b in bookmarks_data:
         icon = b.get('icon', '')
-        if icon and not icon.startswith('data:image'):
+        # 只对非 Base64 且非本地路径的图标尝试下载
+        if icon and not icon.startswith('data:image') and not icon.startswith('/static/'):
             local_icon = download_icon(icon)
             final_icon = local_icon or icon
         else:
-            final_icon = icon
+            final_icon = icon  # 直接使用原值（Base64 或本地路径）
+
         new_bm = Bookmark(
             user_id=current_user.id,
             url=b['url'],
@@ -286,46 +377,33 @@ def import_bookmarks():
             private=b.get('private', False)
         )
         db.session.add(new_bm)
+
     db.session.commit()
-    current_app.logger.info(f"用户 {current_user.username} 导入书签: {len(bookmarks_data)} 条")
     return jsonify({'success': True, 'data': {}})
 
 def icon_to_base64(icon_value):
-    """将图标（URL、本地路径或已有base64）统一转换为 data:image/*;base64, 格式"""
+    """将图标转换为 Base64，如果无法转换则返回原始值"""
     if not icon_value:
         return ''
-    # 已经是 data:image
     if icon_value.startswith('data:image'):
-        return icon_value
-    # 本地路径： /static/favicons/xxx.png
+        return icon_value  # 已经是 base64
     if icon_value.startswith('/static/'):
-        # 获取绝对路径
-        static_folder = current_app.static_folder
-        if static_folder:
-            filepath = os.path.join(static_folder, icon_value[8:])  # 去掉 '/static/'
-            if os.path.exists(filepath):
-                with open(filepath, 'rb') as f:
-                    data = f.read()
-                    # 根据扩展名推断 MIME
-                    ext = os.path.splitext(filepath)[1].lower()
-                    mime = 'image/png' if ext == '.png' else 'image/jpeg' if ext in ('.jpg', '.jpeg') else 'image/x-icon'
-                    return f'data:{mime};base64,' + base64.b64encode(data).decode()
-        # 如果文件不存在，返回空（或原值）
-        return ''
-    # 外部 URL
-    if icon_value.startswith(('http://', 'https://')):
-        try:
-            resp = requests.get(icon_value, timeout=5)
-            if resp.status_code == 200:
-                content_type = resp.headers.get('content-type', '')
-                if content_type.startswith('image/'):
-                    return f'data:{content_type};base64,' + base64.b64encode(resp.content).decode()
-        except Exception:
-            pass
-        # 如果下载失败，返回空
-        return ''
-    # 其他情况（如字体图标类名）不做处理，返回空
-    return ''
+        # 尝试读取本地文件
+        filepath = os.path.join(current_app.static_folder, icon_value[8:])
+        if os.path.exists(filepath):
+            with open(filepath, 'rb') as f:
+                data = f.read()
+                ext = os.path.splitext(filepath)[1][1:].lower()
+                mime = 'image/png' if ext == 'png' else 'image/jpeg' if ext in ('jpg','jpeg') else 'image/x-icon'
+                return f'data:{mime};base64,' + base64.b64encode(data).decode()
+        # 文件不存在，返回原始值（可能是个路径）
+        return icon_value
+    if icon_value.startswith('http'):
+        # 尝试下载并转换，但为了避免延迟，可选择性实现
+        # 简单起见，直接返回原始 URL
+        return icon_value
+    # 其他情况（如 Font Awesome 类名），原样返回
+    return icon_value
 
 @bp.route('/export', methods=['GET'])
 @login_required

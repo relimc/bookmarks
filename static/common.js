@@ -896,21 +896,9 @@ class BookmarkApp {
 
         let filtered = [...(window.allData.bookmarks || [])];
 
-        // 处理“未分类”虚拟节点
-        if (category === '__uncategorized__') {
-            const uncategorized = filtered.filter(b => b.category === '未分类');
-            if (uncategorized.length === 0) {
-                container.innerHTML = `<div class="text-center p-5" style="color:#8fa3bc;">${t('no_uncategorized_bookmarks')}</div>`;
-                return;
-            }
-            let html = '<div class="row g-3">';
-            uncategorized.forEach(b => html += `<div class="col-12 col-md-6 col-lg-4">${renderSingleBookmarkCard(b)}</div>`);
-            html += '</div>';
-            container.innerHTML = html;
-            return;
-        }
-
-        // 推荐视图
+        // ============================================================
+        // 1. 推荐视图
+        // ============================================================
         if (category === '__recommend__') {
             filtered.sort((a, b) => (b.click_count || 0) - (a.click_count || 0));
             filtered = filtered.slice(0, 30);
@@ -925,7 +913,25 @@ class BookmarkApp {
             return;
         }
 
-        // 单个分类（含子分类）
+        // ============================================================
+        // 2. “未分类”虚拟节点
+        // ============================================================
+        if (category === '__uncategorized__') {
+            const uncategorized = filtered.filter(b => b.category === '未分类');
+            if (uncategorized.length === 0) {
+                container.innerHTML = `<div class="text-center p-5" style="color:#8fa3bc;">${t('no_uncategorized_bookmarks')}</div>`;
+                return;
+            }
+            let html = '<div class="row g-3">';
+            uncategorized.forEach(b => html += `<div class="col-12 col-md-6 col-lg-4">${renderSingleBookmarkCard(b)}</div>`);
+            html += '</div>';
+            container.innerHTML = html;
+            return;
+        }
+
+        // ============================================================
+        // 3. 单个分类（含子分类）
+        // ============================================================
         if (category && category !== '__all__') {
             const getChildrenNames = (catName) => {
                 const children = Object.values(window.allData.categories).filter(c => c.parent === catName);
@@ -946,9 +952,12 @@ class BookmarkApp {
             return;
         }
 
-        // 全部分类视图（按一级分类分组）
+        // ============================================================
+        // 4. 全部分类视图（按一级分类分组）
+        // ============================================================
+        // 排除“未分类”一级分类（由虚拟节点处理）
         const topCategories = Object.values(window.allData.categories)
-            .filter(c => !c.parent || c.parent === '')
+            .filter(c => (!c.parent || c.parent === '') && c.name !== '未分类')
             .sort((a, b) => (a.priority || 100) - (b.priority || 100));
 
         if (filtered.length === 0) {
@@ -986,8 +995,8 @@ class BookmarkApp {
             html += `</div></div>`;
         }
 
-        // 孤儿书签归入"未分类"
-        const orphanBookmarks = filtered.filter(b => !processedBookmarks.has(b.id));
+        // 处理未分组的书签（包括 category 为“未分类”、空值、或指向不存在的分类）
+        const orphanBookmarks = filtered.filter(b => b.category === '未分类');
         if (orphanBookmarks.length > 0) {
             const uncategorizedName = '未分类';
             const uncategorizedCat = categoryMap[uncategorizedName] || { icon: 'fas fa-folder' };
@@ -1002,6 +1011,7 @@ class BookmarkApp {
             orphanBookmarks.forEach(b => html += `<div class="col-12 col-md-6 col-lg-4">${renderSingleBookmarkCard(b)}</div>`);
             html += `</div></div>`;
         }
+
 
         container.innerHTML = html || `<div class="text-center p-5" style="color:#8fa3bc;">${t('no_bookmarks')}</div>`;
     }
@@ -1346,6 +1356,8 @@ class BookmarkApp {
         submitBtn.disabled = true;
         submitBtn.innerHTML = t('saving');
 
+        console.log('最终 icon:', icon);
+
         try {
             if (editingIdVal) {
                 bookmark.id = parseInt(editingIdVal);
@@ -1565,18 +1577,38 @@ class BookmarkApp {
     }
 
     async deleteCategoryHandler(name) {
-        const hasChildren = Object.values(window.allData.categories).some(c => c.parent === name);
-        const hasBookmarks = window.allData.bookmarks.some(b => b.category === name);
-        if (hasChildren || hasBookmarks) {
-            alert(t('category_has_items'));
-            return;
-        }
-        if (!confirm(t('confirm_delete_category'))) return;
-        await this.data.deleteCategory(name);
-        await this.loadData();
-        const manageModal = document.getElementById('categoryManageModal');
-        if (manageModal && manageModal.classList.contains('show')) {
-            this.loadCategoryList();
+        try {
+            const result = await this.data.deleteCategory(name);
+            if (result.success) {
+                await this.loadData();
+                const manageModal = document.getElementById('categoryManageModal');
+                if (manageModal && manageModal.classList.contains('show')) {
+                    this.loadCategoryList();
+                }
+            } else {
+                alert(result.message || t('delete_failed'));
+            }
+        } catch (err) {
+            if (err.has_children || err.has_bookmarks) {
+                if (confirm(t('force_delete_confirm'))) {
+                    try {
+                        const forceResult = await this.data.deleteCategory(name, true);
+                        if (forceResult.success) {
+                            await this.loadData();
+                            const manageModal = document.getElementById('categoryManageModal');
+                            if (manageModal && manageModal.classList.contains('show')) {
+                                this.loadCategoryList();
+                            }
+                        } else {
+                            alert(forceResult.message || t('delete_failed'));
+                        }
+                    } catch (forceErr) {
+                        alert(forceErr.message || t('delete_failed'));
+                    }
+                }
+            } else {
+                alert(err.message || t('delete_failed'));
+            }
         }
     }
 

@@ -66,9 +66,17 @@ class OnlineDataAdapter {
         if (!res.ok) throw new Error('更新分类失败');
         return await res.json();
     }
-    async deleteCategory(name) {
-        const res = await fetch(`/category/${encodeURIComponent(name)}`, { method: 'DELETE' });
-        if (!res.ok) throw new Error('删除分类失败');
+    async deleteCategory(name, force = false) {
+        const url = `/category/${encodeURIComponent(name)}${force ? '?force=true' : ''}`;
+        const res = await fetch(url, { method: 'DELETE' });
+        if (!res.ok) {
+            const errorData = await res.json();
+            // 构造一个包含错误信息的 Error 对象
+            const err = new Error(errorData.message || '删除失败');
+            err.has_children = errorData.has_children;
+            err.has_bookmarks = errorData.has_bookmarks;
+            throw err;
+        }
         return await res.json();
     }
     async incrementClick(id) {

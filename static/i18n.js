@@ -93,6 +93,8 @@ const i18n = {
         'category_name_en_placeholder': '英文名（可选）',
         'no_uncategorized_bookmarks': '✨ 没有未分类的书签',
         'priority_tip': '数字越小，优先级越高，该分类在侧边栏的更上面',
+        'category_has_items': '该分类下还有子分类或书签，无法删除',
+        'force_delete_confirm': '该分类下还有子分类或书签，是否强制删除（将同时删除所有子分类和书签）？',
 
         // 书签弹窗
         'add_bookmark_title': '📋 新增书签',
@@ -352,6 +354,8 @@ const i18n = {
         'category_name_en_placeholder': 'English name',
         'no_uncategorized_bookmarks': '✨ No uncategorized bookmarks',
         'priority_tip': 'Smaller number means higher priority, this category appears higher in the sidebar',
+        'category_has_items': 'This category has subcategories or bookmarks and cannot be deleted',
+        'force_delete_confirm': 'This category has subcategories or bookmarks. Force delete (will also delete all subcategories and bookmarks)?',
 
         // Bookmark modal
         'add_bookmark_title': '📋 Add Bookmark',
