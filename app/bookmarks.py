@@ -149,10 +149,15 @@ def add_bookmark():
         )
         db.session.add(new_cat)
 
-    local_icon = None
-    if icon and not icon.startswith('data:image'):
-        local_icon = download_icon(icon)
-    final_icon = local_icon or icon
+    if 'icon' in req:
+        icon = req['icon'].strip() if req['icon'] else ''
+        if icon and not icon.startswith('data:image'):
+            local_icon = download_icon(icon)
+            final_icon = local_icon or icon
+        else:
+            final_icon = icon if icon else ''
+    else:
+        final_icon = ''
 
     new_bookmark = Bookmark(
         user_id=current_user.id,
@@ -188,18 +193,22 @@ def edit_bookmark(item_id):
             )
             db.session.add(new_cat)
         bookmark.category = new_category
+        current_app.logger.info(f"用户 {current_user.username} 编辑书签 ID: {item_id}, 新分类: {new_category}")
 
     if 'title' in req:
         bookmark.title = req['title'].strip() or bookmark.category
     if 'description' in req:
         bookmark.description = req['description'].strip()
     if 'icon' in req:
-        new_icon = req['icon'].strip()
-        if new_icon and not new_icon.startswith('data:image'):
-            local_icon = download_icon(new_icon)
-            bookmark.icon = local_icon or new_icon
+        new_icon = req['icon'].strip() if req['icon'] else ''
+        if new_icon:
+            if not new_icon.startswith('data:image'):
+                local_icon = download_icon(new_icon)
+                bookmark.icon = local_icon or new_icon
+            else:
+                bookmark.icon = new_icon
         else:
-            bookmark.icon = new_icon
+            bookmark.icon = ''
     if 'tags' in req:
         tags = req['tags'] if isinstance(req['tags'], list) else []
         bookmark.tags = ','.join(tags) if tags else ''
@@ -208,14 +217,15 @@ def edit_bookmark(item_id):
         if status == 'public':
             if is_admin_user():
                 status = 'approved'
+                print("Admin: set status to approved")
             else:
                 status = 'pending'
+                print("Regular user: set status to pending")
         else:
             status = 'private'
-        bookmark.status = status  # 这行是必需的！
+        bookmark.status = status
 
     db.session.commit()
-    current_app.logger.info(f"用户 {current_user.username} 编辑书签 ID: {item_id}, 新分类: {new_category}")
     return jsonify({'success': True, 'data': {}})
 
 @bp.route('/delete/<int:item_id>', methods=['POST'])

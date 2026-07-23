@@ -1320,7 +1320,7 @@ class BookmarkApp {
         const title = document.getElementById('titleInput').value.trim() || url;
         const description = document.getElementById('descriptionInput').value.trim() || '';
         const tagsRaw = document.getElementById('bookmarkTags').value.trim();
-        const tags = tagsRaw ? tagsRaw.split('/').map(t => t.trim()).filter(t => t) : [];
+        const tags = tagsRaw ? tagsRaw.split(/[\/,、；;，]+/).map(t => t.trim()).filter(t => t) : [];
 
         const isPrivateCheckbox = document.getElementById('isPrivateCheckbox');
         const isPrivate = isPrivateCheckbox ? isPrivateCheckbox.checked : true;
@@ -2152,10 +2152,44 @@ class BookmarkApp {
     }
 
     async changeIcon(id) {
+        // 检查登录状态
+        if (!window.isLoggedIn) {
+            this.showLoginRequired();
+            return;
+        }
+
+        // 查找书签
+        const bookmark = window.allData.bookmarks.find(b => String(b.id) === String(id));
+        if (!bookmark) {
+            alert(t('bookmark_not_found'));
+            return;
+        }
+
+        // 检查是否为所有者（如果不是所有者，不能修改）
+        if (!bookmark.is_owner) {
+            alert(t('no_permission_to_change_icon'));
+            return;
+        }
+
         const newIcon = prompt(t('change_icon_prompt'));
-        if (!newIcon) return;
-        await this.data.updateBookmark(id, { icon: newIcon });
-        await this.loadData();
+        if (newIcon === null) return; // 用户取消
+
+        // 如果用户输入为空，则清除图标
+        const iconValue = newIcon.trim() || '';
+
+        try {
+            await this.data.updateBookmark(id, { icon: iconValue });
+            await this.loadData();
+            // 刷新当前视图
+            if (this.activeCategoryKey) {
+                this.refreshBookmarks(this.activeCategoryKey);
+            } else {
+                this.refreshBookmarks(null);
+            }
+        } catch (err) {
+            console.error(err);
+            alert(t('change_failed'));
+        }
     }
 
     searchByTag(tag) {
