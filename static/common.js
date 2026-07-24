@@ -737,14 +737,50 @@ class BookmarkApp {
     // ============================================================
     renderCategoryTree() {
         const categoriesObj = window.allData?.categories || {};
-        // 过滤掉用户创建的“未分类”分类，避免与虚拟节点重复
+        const bookmarks = window.allData?.bookmarks || [];
+
+        // ===== 1. 判断分类及其子分类是否有书签 =====
+        function hasBookmarks(catName) {
+            if (bookmarks.some(b => b.category === catName)) {
+                return true;
+            }
+            const children = Object.values(categoriesObj).filter(c => c.parent === catName);
+            for (const child of children) {
+                if (hasBookmarks(child.name)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // ===== 2. 过滤分类，排除用户创建的“未分类” =====
         const filteredCategories = {};
-        for (const key in categoriesObj) {
-            if (key !== '未分类') {
-                filteredCategories[key] = categoriesObj[key];
+        for (const name in categoriesObj) {
+            if (name === '未分类') continue;  // 跳过用户创建的未分类
+            const cat = categoriesObj[name];
+            if (hasBookmarks(name)) {
+                filteredCategories[name] = cat;
             }
         }
-        const tree = buildCategoryTreeFromObj(filteredCategories);
+
+        // ===== 3. 补全父分类 =====
+        const finalCategories = {};
+        for (const name in filteredCategories) {
+            const cat = filteredCategories[name];
+            finalCategories[name] = cat;
+            let parent = cat.parent;
+            while (parent && !finalCategories[parent]) {
+                if (categoriesObj[parent] && parent !== '未分类') {
+                    finalCategories[parent] = categoriesObj[parent];
+                    parent = categoriesObj[parent].parent;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        // ===== 4. 构建树 =====
+        const tree = buildCategoryTreeFromObj(finalCategories);
 
         function applyExpanded(nodes) {
             for (let node of nodes) {
@@ -761,7 +797,7 @@ class BookmarkApp {
             const isActive = (window.activeCategoryKey === node.name);
             const activeClass = isActive ? 'active' : '';
 
-            const catObj = categoriesObj[node.name];
+            const catObj = finalCategories[node.name];
             const displayName = catObj ? app.getCategoryDisplayName(catObj) : node.name;
 
             let iconHtml = '';
@@ -801,6 +837,7 @@ class BookmarkApp {
             return html;
         }
 
+        // 固定节点
         const allNodeHtml = `
             <div class="tree-node">
                 <div class="tree-node-content ${window.activeCategoryKey === null ? 'active' : ''}" data-category="__all__">
@@ -823,7 +860,6 @@ class BookmarkApp {
                 </div>
             </div>
         `;
-
         const uncategorizedNodeHtml = `
             <div class="tree-node">
                 <div class="tree-node-content ${window.activeCategoryKey === '__uncategorized__' ? 'active' : ''}" data-category="__uncategorized__">
@@ -838,11 +874,12 @@ class BookmarkApp {
 
         let treeHtml = allNodeHtml + recommendNodeHtml;
         for (let root of tree) treeHtml += renderNode(root);
-        treeHtml += uncategorizedNodeHtml;  // 未分类放在最后
+        treeHtml += uncategorizedNodeHtml;  // 虚拟未分类放在最后
+
         const container = document.getElementById('categoryTree');
         if (container) container.innerHTML = treeHtml;
 
-        // 绑定节点点击
+        // ===== 事件绑定 =====
         document.querySelectorAll('.tree-node-content').forEach(el => {
             el.addEventListener('click', (e) => {
                 if (document.getElementById('sidebar')?.classList.contains('collapsed')) return;
@@ -851,6 +888,7 @@ class BookmarkApp {
                 if (!cat) return;
                 if (cat === '__all__') { app.setActiveCategory(null); return; }
                 if (cat === '__recommend__') { app.setActiveCategory('__recommend__'); return; }
+                if (cat === '__uncategorized__') { app.setActiveCategory('__uncategorized__'); return; }
                 const hasChildren = Object.values(window.allData.categories).some(c => c.parent === cat);
                 if (hasChildren) {
                     if (!window.allDataExpanded) window.allDataExpanded = {};
@@ -2049,6 +2087,8 @@ class BookmarkApp {
                         parent,
                         priority
                     });
+
+                    console.log('提交分类数据:', { name: nameZh, name_en: nameEn, icon, parent, priority });
 
                     if (result.success) {
                         // 刷新全局数据

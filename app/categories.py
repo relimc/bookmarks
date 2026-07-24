@@ -14,6 +14,8 @@ def add_category():
         name = req.get('name', '').strip()  # 中文名
         name_en = req.get('name_en', '').strip()  # 英文名
 
+        print(f"add_category 请求数据: {req}")
+
         # 至少一个不为空
         if not name and not name_en:
             return jsonify({'success': False, 'message': '请至少输入一种语言的分类名称'}), 400
