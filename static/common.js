@@ -1356,8 +1356,6 @@ class BookmarkApp {
         submitBtn.disabled = true;
         submitBtn.innerHTML = t('saving');
 
-        console.log('最终 icon:', icon);
-
         try {
             if (editingIdVal) {
                 bookmark.id = parseInt(editingIdVal);

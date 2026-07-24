@@ -133,20 +133,26 @@ def list_bookmarks():
             else:
                 all_bookmarks = own_bookmarks
 
-            categories = Category.query.filter_by(user_id=current_user.id).all()
+            # 收集有书签的分类名称
+            bookmark_category_names = {b.category for b in all_bookmarks}
+
+            # 获取所有分类并过滤
+            all_categories = Category.query.filter_by(user_id=current_user.id).all()
+            categories = [c for c in all_categories if c.name in bookmark_category_names]
         else:
             # 未登录用户：只返回公开书签
             all_bookmarks = Bookmark.query.filter_by(status='approved').all()
-            categories = Category.query.all()
+            # 收集有公开书签的分类名称
+            bookmark_category_names = {b.category for b in all_bookmarks}
+            all_categories = Category.query.all()
+            categories = [c for c in all_categories if c.name in bookmark_category_names]
 
         # 构建书签数据（包含 is_owner 和 username）
         bookmarks_data = []
         for b in all_bookmarks:
-            # 获取用户名，处理匿名用户情况
             username = None
             if b.user:
                 username = b.user.username
-            # is_owner 仅当已登录且是本人
             is_owner = (current_user.is_authenticated and b.user_id == current_user.id)
             bookmarks_data.append({
                 'id': b.id,
@@ -154,7 +160,7 @@ def list_bookmarks():
                 'title': b.title,
                 'description': b.description,
                 'category': b.category,
-                'icon': map_icon_to_local(b.icon),   # 调用转换函数
+                'icon': map_icon_to_local(b.icon),
                 'tags': b.tags.split(',') if b.tags else [],
                 'click_count': b.click_count,
                 'status': b.status,
@@ -166,7 +172,7 @@ def list_bookmarks():
         categories_data = {}
         for c in categories:
             if c.name is None:
-                continue  # 跳过无效分类，避免序列化错误
+                continue
             categories_data[c.name] = {
                 'name': c.name,
                 'name_en': c.name_en,
@@ -178,7 +184,6 @@ def list_bookmarks():
 
         return jsonify({'bookmarks': bookmarks_data, 'categories': categories_data})
     except Exception as e:
-        # 打印错误到控制台，方便调试
         print(f"list_bookmarks 错误: {e}")
         import traceback
         traceback.print_exc()
@@ -212,7 +217,6 @@ def convert_bookmark(bookmark_id):
 @login_required
 def add_bookmark():
     req = request.get_json()
-    print(f"[DEBUG] 完整请求体: {req}")  # 打印整个请求
 
     url = req.get('url', '').strip()
     if not url:
@@ -229,8 +233,14 @@ def add_bookmark():
     tags = req.get('tags', [])
     status = req.get('status', 'private')
 
-    print(f"[DEBUG] raw_icon: '{raw_icon}'")
+    # ========== 先处理状态转换 ==========
+    if status == 'public':
+        if is_admin_user():
+            status = 'approved'
+        else:
+            status = 'pending'
 
+    # ========== 处理图标 ==========
     final_icon = ''
     if raw_icon:
         if not raw_icon.startswith('data:image'):
@@ -239,10 +249,18 @@ def add_bookmark():
             final_icon = local_icon or raw_icon
         else:
             final_icon = raw_icon
-        print(f"[DEBUG] final_icon: '{final_icon}'")
 
-    # 检查是否创建了分类（略）
+    # 创建分类（如果有）
+    if category and not Category.query.filter_by(user_id=current_user.id, name=category).first() and category_icon:
+        new_cat = Category(
+            user_id=current_user.id,
+            name=category,
+            icon=category_icon,
+            parent=parent_category or None
+        )
+        db.session.add(new_cat)
 
+    # 创建 Bookmark 对象（此时 status 已转换）
     new_bookmark = Bookmark(
         user_id=current_user.id,
         url=url,
@@ -251,13 +269,12 @@ def add_bookmark():
         category=category or '未分类',
         icon=final_icon,
         tags=','.join(tags) if tags else '',
-        status=status
+        status=status  # 使用转换后的 status
     )
-    print(f"[DEBUG] 创建 Bookmark 对象，icon 属性: '{new_bookmark.icon}'")
 
     db.session.add(new_bookmark)
     db.session.commit()
-    print(f"[DEBUG] 提交后，从数据库重新查询的 icon: '{Bookmark.query.get(new_bookmark.id).icon}'")
+    saved = Bookmark.query.get(new_bookmark.id)
 
     current_app.logger.info(f"用户 {current_user.username} 新增书签: {url}, 分类: {category}, 状态: {status}")
     return jsonify({'success': True, 'data': {}})
