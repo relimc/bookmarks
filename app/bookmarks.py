@@ -113,24 +113,15 @@ def map_icon_to_local(icon_url):
     threading.Thread(target=_download_icon_async, args=(icon_url, file_hash, app), daemon=True).start()
     return icon_url
 
-
 @bp.route('/list')
 def list_bookmarks():
-    """
-    获取书签和分类列表。
-    - 登录用户：返回自己的所有书签，如果开启共享则额外包含公开书签；分类返回所有（包括空分类）。
-    - 未登录用户：只返回公开书签，分类只返回包含公开书签的分类。
-    """
     try:
         include_shared = request.args.get('include_shared', 'false').lower() == 'true'
 
         if current_user.is_authenticated:
-            # ---- 登录用户 ----
-            # 自己的书签
+            # 登录用户：返回所有书签和所有分类
             own_bookmarks = Bookmark.query.filter_by(user_id=current_user.id).all()
-
             if include_shared:
-                # 包含其他人的公开书签
                 shared_bookmarks = Bookmark.query.filter(
                     Bookmark.status == 'approved',
                     Bookmark.user_id != current_user.id
@@ -139,19 +130,26 @@ def list_bookmarks():
             else:
                 all_bookmarks = own_bookmarks
 
-            # 分类：返回该用户的所有分类（包括空分类）
             categories = Category.query.filter_by(user_id=current_user.id).all()
         else:
-            # ---- 未登录用户 ----
-            # 只返回公开书签
+            # 未登录用户：只返回公开书签，但分类需要包含有公开书签的分类及其祖先
             all_bookmarks = Bookmark.query.filter_by(status='approved').all()
-            # 收集包含公开书签的分类名称
+            # 收集有公开书签的分类名称
             bookmark_category_names = {b.category for b in all_bookmarks}
             all_categories = Category.query.all()
-            # 只保留有公开书签的分类
-            categories = [c for c in all_categories if c.name in bookmark_category_names]
 
-        # ---- 构建书签数据 ----
+            # 构建分类名称集合，包括所有有书签的分类及其父分类
+            category_names_set = set(bookmark_category_names)
+            # 向上追溯父分类
+            for cat_name in list(category_names_set):
+                cat = next((c for c in all_categories if c.name == cat_name), None)
+                while cat and cat.parent:
+                    category_names_set.add(cat.parent)
+                    cat = next((c for c in all_categories if c.name == cat.parent), None)
+
+            categories = [c for c in all_categories if c.name in category_names_set]
+
+        # 构建书签数据
         bookmarks_data = []
         for b in all_bookmarks:
             username = b.user.username if b.user else None
@@ -162,7 +160,7 @@ def list_bookmarks():
                 'title': b.title,
                 'description': b.description,
                 'category': b.category,
-                'icon': map_icon_to_local(b.icon),   # 尝试映射本地图标
+                'icon': map_icon_to_local(b.icon),
                 'tags': b.tags.split(',') if b.tags else [],
                 'click_count': b.click_count,
                 'status': b.status,
@@ -171,7 +169,7 @@ def list_bookmarks():
                 'is_owner': is_owner
             })
 
-        # ---- 构建分类数据 ----
+        # 构建分类数据
         categories_data = {}
         for c in categories:
             if c.name is None:
@@ -186,7 +184,6 @@ def list_bookmarks():
             }
 
         return jsonify({'bookmarks': bookmarks_data, 'categories': categories_data})
-
     except Exception as e:
         print(f"list_bookmarks 错误: {e}")
         import traceback

@@ -9,3 +9,4 @@ __pycache__
 app/__pycache__/
 logs/
 *.log
+app/static

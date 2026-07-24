@@ -157,15 +157,23 @@ function renderSingleBookmarkCard(b, lineconsToFA = {}) {
 window.renderSingleBookmarkCard = renderSingleBookmarkCard;
 
 window.fallbackIcon = function(img, url) {
-    img.onerror = null;
+    img.onerror = null; // 防止循环触发
     img.style.display = 'none';
     const parent = img.parentNode;
     if (!parent) return;
+    // 尝试使用域名 favicon
     const domainIcon = getDomainFavicon(url);
-    if (domainIcon && domainIcon !== img.src) {
+    if (domainIcon && domainIcon !== img.src && !img._triedDomain) {
+        img._triedDomain = true; // 标记已尝试
         const newImg = new Image();
-        newImg.onload = () => { parent.innerHTML = ''; parent.appendChild(newImg); };
-        newImg.onerror = () => { parent.innerHTML = '<i class="fas fa-tag"></i>'; };
+        newImg.onload = () => {
+            parent.innerHTML = '';
+            parent.appendChild(newImg);
+        };
+        newImg.onerror = () => {
+            // 域名 favicon 也加载失败，显示默认图标
+            parent.innerHTML = '<i class="fas fa-tag"></i>';
+        };
         newImg.src = domainIcon;
     } else {
         parent.innerHTML = '<i class="fas fa-tag"></i>';
