@@ -360,39 +360,60 @@ def import_bookmarks():
     bookmarks_data = req.get('bookmarks', [])
     categories_data = req.get('categories', [])
 
-    # 导入分类
+    # 1. 导入分类
     for cat in categories_data:
         name = cat.get('name')
-        if name and not Category.query.filter_by(user_id=current_user.id, name=name).first():
-            new_cat = Category(
-                user_id=current_user.id,
-                name=name,
-                name_en=cat.get('name_en', ''),
-                icon=cat.get('icon', 'fas fa-folder'),
-                parent=cat.get('parent', ''),
-                priority=cat.get('priority', 100)
-            )
-            db.session.add(new_cat)
+        if not name:
+            continue
+        # 检查是否已存在
+        if Category.query.filter_by(user_id=current_user.id, name=name).first():
+            continue
+        new_cat = Category(
+            user_id=current_user.id,
+            name=name,
+            name_en=cat.get('name_en', ''),
+            icon=cat.get('icon', 'fas fa-folder'),
+            parent=cat.get('parent', ''),
+            priority=cat.get('priority', 100)
+        )
+        db.session.add(new_cat)
 
-    # 导入书签
+    # 2. 导入书签
     for b in bookmarks_data:
+        url = b.get('url')
+        if not url:
+            continue
+
+        # 处理 status
+        status = b.get('status')
+        if status is None:
+            # 兼容旧版导出（只有 private 字段）
+            private = b.get('private', True)
+            status = 'private' if private else 'pending'   # 旧版公开默认为待审核
+        # 如果 status 为 'public'，后端 add_bookmark 逻辑会转换，但此处直接存储可能违反字段约束
+        # 建议统一为 private/pending/approved
+        if status == 'public':
+            # 对于导入，我们将其设为 pending，由管理员审核
+            status = 'pending'
+
+        # 处理图标
         icon = b.get('icon', '')
-        # 只对非 Base64 且非本地路径的图标尝试下载
+        final_icon = ''
         if icon and not icon.startswith('data:image') and not icon.startswith('/static/'):
             local_icon = download_icon(icon)
             final_icon = local_icon or icon
         else:
-            final_icon = icon  # 直接使用原值（Base64 或本地路径）
+            final_icon = icon
 
         new_bm = Bookmark(
             user_id=current_user.id,
-            url=b['url'],
-            title=b.get('title', b['url']),
+            url=url,
+            title=b.get('title', url),
             description=b.get('description', ''),
             category=b.get('category', '未分类'),
             icon=final_icon,
             tags=','.join(b.get('tags', [])),
-            private=b.get('private', False)
+            status=status
         )
         db.session.add(new_bm)
 
@@ -442,7 +463,8 @@ def export_bookmarks():
             'icon': base64_icon,   # 替换为 base64
             'tags': b.tags.split(',') if b.tags else [],
             'click_count': b.click_count,
-            'private': b.private,
+            'status': b.status,  # 新增
+            'private': (b.status == 'private')  # 保留兼容
         })
 
     categories_data = [{

@@ -1034,3 +1034,32 @@ kbd {
     display: inline-block;
     vertical-align: baseline;
 }
+/* 卡片状态徽章 - 边框样式，只有左和下边框 */
+.badge-status {
+    position: absolute;
+    top: 0;
+    right: 0;
+    font-size: 0.65rem;
+    padding: 4px 4px 4px 4px;
+    border: 1px solid #eef2f6;   /* 与卡片边框颜色一致 */
+    border-right: none;          /* 无右边框 */
+    border-top: none;            /* 无上边框 */
+    border-bottom-left-radius: 12px; /* 左下圆角 */
+    background: transparent;
+    color: #1e293b;              /* 深色文字 */
+    font-weight: 500;
+    z-index: 5;
+    pointer-events: none;
+    line-height: 1.2;
+}
+
+/* 不同状态文字颜色可微调，但保持统一 */
+.badge-pending {
+    color: #d97706;              /* 橙色文字 */
+}
+.badge-approved {
+    color: #059669;              /* 绿色文字 */
+}
+.badge-shared {
+    color: #2563eb;              /* 蓝色文字 */
+}

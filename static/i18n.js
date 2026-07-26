@@ -139,6 +139,8 @@ const i18n = {
         'change_failed': '更换图标失败',
         'bookmark_not_found': '书签不存在',
         'no_permission_to_change_icon': '您没有权限修改此书签的图标',
+        'batch_tags_placeholder': '标签，多个用 / 或 , 分隔',
+        'batch_tags_hint': '输入的标签将与网页自动抓取的标签合并，重复标签会自动去重',
 
         // 提示消息
         'no_bookmarks': '✨ 还没有书签，点击「新增书签」开始收藏吧！',
@@ -226,6 +228,7 @@ const i18n = {
         'username_length_error': '用户名长度应为3-80个字符',
         'username_exists': '用户名已存在',
         'email_exists': '该邮箱已被注册',
+        'email_available': '邮箱可用',
         'code_error': '验证码错误',
         'code_expired': '验证码已过期，请重新获取',
         'username_password_required': '用户名和密码不能为空',
@@ -258,7 +261,10 @@ const i18n = {
         'shared_by': '共享人',
         'anonymous_user': '匿名用户',
         'edit_category': '编辑分类',
-        'category_name_placeholder': '输入名称'
+        'category_name_placeholder': '输入名称',
+        'badge_pending': '审核中',
+        'badge_approved': '共享中',
+        'badge_shared': '共享中',
     },
     en: {
         'title_enhanced': 'My Bookmarks · Plus',
@@ -401,6 +407,8 @@ const i18n = {
         'change_failed': 'Failed to change icon',
         'bookmark_not_found': 'Bookmark not found',
         'no_permission_to_change_icon': 'You are not allowed to change this bookmark\'s icon',
+        'batch_tags_placeholder': 'Tags, separated by / or ,',
+        'batch_tags_hint': 'Input tags will be merged with automatically fetched tags, duplicates removed',
 
         // Messages
         'no_bookmarks': '✨ No bookmarks yet, click "Add Bookmark" to get started!',
@@ -485,6 +493,7 @@ const i18n = {
         'username_length_error': 'Username must be 3-80 characters',
         'username_exists': 'Username already exists',
         'email_exists': 'Email already registered',
+        'email_available': 'Email available',
         'code_error': 'Verification code error',
         'code_expired': 'Verification code expired, please get a new one',
         'username_password_required': 'Username and password are required',
@@ -518,7 +527,10 @@ const i18n = {
         'shared_by': 'Shared by',
         'anonymous_user': 'Anonymous',
         'edit_category': 'Edit Category',
-        'category_name_placeholder': 'Enter name'
+        'category_name_placeholder': 'Enter name',
+        'badge_pending': 'Pending',
+        'badge_approved': 'Shared',
+        'badge_shared': 'Shared',
     }
 };
 

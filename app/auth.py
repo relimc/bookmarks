@@ -194,3 +194,16 @@ def reset_password():
     db.session.commit()
 
     return jsonify({'success': True, 'message': '密码重置成功，请重新登录'})
+
+@bp.route('/check-email', methods=['POST'])
+def check_email():
+    data = request.get_json()
+    email = data.get('email', '').strip().lower()
+    if not email:
+        return jsonify({'exists': False, 'valid': False, 'message': '邮箱不能为空'}), 400
+    # 简单格式校验
+    import re
+    if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
+        return jsonify({'exists': False, 'valid': False, 'message': '邮箱格式不正确'}), 400
+    user = User.query.filter_by(email=email).first()
+    return jsonify({'exists': user is not None, 'valid': True, 'message': '邮箱已被注册' if user else '邮箱可用'})

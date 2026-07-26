@@ -145,6 +145,12 @@ async function updateUserStatusButton() {
         btn.innerHTML = `<i class="fas fa-sign-in-alt"></i> ${t('login')}`;
         btn.title = t('login');
     }
+
+    // 控制“获取共享”菜单项的显示/隐藏
+    const shareToggleContainer = document.getElementById('shareToggleContainer');
+    if (shareToggleContainer) {
+        shareToggleContainer.style.display = window.isLoggedIn ? '' : 'none';
+    }
 }
 
 // 安全的模态框切换函数
@@ -253,6 +259,52 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                 new bootstrap.Modal(registerModalEl).show();
             }
+        });
+    }
+
+    const regEmailInput = document.getElementById('regEmail');
+    const emailFeedback = document.getElementById('emailCheckFeedback');
+    if (regEmailInput) {
+        let checkTimeout = null;
+        regEmailInput.addEventListener('blur', function() {
+            const email = this.value.trim();
+            if (!email) {
+                emailFeedback.style.display = 'none';
+                return;
+            }
+            // 简单格式校验
+            const emailRegex = /^[^\s@]+@([^\s@.,]+\.)+[^\s@.,]{2,}$/;
+            if (!emailRegex.test(email)) {
+                emailFeedback.style.display = 'block';
+                emailFeedback.className = 'form-text small text-danger';
+                emailFeedback.innerText = t('email_invalid');
+                return;
+            }
+            // 防抖
+            clearTimeout(checkTimeout);
+            checkTimeout = setTimeout(() => {
+                fetch('/check-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    emailFeedback.style.display = 'block';
+                    if (data.exists) {
+                        emailFeedback.className = 'form-text small text-danger';
+                        emailFeedback.innerText = t('email_exists');
+                    } else {
+                        emailFeedback.className = 'form-text small text-success';
+                        emailFeedback.innerText = t('email_available');
+                    }
+                })
+                .catch(() => {
+                    emailFeedback.style.display = 'block';
+                    emailFeedback.className = 'form-text small text-warning';
+                    emailFeedback.innerText = t('network_error');
+                });
+            }, 300);
         });
     }
 

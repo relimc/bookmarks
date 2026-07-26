@@ -119,7 +119,7 @@ function renderSingleBookmarkCard(b, lineconsToFA = {}) {
     const fullUrl = escapeHtml(b.url);
     const shortUrl = shortenUrl(b.url);
 
-    // 标签：最多显示3个，多余用 +N
+    // 标签：最多3个
     let tagsHtml = '';
     if (b.tags && b.tags.length) {
         const maxDisplay = 3;
@@ -136,12 +136,26 @@ function renderSingleBookmarkCard(b, lineconsToFA = {}) {
         tagsHtml += '</div>';
     }
 
-    // 判断是否为所有者（自己的书签）
-    const isOwner = b.is_owner === true;
-    const editIcon = isOwner ? '✏️' : 'ℹ️';
-    const clickAction = isOwner ? `openEditModal('${b.id}')` : `openEditModal('${b.id}')`; // 统一调用，内部处理
+    const isLoggedIn = window.isLoggedIn !== false;
+    const editIcon = (b.is_owner === true) ? '✏️' : 'ℹ️';
+
+    let statusBadge = '';
+    if (isLoggedIn) {
+        if (b.is_owner === true) {
+            if (b.status === 'pending') {
+                statusBadge = `<span class="badge-status badge-pending">${t('badge_pending')}</span>`;
+            } else if (b.status === 'approved') {
+                statusBadge = `<span class="badge-status badge-approved">${t('badge_approved')}</span>`;
+            }
+        } else {
+            if (b.status === 'approved') {
+                statusBadge = `<span class="badge-status badge-shared">${t('badge_shared')}</span>`;
+            }
+        }
+    }
 
     return `<div class="card" onclick="window.open('${fullUrl}', '_blank'); window.bookmarkApp?.incrementClick('${b.id}')">
+                ${statusBadge}
                 <button class="edit-btn" onclick="event.stopPropagation(); window.bookmarkApp?.openEditModal('${b.id}')">${editIcon}</button>
                 <div class="card-body">
                     <div class="card-icon" onclick="event.stopPropagation(); window.bookmarkApp?.changeIcon('${b.id}')">${iconHtml}</div>
@@ -2329,10 +2343,32 @@ class BookmarkApp {
     openBatchAddModal() {
         // 重置表单
         document.getElementById('batchUrlsInput').value = '';
+
+        // 重置标签输入框
+        const tagsInput = document.getElementById('batchTagsInput');
+        if (tagsInput) tagsInput.value = '';
+
+        // 重置分类下拉框
         this.batchUpdateCategorySelect();
+
+        // 重置进度条
         document.getElementById('batchProgressContainer').style.display = 'none';
         document.getElementById('batchProgressBar').style.width = '0%';
         document.getElementById('batchProgressText').innerText = '0 / 0';
+
+        // 重置私密复选框（默认勾选）
+        const privateCheckbox = document.getElementById('batchIsPrivateCheckbox');
+        if (privateCheckbox) privateCheckbox.checked = true;
+
+        // 控制私密容器显示（本地版隐藏）
+        const privateContainer = document.getElementById('batchPrivateCheckboxContainer');
+        if (privateContainer) {
+            if (window.isOnline === false) {
+                privateContainer.style.display = 'none';
+            } else {
+                privateContainer.style.display = '';
+            }
+        }
 
         const modal = new bootstrap.Modal(document.getElementById('batchAddModal'));
         modal.show();
@@ -2396,14 +2432,18 @@ class BookmarkApp {
     async batchSubmit() {
         const textarea = document.getElementById('batchUrlsInput');
         const select = document.getElementById('batchCategorySelect');
+        const tagsInput = document.getElementById('batchTagsInput');  // 获取标签输入框
         let category = select ? select.value : '';
         if (!category) category = '未分类';
 
-        // 读取私密复选框状态（本地版无该元素，默认为 true）
-        const privateCheckbox = document.getElementById('batchIsPrivateCheckbox');
-        const isPrivate = privateCheckbox ? privateCheckbox.checked : true;
-        const status = isPrivate ? 'private' : 'public';
+        // 读取用户输入的标签
+        let userTags = [];
+        const tagsRaw = tagsInput ? tagsInput.value.trim() : '';
+        if (tagsRaw) {
+            userTags = tagsRaw.split(/[\/,、；;，]+/).map(t => t.trim()).filter(t => t);
+        }
 
+        // 分割 URL
         const rawText = textarea.value;
         const urls = rawText.split(/[\n\r,;；|，]+/).map(s => s.trim()).filter(s => s);
         if (urls.length === 0) {
@@ -2411,6 +2451,7 @@ class BookmarkApp {
             return;
         }
 
+        // 去重 URL
         const uniqueUrls = [];
         const seen = new Set();
         for (const url of urls) {
@@ -2420,6 +2461,7 @@ class BookmarkApp {
             }
         }
 
+        // 显示进度条
         const container = document.getElementById('batchProgressContainer');
         const progressBar = document.getElementById('batchProgressBar');
         const progressText = document.getElementById('batchProgressText');
@@ -2432,6 +2474,10 @@ class BookmarkApp {
         submitBtn.disabled = true;
         submitBtn.innerHTML = t('batch_processing');
 
+        const privateCheckbox = document.getElementById('batchIsPrivateCheckbox');
+        const isPrivate = privateCheckbox ? privateCheckbox.checked : true;
+        const status = isPrivate ? 'private' : 'public';
+
         let successCount = 0;
         let failedCount = 0;
 
@@ -2440,27 +2486,44 @@ class BookmarkApp {
             let bookmarkData = {
                 url: url,
                 category: category,
-                status: status,   // 关键：添加 status 字段
+                status: status,
                 title: url,
                 description: '',
-                tags: [],
+                tags: [],      // 稍后合并
                 icon: ''
             };
 
+            // 抓取元数据（仅在线版本，本地版也能用）
             try {
                 const meta = await this.fetchMetadataForUrl(url);
                 if (meta) {
                     bookmarkData.title = meta.title || url;
                     bookmarkData.description = meta.description || '';
                     bookmarkData.icon = meta.icon || '';
-                    if (meta.keywords && meta.keywords.length) {
-                        bookmarkData.tags = meta.keywords;
+                    // 抓取到的标签（keywords）
+                    let fetchedTags = meta.keywords || [];
+                    // 合并用户标签和抓取标签（去重）
+                    const mergedTags = [...userTags, ...fetchedTags];
+                    const uniqueTags = [];
+                    const tagSet = new Set();
+                    for (const tag of mergedTags) {
+                        const trimmed = tag.trim();
+                        if (trimmed && !tagSet.has(trimmed)) {
+                            tagSet.add(trimmed);
+                            uniqueTags.push(trimmed);
+                        }
                     }
+                    bookmarkData.tags = uniqueTags;
+                } else {
+                    // 抓取失败，只用用户标签
+                    bookmarkData.tags = userTags.slice(); // 复制
                 }
             } catch (err) {
                 console.warn(`抓取失败，使用默认值: ${url}`, err);
+                bookmarkData.tags = userTags.slice();
             }
 
+            // 保存书签
             try {
                 await this.data.addBookmark(bookmarkData);
                 successCount++;
@@ -2469,6 +2532,7 @@ class BookmarkApp {
                 failedCount++;
             }
 
+            // 更新进度
             const processed = i + 1;
             const percent = Math.min((processed / uniqueUrls.length) * 100, 100);
             progressBar.style.width = `${percent}%`;
@@ -2482,18 +2546,12 @@ class BookmarkApp {
         // 强制显示 100%
         progressBar.style.width = '100%';
         progressText.innerText = `${uniqueUrls.length} / ${uniqueUrls.length}`;
+        await new Promise(r => setTimeout(r, 1000));
 
-        // 使用 requestAnimationFrame 等待 UI 渲染完成
-        await new Promise(resolve => requestAnimationFrame(resolve));
-        // 再额外等待 50ms 确保浏览器完成绘制
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // 恢复按钮状态
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalHtml;
         container.style.display = 'none';
 
-        // 显示结果（此时进度条已完整显示）
         if (failedCount === 0) {
             alert(t('batch_complete').replace('{count}', successCount));
         } else {
