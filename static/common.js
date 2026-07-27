@@ -119,7 +119,7 @@ function renderSingleBookmarkCard(b, lineconsToFA = {}) {
     const fullUrl = escapeHtml(b.url);
     const shortUrl = shortenUrl(b.url);
 
-    // 标签：最多3个
+    // 标签：最多显示3个，多余用 +N
     let tagsHtml = '';
     if (b.tags && b.tags.length) {
         const maxDisplay = 3;
@@ -136,12 +136,19 @@ function renderSingleBookmarkCard(b, lineconsToFA = {}) {
         tagsHtml += '</div>';
     }
 
-    const isLoggedIn = window.isLoggedIn !== false;
-    const editIcon = (b.is_owner === true) ? '✏️' : 'ℹ️';
+    // 判断是否为所有者（本地版强制为 true）
+    const isOnline = window.isOnline !== false;
+    let isOwner = b.is_owner === true;
+    if (!isOnline) {
+        isOwner = true;
+    }
+    const editIcon = isOwner ? '✏️' : 'ℹ️';
 
+    // 状态徽章（仅登录用户可见）
+    const isLoggedIn = window.isLoggedIn !== false;
     let statusBadge = '';
     if (isLoggedIn) {
-        if (b.is_owner === true) {
+        if (isOwner) {
             if (b.status === 'pending') {
                 statusBadge = `<span class="badge-status badge-pending">${t('badge_pending')}</span>`;
             } else if (b.status === 'approved') {
@@ -1143,8 +1150,13 @@ class BookmarkApp {
         const item = window.allData.bookmarks.find(b => String(b.id) === String(id));
         if (!item) return;
 
+        const isOnline = window.isOnline !== false; // true 为在线版，false 为本地版
+        let isOwner = item.is_owner === true;
+        if (!isOnline) {
+            isOwner = true; // 本地版所有书签都是自己的
+        }
+
         const isLoggedIn = window.isLoggedIn !== false;
-        const isOwner = item.is_owner === true;
 
         // DOM 元素
         const modalTitle = document.getElementById('modalTitle');
@@ -1162,6 +1174,7 @@ class BookmarkApp {
         const privateContainer = document.getElementById('privateCheckboxContainer');
         const isPrivateCheckbox = document.getElementById('isPrivateCheckbox');
         const convertBtn = document.getElementById('convertBtn');
+        const quickAddBtn = document.getElementById('quickAddCategoryBtn');
 
         // 清空旧绑定
         if (convertBtn) convertBtn.onclick = null;
@@ -1187,10 +1200,7 @@ class BookmarkApp {
             }
             if (privateContainer) privateContainer.style.display = 'none';
             if (isPrivateCheckbox) isPrivateCheckbox.disabled = true;
-            // 转换按钮仅在已登录时显示
-            if (convertBtn) {
-                convertBtn.style.display = isLoggedIn ? 'inline-block' : 'none';
-            }
+            if (convertBtn) convertBtn.style.display = isLoggedIn ? 'inline-block' : 'none';
         } else {
             // 自己的书签：隐藏共享人，显示私密，隐藏转换按钮
             if (sharedByContainer) sharedByContainer.style.display = 'none';
@@ -1202,7 +1212,7 @@ class BookmarkApp {
             if (convertBtn) convertBtn.style.display = 'none';
         }
 
-        // 设置表单可编辑性
+        // ========== 设置表单可编辑性 ==========
         if (!isLoggedIn || !isOwner) {
             // 未登录或查看他人：只读
             titleInput.readOnly = true;
@@ -1213,6 +1223,13 @@ class BookmarkApp {
             if (submitBtn) submitBtn.style.display = 'none';
             if (cancelBtn) cancelBtn.innerText = t('close');
             if (isPrivateCheckbox) isPrivateCheckbox.disabled = true;
+
+            // 新增分类按钮置灰
+            if (quickAddBtn) {
+                quickAddBtn.disabled = true;
+                quickAddBtn.style.opacity = '0.6';
+                quickAddBtn.style.cursor = 'not-allowed';
+            }
         } else {
             // 自己的书签且已登录：可编辑
             titleInput.readOnly = false;
@@ -1226,9 +1243,16 @@ class BookmarkApp {
             if (submitBtn) submitBtn.style.display = 'block';
             if (cancelBtn) cancelBtn.innerText = t('cancel_btn');
             if (isPrivateCheckbox) isPrivateCheckbox.disabled = false;
+
+            // 恢复新增分类按钮
+            if (quickAddBtn) {
+                quickAddBtn.disabled = false;
+                quickAddBtn.style.opacity = '';
+                quickAddBtn.style.cursor = '';
+            }
         }
 
-        // 转换按钮事件（仅在已登录时有效）
+        // ========== 转换按钮事件 ==========
         if (convertBtn) {
             convertBtn.onclick = async () => {
                 if (!isLoggedIn) {
@@ -2250,29 +2274,37 @@ class BookmarkApp {
             return;
         }
 
-        // 查找书签
         const bookmark = window.allData.bookmarks.find(b => String(b.id) === String(id));
         if (!bookmark) {
             alert(t('bookmark_not_found'));
             return;
         }
 
-        // 检查是否为所有者（如果不是所有者，不能修改）
         if (!bookmark.is_owner) {
             alert(t('no_permission_to_change_icon'));
             return;
         }
 
-        const newIcon = prompt(t('change_icon_prompt'));
-        if (newIcon === null) return; // 用户取消
+        let currentIcon = bookmark.icon || '';
+        // 如果是本地路径，补全域名
+        let displayIcon = currentIcon;
+        if (currentIcon.startsWith('/static/')) {
+            const origin = window.location.origin;
+            displayIcon = origin + currentIcon;
+        }
 
-        // 如果用户输入为空，则清除图标
-        const iconValue = newIcon.trim() || '';
+        const newIcon = prompt(t('change_icon_prompt'), displayIcon);
+        if (newIcon === null) return;
+
+        let iconValue = newIcon.trim();
+        // 如果用户未修改（即与显示的完整路径相同），则恢复为相对路径
+        if (displayIcon === iconValue && currentIcon.startsWith('/static/')) {
+            iconValue = currentIcon; // 保持相对路径，避免重复下载
+        }
 
         try {
             await this.data.updateBookmark(id, { icon: iconValue });
             await this.loadData();
-            // 刷新当前视图
             if (this.activeCategoryKey) {
                 this.refreshBookmarks(this.activeCategoryKey);
             } else {

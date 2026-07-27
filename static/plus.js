@@ -403,22 +403,29 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
                 const data = await res.json();
                 if (res.ok && data.success) {
-                    // 登录成功
                     window.isLoggedIn = true;
                     const loginModal = bootstrap.Modal.getInstance(document.getElementById('loginModal'));
                     loginModal.hide();
-                    await window.bookmarkApp.loadData();
-                    if (window.bookmarkApp.activeCategoryKey) {
-                        window.bookmarkApp.refreshBookmarks(window.bookmarkApp.activeCategoryKey);
-                    } else {
-                        window.bookmarkApp.refreshBookmarks('__recommend__');
+
+                    // === 修复：同步共享状态 ===
+                    if (window.bookmarkApp) {
+                        window.bookmarkApp.shareEnabled = localStorage.getItem('share_enabled') === 'true';
+                        const toggleText = document.getElementById('shareToggleText');
+                        if (toggleText) {
+                            toggleText.innerText = window.bookmarkApp.shareEnabled ? t('share_disable') : t('share_enable');
+                        }
+                        await window.bookmarkApp.loadData();
+                        if (window.bookmarkApp.activeCategoryKey) {
+                            window.bookmarkApp.refreshBookmarks(window.bookmarkApp.activeCategoryKey);
+                        } else {
+                            window.bookmarkApp.refreshBookmarks(null);
+                        }
                     }
+
                     await updateUserStatusButton();
                 } else {
-                    // 登录失败：显示错误信息
                     errorDiv.innerText = data.message || t('login_failed');
                     errorDiv.style.display = 'block';
-                    console.log('登录失败，返回数据:', data);
                 }
             } catch (err) {
                 console.error(err);

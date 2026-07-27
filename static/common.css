@@ -1041,25 +1041,26 @@ kbd {
     right: 0;
     font-size: 0.65rem;
     padding: 4px 4px 4px 4px;
-    border: 1px solid #eef2f6;   /* 与卡片边框颜色一致 */
+    border: 1px solid rgba(226, 232, 240, 0.2);  /* 更淡边框 */
     border-right: none;          /* 无右边框 */
     border-top: none;            /* 无上边框 */
     border-bottom-left-radius: 12px; /* 左下圆角 */
     background: transparent;
-    color: #1e293b;              /* 深色文字 */
+    color: rgba(180, 190, 200, 0.7);  /* 浅灰半透明 */
     font-weight: 500;
     z-index: 5;
     pointer-events: none;
     line-height: 1.2;
 }
 
-/* 不同状态文字颜色可微调，但保持统一 */
-.badge-pending {
-    color: #d97706;              /* 橙色文字 */
-}
-.badge-approved {
-    color: #059669;              /* 绿色文字 */
-}
+.badge-pending,
+.badge-approved,
 .badge-shared {
-    color: #2563eb;              /* 蓝色文字 */
+    color: rgba(180, 190, 200, 0.7);
+    border-color: rgba(226, 232, 240, 1);
+}
+
+/* 如果需要给"审核中"稍微强调一点，可单独调深一点点 */
+.badge-pending {
+    color: rgba(200, 170, 140, 0.5);  /* 很淡的橙灰色 */
 }
