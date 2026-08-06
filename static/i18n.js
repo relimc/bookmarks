@@ -265,6 +265,85 @@ const i18n = {
         'badge_pending': '审核中',
         'badge_approved': '共享中',
         'badge_shared': '共享中',
+
+        // 关于本站
+        'about_site': '关于本站',
+        'download_extension': '下载插件',
+        'privacy_policy': '隐私政策',
+        'disclaimer': '免责声明',
+        'extension_only_for_plus': '插件仅适用于增强版，请访问 https://navplus.toadlive.top 使用。',
+
+        'privacy_policy_text': `
+        <h4>隐私政策</h4>
+        <p>最后更新日期：2026年8月</p>
+        <p>本隐私政策说明了「我的书签」（以下简称“本网站”）如何收集、使用和保护您的个人信息。请在使用本网站前仔细阅读。</p>
+
+        <h5>1. 信息收集</h5>
+        <ul>
+            <li><strong>注册信息</strong>：当您注册账号时，我们会收集您的用户名和邮箱地址，用于创建和管理您的账号。</li>
+            <li><strong>书签数据</strong>：您添加、编辑或删除的书签信息（包括标题、URL、描述、标签、分类、公开/私密状态）会被存储在服务器上，以便您在不同设备间同步。</li>
+            <li><strong>使用数据</strong>：我们可能会自动收集您与网站的交互信息（如页面访问、点击行为），以优化服务体验，但这些数据不会用于识别您的个人身份。</li>
+        </ul>
+
+        <h5>2. 信息使用</h5>
+        <ul>
+            <li>提供书签管理核心功能（存储、分类、搜索、共享）。</li>
+            <li>根据您的偏好显示内容（如语言、排序）。</li>
+            <li>审核公开书签内容，确保符合社区规范。</li>
+            <li>发送必要的服务通知（如审核结果、安全提醒）。</li>
+        </ul>
+
+        <h5>3. 信息共享</h5>
+        <p>我们不会将您的个人信息出售或出租给第三方。以下情况除外：</p>
+        <ul>
+            <li>您主动公开书签（他人可查看该书签的标题、URL、描述和标签，但不会看到您的邮箱或其他个人信息）。</li>
+            <li>法律法规要求或政府机关依法要求提供。</li>
+            <li>为保护本网站及其用户的权益，如防止欺诈或安全威胁。</li>
+        </ul>
+
+        <h5>4. 数据安全</h5>
+        <p>我们采用合理的技术措施（如加密传输、访问控制）保护您的数据，但请注意，互联网传输并非绝对安全，请妥善保管您的密码，避免使用弱密码或重复使用其他网站的密码。</p>
+
+        <h5>5. 用户权利</h5>
+        <ul>
+            <li>您有权随时查看、修改或删除您的书签数据。</li>
+            <li>您可以随时注销账号，届时您的所有书签数据将被永久删除（公开书签除外，因其已被他人收藏）。</li>
+            <li>如您对数据处理有疑问，可联系我们：<a href="mailto:admin@toadlive.top">admin@toadlive.top</a></li>
+        </ul>
+
+        <h5>6. 第三方链接</h5>
+        <p>本网站可能包含指向第三方网站的链接，这些网站的隐私政策与本网站无关，请自行查阅其隐私政策。</p>
+
+        <h5>7. 政策变更</h5>
+        <p>我们可能会不定期更新本隐私政策，如有重大变更，我们将通过网站公告或邮件通知您。继续使用本网站即表示您同意更新后的政策。</p>
+        `,
+
+        'disclaimer_text': `
+        <h4>免责声明</h4>
+        <p>欢迎使用「我的书签」。本声明旨在明确本网站的责任范围，请您在使用前仔细阅读。</p>
+
+        <h5>1. 内容来源</h5>
+        <p>本网站上的书签信息（包括标题、描述、标签等）由用户自行添加，不代表本网站观点或认可其内容。我们不对书签所指向的外部网页的内容、准确性、合法性或安全性承担任何责任。</p>
+
+        <h5>2. 用户责任</h5>
+        <p>您应自行判断所收藏书签的内容是否适合您，并对使用这些书签所产生的任何后果负责。建议您访问外部链接时注意网络安全，防范恶意软件或钓鱼网站。</p>
+
+        <h5>3. 服务可用性</h5>
+        <p>我们尽力保障本网站的稳定运行，但不对服务的中断、延迟或故障承担责任。因网络、硬件、软件故障或不可抗力（如自然灾害、政府行为）导致的无法访问，我们不承担赔偿责任。</p>
+
+        <h5>4. 公开书签审核</h5>
+        <p>公开书签在发布前会经过管理员审核，但审核仅基于一般性内容规范（如无违法、色情、暴力等），不保证书签内容完全可靠或有用。您对基于公开书签作出的任何决策自行承担风险。</p>
+
+        <h5>5. 数据备份</h5>
+        <p>我们定期备份数据，但强烈建议您定期导出自己的书签数据，以防意外丢失。对于因服务器故障或不可抗力导致的数据丢失，我们将尽力恢复，但不承诺100%恢复。</p>
+
+        <h5>6. 法律遵守</h5>
+        <p>您应遵守中国及相关国家（地区）的法律法规，不得利用本网站传播违法或有害信息。如发现违规内容，请及时向我们举报。</p>
+
+        <h5>7. 联系我们</h5>
+        <p>如您对免责声明有任何疑问，请联系：<a href="mailto:admin@toadlive.top">admin@toadlive.top</a></p>
+        `
+
     },
     en: {
         'title_enhanced': 'My Bookmarks · Plus',
@@ -531,6 +610,84 @@ const i18n = {
         'badge_pending': 'Pending',
         'badge_approved': 'Shared',
         'badge_shared': 'Shared',
+
+        // About
+        'about_site': 'About',
+        'download_extension': 'Download Extension',
+        'privacy_policy': 'Privacy Policy',
+        'disclaimer': 'Disclaimer',
+        'extension_only_for_plus': 'The extension is only available for the Plus version. Please visit https://navplus.toadlive.top to use it.',
+
+        'privacy_policy_text': `
+        <h4>Privacy Policy</h4>
+        <p>Last Updated: August 2026</p>
+        <p>This Privacy Policy explains how "My Bookmarks" (hereinafter referred to as "the Site") collects, uses, and protects your personal information. Please read it carefully before using the Site.</p>
+
+        <h5>1. Information Collection</h5>
+        <ul>
+            <li><strong>Registration Information</strong>: When you register an account, we collect your username and email address to create and manage your account.</li>
+            <li><strong>Bookmark Data</strong>: Bookmarks you add, edit, or delete (including title, URL, description, tags, category, public/private status) are stored on the server to enable synchronization across devices.</li>
+            <li><strong>Usage Data</strong>: We may automatically collect information about your interactions with the Site (e.g., page views, clicks) to improve the service, but this data is not used to personally identify you.</li>
+        </ul>
+
+        <h5>2. Use of Information</h5>
+        <ul>
+            <li>Provide core bookmark management functions (storage, categorization, search, sharing).</li>
+            <li>Display content based on your preferences (e.g., language, sorting).</li>
+            <li>Review public bookmarks to ensure compliance with community guidelines.</li>
+            <li>Send necessary service notifications (e.g., review results, security alerts).</li>
+        </ul>
+
+        <h5>3. Information Sharing</h5>
+        <p>We do not sell or rent your personal information to third parties. Exceptions include:</p>
+        <ul>
+            <li>When you actively make a bookmark public (others can see the title, URL, description, and tags, but not your email or other personal info).</li>
+            <li>When required by law or by government authorities.</li>
+            <li>To protect the rights and interests of the Site and its users, such as preventing fraud or security threats.</li>
+        </ul>
+
+        <h5>4. Data Security</h5>
+        <p>We employ reasonable technical measures (e.g., encryption, access controls) to protect your data. However, please note that internet transmission is not completely secure. Please keep your password safe and avoid using weak passwords or reusing passwords from other sites.</p>
+
+        <h5>5. User Rights</h5>
+        <ul>
+            <li>You have the right to view, modify, or delete your bookmark data at any time.</li>
+            <li>You may cancel your account at any time; upon cancellation, all your bookmark data will be permanently deleted (except for public bookmarks that have been saved by others).</li>
+            <li>If you have any questions about data processing, please contact us at: <a href="mailto:admin@toadlive.top">admin@toadlive.top</a></li>
+        </ul>
+
+        <h5>6. Third-Party Links</h5>
+        <p>The Site may contain links to third-party websites. Their privacy policies are independent of this Site; please review them separately.</p>
+
+        <h5>7. Policy Changes</h5>
+        <p>We may update this Privacy Policy from time to time. In case of significant changes, we will notify you via website announcement or email. Continued use of the Site constitutes your acceptance of the updated policy.</p>
+        `,
+
+        'disclaimer_text': `
+        <h4>Disclaimer</h4>
+        <p>Welcome to "My Bookmarks". This disclaimer clarifies the scope of liability of the Site. Please read it carefully before using the Site.</p>
+
+        <h5>1. Content Sources</h5>
+        <p>Bookmark information (including titles, descriptions, tags, etc.) on this Site is added by users and does not represent the views or endorsement of the Site. We are not responsible for the content, accuracy, legality, or security of external web pages linked to by bookmarks.</p>
+
+        <h5>2. User Responsibility</h5>
+        <p>You should independently assess whether the content of bookmarks is suitable for you and bear any consequences arising from the use of these bookmarks. We recommend exercising caution when visiting external links and guarding against malware or phishing sites.</p>
+
+        <h5>3. Service Availability</h5>
+        <p>We strive to ensure the stable operation of the Site, but we are not liable for interruptions, delays, or failures in service. We are not liable for any inability to access the Site due to network, hardware, software failures, or force majeure (e.g., natural disasters, government actions).</p>
+
+        <h5>4. Public Bookmark Review</h5>
+        <p>Public bookmarks are reviewed by administrators before publication, but the review is only based on general content standards (e.g., no illegal, pornographic, or violent content) and does not guarantee that the bookmarks are entirely reliable or useful. Any decisions made based on public bookmarks are at your own risk.</p>
+
+        <h5>5. Data Backup</h5>
+        <p>We regularly back up data, but we strongly recommend that you regularly export your own bookmark data to prevent accidental loss. In the event of data loss due to server failure or force majeure, we will make every effort to recover, but we cannot guarantee 100% recovery.</p>
+
+        <h5>6. Legal Compliance</h5>
+        <p>You should comply with the laws and regulations of China and relevant countries/regions, and must not use the Site to disseminate illegal or harmful information. If you find any violations, please report them to us promptly.</p>
+
+        <h5>7. Contact Us</h5>
+        <p>If you have any questions about this disclaimer, please contact: <a href="mailto:admin@toadlive.top">admin@toadlive.top</a></p>
+        `
     }
 };
 

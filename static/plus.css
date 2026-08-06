@@ -8,7 +8,8 @@
 /* 显式显示需要的按钮（通过ID放行） */
 .header-right .import-btn#userStatusBtn,
 .header-right .import-btn#manageBookmarkDropdown,
-.header-right .import-btn#manageCategoriesDropdown {
+.header-right .import-btn#manageCategoriesDropdown,
+.header-right .import-btn#aboutDropdown {
     display: inline-flex !important;
 }
 

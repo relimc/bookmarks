@@ -1064,3 +1064,8 @@ kbd {
 .badge-pending {
     color: rgba(200, 170, 140, 0.5);  /* 很淡的橙灰色 */
 }
+
+#aboutDropdown + .dropdown-menu {
+    right: 0 !important;
+    left: auto !important;
+}

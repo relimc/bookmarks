@@ -11,7 +11,7 @@
         <button class="import-btn dropdown-toggle" type="button" id="manageBookmarkDropdown" data-bs-toggle="dropdown" aria-expanded="false">
             <i class="fas fa-bookmark"></i> <span data-i18n="manage_bookmarks">管理书签</span>
         </button>
-        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="manageBookmarkDropdown">
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="aboutDropdown" style="right: 0; left: auto;">
             <li><a class="dropdown-item" href="#" id="addBookmarkDropdownItem">➕ <span data-i18n="add_bookmark">新增书签</span></a></li>
             <li><a class="dropdown-item" href="#" id="batchAddBookmarkItem">➕ <span data-i18n="batch_add">批量新增</span></a></li>
             <li><a class="dropdown-item" href="#" id="importBookmarksDropdownItem">📥 <span data-i18n="import_bookmarks">导入书签</span></a></li>
@@ -27,9 +27,16 @@
             <li><a class="dropdown-item" href="#" id="listCategoriesDropdownItem">📋 <span data-i18n="category_list">分类列表</span></a></li>
         </ul>
     </div>
-    <a href="https://github.com/relimc/bookmarks" target="_blank" class="github-link">
-        <i class="fab fa-github"></i> GitHub
-    </a>
+    <div class="dropdown">
+        <button class="import-btn dropdown-toggle" type="button" id="aboutDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-info-circle"></i> <span data-i18n="about_site">关于本站</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="aboutDropdown">
+            <li><a class="dropdown-item" href="#" id="downloadExtensionItem">📥 <span data-i18n="download_extension">下载插件</span></a></li>
+            <li><a class="dropdown-item" href="#" id="privacyPolicyItem">🔒 <span data-i18n="privacy_policy">隐私政策</span></a></li>
+            <li><a class="dropdown-item" href="#" id="disclaimerItem">⚖️ <span data-i18n="disclaimer">免责声明</span></a></li>
+        </ul>
+    </div>
 {% endblock %}
 
 {% block bookmark_footer_left %}

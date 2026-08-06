@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>书签助手</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="popup-container">
+    <!-- 标题行：标题居左，按钮居右 -->
+    <div class="header-row">
+      <h3>🔖 我的书签</h3>
+      <div class="header-actions">
+        <button id="openFullPage" class="header-btn">打开导航</button>
+        <button id="settingsBtn" class="header-btn" title="设置后端地址">⚙️</button>
+      </div>
+    </div>
+
+    <div class="shortcut-hint">快捷键 Ctrl+Shift+F 打开搜索</div>
+    <input id="searchInput" type="text" placeholder="搜索书签..." />
+    <div id="loading" style="display:none;">搜索中...</div>
+    <ul id="resultList"></ul>
+    <div id="empty" style="display:none;">未找到相关书签</div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

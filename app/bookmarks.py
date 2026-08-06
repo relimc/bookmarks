@@ -580,3 +580,43 @@ def fetch_metadata():
         })
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@bp.route('/api/search', methods=['GET'])
+def search_bookmarks():
+    keyword = request.args.get('keyword', '').strip()
+    if not keyword:
+        return jsonify({'bookmarks': []})
+
+    # 未登录用户：仅搜索公开书签（status='approved'）
+    if not current_user.is_authenticated:
+        query = Bookmark.query.filter(
+            Bookmark.status == 'approved',
+            db.or_(
+                Bookmark.title.contains(keyword),
+                Bookmark.url.contains(keyword),
+                Bookmark.tags.contains(keyword)
+            )
+        )
+    else:
+        # 登录用户：搜索自己的书签（包括私密和公开）
+        query = Bookmark.query.filter(
+            Bookmark.user_id == current_user.id,
+            db.or_(
+                Bookmark.title.contains(keyword),
+                Bookmark.url.contains(keyword),
+                Bookmark.tags.contains(keyword)
+            )
+        )
+        # 如果开启共享，还需包含他人的公开书签（这里由前端控制 include_shared，但搜索接口为简单起见只搜自己的）
+        # 若需包含共享，可额外查询，但这里保持简单
+
+    bookmarks = query.limit(20).all()
+    result = [{
+        'id': b.id,
+        'title': b.title,
+        'url': b.url,
+        'category': b.category,
+        'tags': b.tags.split(',') if b.tags else []
+    } for b in bookmarks]
+    return jsonify({'bookmarks': result})

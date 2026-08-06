@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "我的书签助手",
+  "description": "快速收藏和访问书签",
+  "version": "1.0.0",
+  "permissions": ["contextMenus", "activeTab", "storage", "cookies", "notifications", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "commands": {
+    "add-bookmark": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+V"
+      },
+      "description": "添加当前页面到书签"
+    },
+    "open-search": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+F"
+      },
+      "description": "打开书签搜索弹窗"
+    }
+  },
+  "icons": {
+    "128": "icon-128.png"
+  }
+}

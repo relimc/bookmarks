@@ -1,0 +1,102 @@
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  width: 340px;
+  background: #fafafa;
+}
+.popup-container {
+  padding: 12px;
+}
+
+/* 标题行：flex 布局 */
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.header-row h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.header-actions {
+  display: flex;
+  gap: 6px;
+}
+.header-btn {
+  background: transparent;
+  border: none;
+  color: #2563eb;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+.header-btn:hover {
+  background: #eef2f6;
+}
+#settingsBtn {
+  font-size: 16px;
+  padding: 4px 6px;
+  color: #6b7280;
+}
+#settingsBtn:hover {
+  background: #eef2f6;
+}
+
+.shortcut-hint {
+  font-size: 12px;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  text-align: center;
+  border: 1px solid #e5e7eb;
+}
+
+input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+#loading {
+  color: #888;
+  padding: 8px 0;
+  text-align: center;
+}
+ul {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  max-height: 300px;
+  overflow-y: auto;
+}
+ul li {
+  padding: 6px 4px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+}
+ul li:hover {
+  background: #f0f0f0;
+}
+ul li .title {
+  display: block;
+  font-weight: 500;
+}
+ul li .url {
+  display: block;
+  font-size: 11px;
+  color: #888;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#empty {
+  color: #999;
+  padding: 8px 0;
+  text-align: center;
+}

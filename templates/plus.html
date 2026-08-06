@@ -35,9 +35,16 @@
             <li><a class="dropdown-item" href="#" id="listCategoriesDropdownItem">📋 <span data-i18n="category_list">分类列表</span></a></li>
         </ul>
     </div>
-    <a href="https://github.com/relimc/bookmarks" target="_blank" class="github-link">
-        <i class="fab fa-github"></i> GitHub
-    </a>
+    <div class="dropdown">
+        <button class="import-btn dropdown-toggle" type="button" id="aboutDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-info-circle"></i> <span data-i18n="about_site">关于本站</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="aboutDropdown" style="right: 0; left: auto;">
+            <li><a class="dropdown-item" href="#" id="downloadExtensionItem">📥 <span data-i18n="download_extension">下载插件</span></a></li>
+            <li><a class="dropdown-item" href="#" id="privacyPolicyItem">🔒 <span data-i18n="privacy_policy">隐私政策</span></a></li>
+            <li><a class="dropdown-item" href="#" id="disclaimerItem">⚖️ <span data-i18n="disclaimer">免责声明</span></a></li>
+        </ul>
+    </div>
 {% endblock %}
 
 {% block bookmark_footer_left %}
@@ -194,6 +201,24 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="close">知道了，继续使用</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 关于本站详情模态框 -->
+    <div class="modal fade" id="aboutModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="aboutModalTitle"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="aboutModalBody">
+                    <!-- 动态填充 -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="close">关闭</button>
                 </div>
             </div>
         </div>

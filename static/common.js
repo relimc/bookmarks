@@ -2606,3 +2606,50 @@ class BookmarkApp {
 
 // 导出（全局）
 window.BookmarkApp = BookmarkApp;
+
+// 在 DOMContentLoaded 或初始化函数中
+document.addEventListener('DOMContentLoaded', function() {
+    const downloadExtItem = document.getElementById('downloadExtensionItem');
+    const privacyItem = document.getElementById('privacyPolicyItem');
+    const disclaimerItem = document.getElementById('disclaimerItem');
+    const aboutModal = new bootstrap.Modal(document.getElementById('aboutModal'));
+    const aboutTitle = document.getElementById('aboutModalTitle');
+    const aboutBody = document.getElementById('aboutModalBody');
+
+    if (downloadExtItem) {
+        downloadExtItem.addEventListener('click', function(e) {
+            e.preventDefault();
+            // 判断是否为增强版（通过域名或全局变量）
+            const isPlus = window.location.hostname === 'navplus.toadlive.top' || window.isOnline === true;
+            if (!isPlus) {
+                alert(t('extension_only_for_plus'));
+                return;
+            }
+            // 触发下载
+            const link = document.createElement('a');
+            link.href = '/static/browser-extension.zip';
+            link.download = 'browser-extension.zip';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+    }
+
+    if (privacyItem) {
+        privacyItem.addEventListener('click', function(e) {
+            e.preventDefault();
+            aboutTitle.innerText = t('privacy_policy');
+            aboutBody.innerHTML = t('privacy_policy_text');
+            aboutModal.show();
+        });
+    }
+
+    if (disclaimerItem) {
+        disclaimerItem.addEventListener('click', function(e) {
+            e.preventDefault();
+            aboutTitle.innerText = t('disclaimer');
+            aboutBody.innerHTML = t('disclaimer_text');
+            aboutModal.show();
+        });
+    }
+});
